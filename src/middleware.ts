@@ -275,6 +275,18 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
   const isUnauthenticated = context.role === "unauthenticated";
 
+  // Auth pages: redirect to /dashboard if already authenticated as owner
+  if (
+    (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")) &&
+    context.role === "owner" &&
+    context.userId
+  ) {
+    const dashboardUrl = new URL("/dashboard", request.url);
+    const response = NextResponse.redirect(dashboardUrl);
+    addSecurityHeaders(response);
+    return response;
+  }
+
   // Dashboard routes: redirect to /sign-in if unauthenticated
   if (isDashboardPath(pathname) && isUnauthenticated) {
     const signInUrl = new URL("/sign-in", request.url);
