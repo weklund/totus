@@ -1,0 +1,201 @@
+{
+  "groupId": "user-management",
+  "testedAt": "2026-03-09T12:55:00.000Z",
+  "credentials": {
+    "account": "usermgmt1@example.com / usermgmt_del@example.com",
+    "namespace": "usermgmt1, usermgmt_del"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-API-026",
+      "title": "User profile returns data",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Sign up usermgmt1@example.com via POST /api/auth/sign-up",
+          "expected": "User created with session cookie",
+          "observed": "User created, userId=mock_usermgmt1_example_com, session cookie set"
+        },
+        {
+          "action": "GET /api/user/profile with session cookie",
+          "expected": "200 with id, display_name, created_at, stats",
+          "observed": "200 with id=mock_usermgmt1_example_com, display_name='User Mgmt Test 1', created_at, stats={total_data_points:0, active_shares:0, connections:0}"
+        },
+        {
+          "action": "GET /api/user/profile without auth",
+          "expected": "401 UNAUTHORIZED",
+          "observed": "401 with error code UNAUTHORIZED"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "POST /api/auth/sign-up -> 200, GET /api/user/profile -> 200 (authenticated), GET /api/user/profile -> 401 (unauthenticated)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-027",
+      "title": "User profile update works",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "PATCH /api/user/profile with {display_name: 'Updated User Mgmt 1'}",
+          "expected": "200 with updated display_name",
+          "observed": "200 with display_name='Updated User Mgmt 1', updated_at set"
+        },
+        {
+          "action": "GET /api/user/profile to verify persistence",
+          "expected": "display_name shows 'Updated User Mgmt 1'",
+          "observed": "display_name='Updated User Mgmt 1' confirmed via GET"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "PATCH /api/user/profile -> 200, GET /api/user/profile -> 200 (verified updated name)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-028",
+      "title": "Data export triggers",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/user/export with session cookie",
+          "expected": "200 with export data including profile, connections, health_data, shares, audit_log",
+          "observed": "200 with data.export containing exported_at, profile (id, display_name, created_at, updated_at), connections (empty []), health_data (empty []), shares (empty []), audit_log (1 entry for account.settings)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "POST /api/user/export -> 200 with full JSON export"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-029",
+      "title": "Account deletion requires confirmation",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Sign up usermgmt_del@example.com, set up data (connection, health data, share)",
+          "expected": "User with data ready for deletion test",
+          "observed": "User created with 1 connection, 56 health data points, 1 share grant, 3 audit events"
+        },
+        {
+          "action": "DELETE /api/user/account with empty body {}",
+          "expected": "400 validation error",
+          "observed": "400 VALIDATION_ERROR: confirmation field required"
+        },
+        {
+          "action": "DELETE /api/user/account with {confirmation: 'wrong string'}",
+          "expected": "400 validation error",
+          "observed": "400 VALIDATION_ERROR: Confirmation must be exactly 'DELETE MY ACCOUNT'"
+        },
+        {
+          "action": "DELETE /api/user/account with {confirmation: 'DELETE'}",
+          "expected": "400 validation error",
+          "observed": "400 VALIDATION_ERROR: Confirmation must be exactly 'DELETE MY ACCOUNT'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "DELETE /api/user/account -> 400 (empty body), DELETE /api/user/account -> 400 (wrong string), DELETE /api/user/account -> 400 (partial match)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-030",
+      "title": "Account deletion cascades",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "DELETE /api/user/account with {confirmation: 'DELETE MY ACCOUNT'}",
+          "expected": "200 with {data: {deleted: true}}",
+          "observed": "200 with {data: {deleted: true}}"
+        },
+        {
+          "action": "Verify user record deleted via SQL",
+          "expected": "users count = 0",
+          "observed": "users count = 0"
+        },
+        {
+          "action": "Verify connections deleted via SQL",
+          "expected": "connections count = 0",
+          "observed": "oura_connections count = 0"
+        },
+        {
+          "action": "Verify health data deleted via SQL",
+          "expected": "health_data count = 0",
+          "observed": "health_data count = 0"
+        },
+        {
+          "action": "Verify share grants deleted via SQL",
+          "expected": "share_grants count = 0",
+          "observed": "share_grants count = 0"
+        },
+        {
+          "action": "Verify audit events persist via SQL",
+          "expected": "audit_events count > 0 (events persist after user deletion)",
+          "observed": "audit_events count = 4 (3 pre-existing + 1 account.deleted event)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "DELETE /api/user/account -> 200",
+        "database": "Pre-deletion: users=1, connections=1, health_data=56, share_grants=1, audit_events=3. Post-deletion: users=0, connections=0, health_data=0, share_grants=0, audit_events=4"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-005",
+      "title": "User deletion removes all data",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Set up deletable user with connection, health data, share grant, and audit events",
+          "expected": "User has data in all tables",
+          "observed": "Pre-deletion counts: users=1, connections=1, health_data=56, share_grants=1, audit_events=3"
+        },
+        {
+          "action": "Delete user via DELETE /api/user/account",
+          "expected": "200 deleted: true",
+          "observed": "200 {data: {deleted: true}}"
+        },
+        {
+          "action": "Query database for all user-associated data",
+          "expected": "User, connections, health_data, share_grants all gone; audit_events persist",
+          "observed": "users=0, connections=0, health_data=0, share_grants=0, audit_events=4 (persisted with owner_id)"
+        },
+        {
+          "action": "Attempt to access profile with deleted user's session",
+          "expected": "Error (user no longer exists)",
+          "observed": "404 NOT_FOUND: User not found"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "DELETE /api/user/account -> 200, GET /api/user/profile (post-delete) -> 404",
+        "database": "Full cascade verified: user record, oura_connections, health_data (56 rows), share_grants all removed. audit_events increased from 3 to 4 (account.deleted event persists). Audit events reference owner_id without FK cascade."
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "POST /api/shares requires a 'label' field that wasn't mentioned in the task's API format documentation",
+      "resolved": true,
+      "resolution": "Added label field to share creation request body",
+      "affectedAssertions": ["VAL-API-030", "VAL-CROSS-005"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 6 assertions: 6 passed, 0 failed. User profile GET returns correct data with stats. Profile PATCH updates display_name and persists. Data export returns full JSON with profile, connections, health_data, shares, audit_log. Account deletion correctly requires exact 'DELETE MY ACCOUNT' confirmation (rejects empty, wrong, partial). Deletion cascades properly: user, connections (1), health_data (56 rows), share_grants (1) all removed; audit_events (4) persist with owner_id."
+}

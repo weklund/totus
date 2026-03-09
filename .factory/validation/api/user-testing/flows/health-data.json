@@ -1,0 +1,142 @@
+{
+  "groupId": "health-data",
+  "testedAt": "2026-03-09T12:54:00.000Z",
+  "credentials": {
+    "account": "hdata1@example.com",
+    "namespace": "mock_hdata1_example_com"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-API-008",
+      "title": "Health data query returns metrics",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Sign up as hdata1@example.com and create Oura connection",
+          "expected": "User created with session cookie",
+          "observed": "User mock_hdata1_example_com created, session cookie stored in /tmp/cookies_hdata1.txt"
+        },
+        {
+          "action": "Trigger sync via POST /api/connections/:id/sync",
+          "expected": "Health data generated",
+          "observed": "56 data points synced across 8 metrics for 7 days"
+        },
+        {
+          "action": "GET /api/health-data?metrics=sleep_score&start=2026-03-01&end=2026-03-09",
+          "expected": "200 with decrypted health data points",
+          "observed": "200 with 7 sleep_score data points (dates 2026-03-03 to 2026-03-09), values are numeric (e.g., 77, 88, 65, 91, 66, 90, 65), unit is 'score'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "GET /api/health-data?metrics=sleep_score&start=2026-03-01&end=2026-03-09 -> 200, response contains data.metrics.sleep_score.points array with 7 items, each having date, value (numeric), and source fields"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-009",
+      "title": "Health data query supports resolution",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/health-data?metrics=sleep_score&start=2026-03-01&end=2026-03-09&resolution=weekly",
+          "expected": "Fewer data points with averaged values",
+          "observed": "200 with 2 data points (weekly averages): 2026-03-02 value=79.5, 2026-03-09 value=65. Original had 7 daily points, weekly aggregation reduced to 2 weekly buckets with averaged values."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "GET /api/health-data?metrics=sleep_score&start=2026-03-01&end=2026-03-09&resolution=weekly -> 200, response.data.query.resolution='weekly', 2 points vs 7 daily points"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-010",
+      "title": "Health data types lists available metrics",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/health-data/types",
+          "expected": "200 with metric types the user has data for, with date ranges and counts",
+          "observed": "200 with 8 metric types: active_calories, deep_sleep, hrv, readiness_score, rhr, sleep_duration, sleep_score, steps. Each includes label, unit, category, source, date_range (start/end), and count (7 each)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "GET /api/health-data/types -> 200, response.data.types has 8 items, each with metric_type, label, unit, category, source, date_range.start, date_range.end, count"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-011",
+      "title": "Health data query requires auth",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/health-data?metrics=sleep_score&start=2026-03-01&end=2026-03-09 (no cookie)",
+          "expected": "401 UNAUTHORIZED",
+          "observed": "401 with {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required\"}}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "GET /api/health-data (no auth) -> 401, error.code='UNAUTHORIZED', error.message='Authentication is required'"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-036",
+      "title": "Health data empty result for no data in range",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/health-data?metrics=sleep_score&start=2020-01-01&end=2020-01-31 (range with no data)",
+          "expected": "200 with empty points array (not 404)",
+          "observed": "200 with data.metrics.sleep_score.points=[] (empty array), metrics_returned=[] (empty). Status is 200, not 404."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "GET /api/health-data?metrics=sleep_score&start=2020-01-01&end=2020-01-31 -> 200, response.data.metrics.sleep_score.points is empty array"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-004",
+      "title": "Data encryption roundtrip",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/health-data?metrics=sleep_score&start=2026-03-03&end=2026-03-05 (API decrypted)",
+          "expected": "Meaningful numeric values returned",
+          "observed": "API returns numeric values: 77 (2026-03-03), 88 (2026-03-04), 65 (2026-03-05)"
+        },
+        {
+          "action": "Query raw DB: SELECT id, metric_type, date, octet_length(value_encrypted), encode(substring(...)) FROM health_data",
+          "expected": "Encrypted BYTEA values in database",
+          "observed": "DB shows encrypted binary data: each value_encrypted is 95 bytes, prefixed with 0x01 (version byte) followed by encrypted DEK + nonce + ciphertext + auth tag. Example: id=9483, enc_size=95, enc_prefix=010000003c0f35ad0fdc"
+        },
+        {
+          "action": "Compare API vs DB",
+          "expected": "API returns readable numbers, DB has binary blobs",
+          "observed": "Confirmed: API returns human-readable numbers (77, 88, 65) while DB stores 95-byte encrypted BYTEA values with wire format version byte 0x01. Encryption roundtrip verified."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "GET /api/health-data -> 200 with decrypted numeric values. DB query confirms value_encrypted is BYTEA with 95 bytes each, starting with version byte 0x01 per envelope encryption wire format."
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 6 assertions: all 6 passed. Health data API correctly returns decrypted metrics (VAL-API-008), supports weekly resolution aggregation (VAL-API-009), lists available metric types with metadata (VAL-API-010), rejects unauthenticated requests with 401 (VAL-API-011), returns 200 with empty points for date ranges with no data (VAL-API-036), and demonstrates proper encryption roundtrip with encrypted BYTEA in DB and decrypted numeric values via API (VAL-CROSS-004)."
+}

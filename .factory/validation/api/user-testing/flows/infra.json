@@ -1,0 +1,144 @@
+{
+  "groupId": "infra",
+  "testedAt": "2026-03-09T12:54:00Z",
+  "credentials": {
+    "account": "infra1@example.com",
+    "namespace": "infra1"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-API-001",
+      "title": "Health check returns OK",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/health",
+          "expected": "200 with database and service status",
+          "observed": "200 OK with body {\"status\":\"ok\",\"database\":\"connected\"}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "GET /api/health -> 200, body: {\"status\":\"ok\",\"database\":\"connected\"}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-002",
+      "title": "Health check detects database down",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run Vitest test for health route DB-down scenario",
+          "expected": "503 with {\"status\":\"error\",\"database\":\"disconnected\"}",
+          "observed": "Vitest test passes: mocks DB connection failure, GET /api/health returns 503 with {\"status\":\"error\",\"database\":\"disconnected\"}"
+        },
+        {
+          "action": "Verify route handler catch block returns 503",
+          "expected": "Code handles DB errors with try/catch returning 503",
+          "observed": "Source code in src/app/api/health/route.ts catches pool.query errors and returns NextResponse.json({status:'error',database:'disconnected'}, {status:503})"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "Vitest: GET /api/health with mocked DB failure -> 503. All 3 health tests pass (src/app/api/health/__tests__/route.test.ts)"
+      },
+      "issues": "Cannot test via live curl without stopping the PostgreSQL container (which would affect other subagents). Verified via Vitest unit test that mocks the DB module to reject with 'Connection refused' — the handler correctly returns 503 with {status:'error', database:'disconnected'}."
+    },
+    {
+      "id": "VAL-API-031",
+      "title": "Standard error envelope format",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/shares without auth (401 test)",
+          "expected": "{ error: { code, message } }",
+          "observed": "401: {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required\"}}"
+        },
+        {
+          "action": "POST /api/viewer/validate with invalid token (404 test)",
+          "expected": "{ error: { code, message } }",
+          "observed": "404: {\"error\":{\"code\":\"SHARE_NOT_FOUND\",\"message\":\"This share link is not available. It may have expired, been revoked, or never existed.\"}}"
+        },
+        {
+          "action": "POST /api/viewer/validate with empty body (400 test)",
+          "expected": "{ error: { code, message, details } }",
+          "observed": "400: {\"error\":{\"code\":\"VALIDATION_ERROR\",\"message\":\"Invalid request body\",\"details\":[{\"field\":\"token\",\"message\":\"Invalid input: expected string, received undefined\"}]}}"
+        },
+        {
+          "action": "Exceed rate limit on /api/viewer/validate (429 test)",
+          "expected": "{ error: { code, message } }",
+          "observed": "429: {\"error\":{\"code\":\"RATE_LIMITED\",\"message\":\"Too many requests. Please try again later.\"}}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "401 /api/shares -> {error:{code,message}}, 404 /api/viewer/validate -> {error:{code,message}}, 400 /api/viewer/validate -> {error:{code,message,details}}, 429 /api/viewer/validate -> {error:{code,message}}. All 4 error codes tested follow the standard envelope { error: { code, message, details? } }."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-032",
+      "title": "Rate limiting enforced",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Send 12 rapid POST requests to /api/viewer/validate",
+          "expected": "429 after 10 requests with X-RateLimit-* headers",
+          "observed": "Request 9 returned 429 (some earlier requests from previous tests consumed the window). Response included X-RateLimit-Limit: 10, X-RateLimit-Remaining: 0, X-RateLimit-Reset: 1773060899"
+        },
+        {
+          "action": "Verify 429 response body follows error envelope",
+          "expected": "{ error: { code: 'RATE_LIMITED', message: '...' } }",
+          "observed": "{\"error\":{\"code\":\"RATE_LIMITED\",\"message\":\"Too many requests. Please try again later.\"}}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "POST /api/viewer/validate -> 429 after exceeding 10 req/min. Headers: X-RateLimit-Limit: 10, X-RateLimit-Remaining: 0, X-RateLimit-Reset: 1773060899. Body: {\"error\":{\"code\":\"RATE_LIMITED\",\"message\":\"Too many requests. Please try again later.\"}}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-033",
+      "title": "Security headers present",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/health and inspect response headers",
+          "expected": "X-Content-Type-Options, X-Frame-Options, Strict-Transport-Security, Content-Security-Policy present",
+          "observed": "All 4 security headers present: x-content-type-options: nosniff, x-frame-options: DENY, strict-transport-security: max-age=63072000; includeSubDomains; preload, content-security-policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;"
+        },
+        {
+          "action": "GET /api/shares (401) and inspect response headers",
+          "expected": "Security headers present even on error responses",
+          "observed": "All 4 security headers present on 401 response"
+        },
+        {
+          "action": "POST /api/viewer/validate (404) and inspect response headers",
+          "expected": "Security headers present on 404 responses",
+          "observed": "All 4 security headers present on 404 response"
+        },
+        {
+          "action": "POST /api/viewer/validate (429) and inspect response headers",
+          "expected": "Security headers present on rate-limited responses",
+          "observed": "All 4 security headers present on 429 response"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "Verified on 200 (health), 401 (shares), 404 (viewer/validate), 429 (rate limited) responses. All include: X-Content-Type-Options: nosniff, X-Frame-Options: DENY, Strict-Transport-Security: max-age=63072000; includeSubDomains; preload, Content-Security-Policy: default-src 'self'; ..."
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed. VAL-API-001 (health OK) confirmed via live curl. VAL-API-002 (DB down) confirmed via Vitest mock test since stopping DB would affect other subagents. VAL-API-031 (error envelope) confirmed across 4 HTTP status codes (400, 401, 404, 429). VAL-API-032 (rate limiting) confirmed on /api/viewer/validate with 10 req/min limit and X-RateLimit-* headers. VAL-API-033 (security headers) confirmed across all response types including success and error."
+}

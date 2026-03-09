@@ -240,6 +240,109 @@ cd /Users/weseklund/Projects/totus && bun run test -- --reporter=verbose src/lib
 - `src/app/api/auth/__tests__/sign-up.test.ts` — sign-up API route
 - `src/app/api/auth/__tests__/sign-out.test.ts` — sign-out API route
 
+## Flow Validator Guidance: API Endpoints
+
+**Surface:** All API route handlers — validated via curl against the live Next.js dev server at http://localhost:3000.
+
+**Testing tool:** curl for all API endpoint testing. No agent-browser or tuistory needed.
+
+**Pre-started services:**
+
+- PostgreSQL: Running on port 5432 via Docker Compose (user: totus, password: totus, db: totus)
+- Next.js dev server: Running on port 3000
+- Schema pushed, seed data applied (7 users, 832 health data rows, 5 share grants, 162 audit events)
+
+**Project root:** `/Users/weseklund/Projects/totus`
+
+**API Base URL:** `http://localhost:3000`
+
+**Available API endpoints:**
+
+- GET /api/health — Health check (no auth required)
+- GET /api/connections — List connections (owner auth)
+- GET /api/connections/oura/authorize — Start OAuth flow (owner auth)
+- GET /api/connections/oura/callback — OAuth callback (owner auth via state JWT)
+- DELETE /api/connections/:id — Disconnect (owner auth)
+- POST /api/connections/:id/sync — Trigger sync (owner auth)
+- GET /api/health-data — Query health data (owner or viewer auth)
+- GET /api/health-data/types — List metric types with data (owner or viewer auth)
+- POST /api/shares — Create share (owner auth)
+- GET /api/shares — List shares (owner auth)
+- GET /api/shares/:id — Share detail (owner auth)
+- PATCH /api/shares/:id — Revoke share (owner auth)
+- DELETE /api/shares/:id — Delete share (owner auth)
+- POST /api/viewer/validate — Validate share token (no auth required)
+- GET /api/viewer/data — Get viewer data (viewer auth via totus_viewer cookie)
+- GET /api/audit — Audit log (owner auth)
+- GET /api/user/profile — User profile (owner auth)
+- PATCH /api/user/profile — Update profile (owner auth)
+- POST /api/user/export — Export data (owner auth)
+- DELETE /api/user/account — Delete account (owner auth)
+
+**How to authenticate as an owner:**
+
+```bash
+# Sign up a new user (creates user + sets __session cookie)
+curl -s -c /tmp/cookies_groupN.txt http://localhost:3000/api/auth/sign-up \
+  -H "Content-Type: application/json" \
+  -d '{"email":"groupN@example.com","password":"testpass123","displayName":"Group N User"}'
+
+# Sign in existing user
+curl -s -c /tmp/cookies_groupN.txt http://localhost:3000/api/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{"email":"groupN@example.com","password":"testpass123"}'
+
+# All subsequent requests use: -b /tmp/cookies_groupN.txt
+```
+
+**How to get a viewer session:**
+
+```bash
+# 1. Create a share grant (as owner)
+SHARE_RESP=$(curl -s -b /tmp/cookies_groupN.txt http://localhost:3000/api/shares \
+  -H "Content-Type: application/json" \
+  -d '{"allowed_metrics":["sleep_score","hrv","rhr"],"data_start":"2025-12-01","data_end":"2026-06-01","expires_in_days":7}')
+TOKEN=$(echo "$SHARE_RESP" | jq -r '.data.token')
+
+# 2. Validate the token (sets totus_viewer cookie)
+curl -s -c /tmp/viewer_cookies_groupN.txt http://localhost:3000/api/viewer/validate \
+  -H "Content-Type: application/json" \
+  -d "{\"token\":\"$TOKEN\"}"
+
+# 3. Use viewer cookie for subsequent requests
+curl -s -b /tmp/viewer_cookies_groupN.txt http://localhost:3000/api/viewer/data
+```
+
+**Seed user with health data:**
+
+- User ID: `user_test_001`, display name: "Test User"
+- To sign in as seed user: Use email `test@totus.dev` / password `password123` (if registered) OR create a new user and use the health data API which requires its own health data
+- 8 metric types × ~104 data points each = 832 total health data rows
+- Metrics: sleep_score, hrv, rhr, steps, readiness_score, sleep_duration, deep_sleep, active_calories
+
+**Isolation rules:**
+
+- Each subagent uses its own unique email namespace (e.g., `group1_user1@example.com`)
+- Each subagent uses its own cookie jar files (e.g., `/tmp/cookies_group1.txt`, `/tmp/viewer_cookies_group1.txt`)
+- Share grants created by one subagent should not interfere with another
+- Do NOT modify source code — only run curl commands, SQL queries, and read files
+- Do NOT stop or restart services
+- Do NOT re-run db:seed — data is already seeded
+- Clean up any test data you create at the end of your test (if practical)
+
+**How to query the database directly:**
+
+```bash
+cd /Users/weseklund/Projects/totus && docker compose exec -T db psql -U totus -d totus -c "YOUR SQL HERE"
+```
+
+**Response formats:**
+
+- Success: `{ data: {...} }` or `{ data: [...], pagination: { next_cursor, has_more } }`
+- Error: `{ error: { code: "ERROR_CODE", message: "...", details?: [...] } }`
+- Rate limit: 429 with headers `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
+- Security headers: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Strict-Transport-Security`, `Content-Security-Policy`
+
 ---
 
 ## Validated Findings

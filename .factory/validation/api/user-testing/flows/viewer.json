@@ -1,0 +1,242 @@
+{
+  "groupId": "viewer",
+  "testedAt": "2026-03-09T12:57:00.000Z",
+  "credentials": {
+    "account": "viewer_owner1@example.com",
+    "namespace": "viewer_owner1"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-API-019",
+      "title": "Viewer validate with valid token",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Sign up as viewer_owner1@example.com",
+          "expected": "User created with session cookie",
+          "observed": "User created, userId=mock_viewer_owner1_example_com, __session cookie set"
+        },
+        {
+          "action": "Create Oura connection and sync data",
+          "expected": "Connection established, health data synced",
+          "observed": "Connection created, synced 56 data points across 8 metrics"
+        },
+        {
+          "action": "POST /api/shares to create share grant",
+          "expected": "201 with token and share details",
+          "observed": "Share created with id=57d17604-2708-4000-8c7b-39551c5a391f, token returned"
+        },
+        {
+          "action": "POST /api/viewer/validate with valid token",
+          "expected": "200 with grant details and Set-Cookie header",
+          "observed": "200 returned with valid=true, owner_display_name, label, allowed_metrics, data_start, data_end, expires_at. Set-Cookie: totus_viewer=<JWT>; Path=/; HttpOnly; SameSite=lax"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "POST /api/viewer/validate -> 200, Set-Cookie: totus_viewer=<JWT>; Path=/; Expires=Mon, 09 Mar 2026 16:55:29 GMT; Max-Age=14400; HttpOnly; SameSite=lax"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-020",
+      "title": "Viewer validate with invalid token",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/viewer/validate with token 'totally-nonexistent-token-xyz'",
+          "expected": "404 SHARE_NOT_FOUND",
+          "observed": "404 with error code SHARE_NOT_FOUND and message 'This share link is not available. It may have expired, been revoked, or never existed.'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "POST /api/viewer/validate -> 404 {\"error\":{\"code\":\"SHARE_NOT_FOUND\",\"message\":\"This share link is not available. It may have expired, been revoked, or never existed.\"}}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-021",
+      "title": "Viewer data returns scoped data",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/viewer/data?metrics=sleep_score,hrv,rhr&start=2026-03-01&end=2026-03-09 with totus_viewer cookie",
+          "expected": "200 with only granted metrics (sleep_score, hrv, rhr) in granted date range",
+          "observed": "200 returned with all 3 metrics containing data points from 2026-03-03 to 2026-03-09. scope.allowed_metrics=[sleep_score,hrv,rhr], scope.data_start=2025-12-01, scope.data_end=2026-06-01"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "GET /api/viewer/data?metrics=sleep_score,hrv,rhr&start=2026-03-01&end=2026-03-09 -> 200 with metrics_returned=[sleep_score,hrv,rhr]"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-022",
+      "title": "Viewer data rejects out-of-scope metrics",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/viewer/data?metrics=sleep_score,steps,readiness_score&start=2026-03-01&end=2026-03-09 with viewer cookie (grant allows sleep_score,hrv,rhr)",
+          "expected": "200 with only sleep_score returned (narrowing, not error)",
+          "observed": "200 returned with only sleep_score data. query.metrics_requested=[sleep_score,steps,readiness_score], query.metrics_returned=[sleep_score]. Out-of-scope metrics (steps, readiness_score) silently dropped."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "GET /api/viewer/data?metrics=sleep_score,steps,readiness_score&start=2026-03-01&end=2026-03-09 -> 200 with metrics_returned=[sleep_score] only"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-040",
+      "title": "Viewer data rejects empty metric intersection",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/viewer/data?metrics=steps,readiness_score,active_calories&start=2026-03-01&end=2026-03-09 with viewer cookie (grant allows sleep_score,hrv,rhr — zero overlap)",
+          "expected": "403 with error",
+          "observed": "403 Forbidden with error code FORBIDDEN and message 'No permitted metrics in this request'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "GET /api/viewer/data?metrics=steps,readiness_score,active_calories&start=2026-03-01&end=2026-03-09 -> 403 {\"error\":{\"code\":\"FORBIDDEN\",\"message\":\"No permitted metrics in this request\"}}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-006",
+      "title": "Viewer token validation issues JWT cookie",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/viewer/validate with valid token, inspect Set-Cookie header",
+          "expected": "200 with totus_viewer httpOnly cookie containing a JWT",
+          "observed": "Set-Cookie header: totus_viewer=<JWT>; Path=/; Expires=Mon, 09 Mar 2026 16:55:29 GMT; Max-Age=14400; HttpOnly; SameSite=lax. Cookie value is a valid JWT with 3 dot-separated parts."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "POST /api/viewer/validate -> 200, Set-Cookie: totus_viewer=eyJhbGciOiJIUzI1NiJ9...; Path=/; HttpOnly; SameSite=lax"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-007",
+      "title": "Expired viewer tokens rejected",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Insert share_grant with grant_expires = NOW() - 1 day via SQL",
+          "expected": "Row inserted with past expiry",
+          "observed": "INSERT 0 1 — expired grant created for token 'expired-viewer-test-token-xyz'"
+        },
+        {
+          "action": "POST /api/viewer/validate with token 'expired-viewer-test-token-xyz'",
+          "expected": "Error response (403 or 404)",
+          "observed": "404 Not Found with error code SHARE_NOT_FOUND and message 'The share link was not found or is no longer available'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "POST /api/viewer/validate -> 404 {\"error\":{\"code\":\"SHARE_NOT_FOUND\",\"message\":\"The share link was not found or is no longer available\"}}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-008",
+      "title": "Revoked share grants reject viewer",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/shares to create a new share grant",
+          "expected": "Share created with token",
+          "observed": "Share created with id=162075b9-a555-454e-8fec-38073281f56a"
+        },
+        {
+          "action": "PATCH /api/shares/:id with action 'revoke'",
+          "expected": "Share revoked",
+          "observed": "200 with status=revoked, revoked_at=2026-03-09T12:56:39.006Z"
+        },
+        {
+          "action": "POST /api/viewer/validate with the revoked share's token",
+          "expected": "Error response",
+          "observed": "404 Not Found with error code SHARE_NOT_FOUND and message 'The share link was not found or is no longer available'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "PATCH /api/shares/162075b9... -> 200 (revoked). POST /api/viewer/validate -> 404 SHARE_NOT_FOUND"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-017",
+      "title": "Viewer JWT has correct TTL",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Decode JWT from 7-day expiry grant (token validated at iat=1773060929)",
+          "expected": "exp = min(grant_expires, now + 4h) = now + 4h = iat + 14400",
+          "observed": "exp=1773075329, iat=1773060929, diff=14400 seconds = exactly 4 hours. Correct: grant expires in 7 days, so min(7d, 4h) = 4h."
+        },
+        {
+          "action": "Insert grant with 1-hour expiry via SQL, validate, decode JWT",
+          "expected": "exp = min(grant_expires, now + 4h) = now + ~1h",
+          "observed": "exp=1773064611, iat=1773061022, diff=3589 seconds ≈ 0.997 hours. Correct: grant expires in ~1h, so min(1h, 4h) = ~1h."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "Case 1: JWT TTL = 14400s (4h) for 7-day grant. Case 2: JWT TTL = 3589s (~1h) for 1-hour grant. Both follow min(grant_expires, now+4h)."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-018",
+      "title": "Viewer JWT contains required claims",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Decode JWT payload from totus_viewer cookie",
+          "expected": "JWT contains grantId, ownerId, allowedMetrics, dataStart, dataEnd, iat, exp, and jti",
+          "observed": "All required claims present: grantId='57d17604-2708-4000-8c7b-39551c5a391f', ownerId='mock_viewer_owner1_example_com', allowedMetrics=['sleep_score','hrv','rhr'], dataStart='2025-12-01', dataEnd='2026-06-01', iat=1773060929, exp=1773075329, jti='c28421cbccffafd946c06209b150adee'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API test)",
+        "network": "JWT payload: {grantId, ownerId, allowedMetrics, dataStart, dataEnd, iat, exp, jti} — all 8 required claims present"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Rate limiting on /api/viewer/validate (10 requests per window) triggered during testing after several setup API calls. Required a 65-second wait before the validate endpoint could be called.",
+      "resolved": true,
+      "resolution": "Waited for rate limit window to reset (65 seconds) before retrying validation call",
+      "affectedAssertions": ["VAL-API-019", "VAL-AUTH-006"]
+    },
+    {
+      "description": "GET /api/viewer/data requires 'metrics' and 'start' query parameters — not immediately obvious from the assertion description which says 'with valid viewer session'",
+      "resolved": true,
+      "resolution": "Added required query params (metrics, start, end) to the viewer data request",
+      "affectedAssertions": ["VAL-API-021"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 10 assertions: all 10 passed. Viewer validate correctly returns 200 with grant details and sets httpOnly totus_viewer JWT cookie (VAL-API-019, VAL-AUTH-006). Invalid tokens return 404 SHARE_NOT_FOUND (VAL-API-020). Viewer data returns only granted metrics within scope (VAL-API-021), narrows out-of-scope metric requests (VAL-API-022), and returns 403 for empty intersection (VAL-API-040). Expired tokens (VAL-AUTH-007) and revoked grants (VAL-AUTH-008) correctly return errors. JWT TTL follows min(grant_expires, now+4h) (VAL-AUTH-017) and contains all 8 required claims (VAL-AUTH-018)."
+}

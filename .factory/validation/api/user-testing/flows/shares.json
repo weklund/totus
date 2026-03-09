@@ -1,0 +1,236 @@
+{
+  "groupId": "shares",
+  "testedAt": "2026-03-09T12:55:30.000Z",
+  "credentials": {
+    "account": "share1@example.com",
+    "namespace": "share1"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-API-012",
+      "title": "Share creation returns token",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/shares with valid body (label, allowed_metrics, data_start, data_end, expires_in_days, note)",
+          "expected": "201 with token in response",
+          "observed": "201 returned with full share data"
+        },
+        {
+          "action": "Verify response contains id, token, share_url, label, allowed_metrics, data_start, data_end, grant_expires, note, created_at",
+          "expected": "All fields present",
+          "observed": "All 10 required fields present in response"
+        },
+        {
+          "action": "Verify token is 43 chars (base64url-encoded 32 bytes)",
+          "expected": "Token length 43",
+          "observed": "Token length 43"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": "POST /api/shares -> 201, response: {data: {id: '3abf7c68-...', token: 'ZsQUZbfw...', share_url: 'http://localhost:3000/v/ZsQUZbfw...', label: 'Test Share 1', allowed_metrics: ['sleep_score','hrv','rhr'], data_start: '2025-12-01', data_end: '2026-06-01', grant_expires: '2026-03-16T12:54:21.083Z', note: 'Test note for share', created_at: '2026-03-09T12:54:21.086Z'}}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-013",
+      "title": "Share list with pagination",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/shares?limit=2",
+          "expected": "200 with 2 items and pagination with next_cursor and has_more=true",
+          "observed": "200 returned with 2 shares, next_cursor present, has_more=true"
+        },
+        {
+          "action": "GET /api/shares?limit=2&cursor=<next_cursor>",
+          "expected": "200 with remaining items and has_more=false",
+          "observed": "200 returned with 2 remaining shares, next_cursor=null, has_more=false"
+        },
+        {
+          "action": "GET /api/shares?status=active",
+          "expected": "200 with only active shares",
+          "observed": "200 with active shares filtered correctly"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": "GET /api/shares?limit=2 -> 200 (2 items, has_more=true, next_cursor=eyJj...); GET /api/shares?limit=2&cursor=eyJj... -> 200 (2 items, has_more=false, next_cursor=null); GET /api/shares?status=active -> 200 (filtered list)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-014",
+      "title": "Share detail includes view stats",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/shares/:id for a known share",
+          "expected": "200 with view_count and last_viewed_at fields",
+          "observed": "200 returned with view_count=0 and last_viewed_at=null (no views yet)"
+        },
+        {
+          "action": "Verify response contains all detail fields including recent_views array",
+          "expected": "Fields present: id, label, allowed_metrics, data_start, data_end, grant_expires, status, revoked_at, note, view_count, last_viewed_at, created_at, recent_views",
+          "observed": "All fields present including view_count and last_viewed_at"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": "GET /api/shares/3abf7c68-... -> 200, response includes view_count: 0, last_viewed_at: null, recent_views: [], status: 'active'"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-015",
+      "title": "Share revocation works",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "PATCH /api/shares/:id with {\"action\":\"revoke\"}",
+          "expected": "200 with status='revoked' and revoked_at set",
+          "observed": "200 returned with status='revoked', revoked_at='2026-03-09T12:55:05.336Z'"
+        },
+        {
+          "action": "POST /api/viewer/validate with the revoked share's token",
+          "expected": "Error response (403 or 404)",
+          "observed": "404 with code 'SHARE_NOT_FOUND' and message 'The share link was not found or is no longer available'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": "PATCH /api/shares/0b312cb7-... -> 200 {data: {id, status: 'revoked', revoked_at: '2026-03-09T12:55:05.336Z'}}; POST /api/viewer/validate -> 404 {error: {code: 'SHARE_NOT_FOUND'}}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-016",
+      "title": "Share hard delete works",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "DELETE /api/shares/:id for a revoked share",
+          "expected": "200 with deleted=true",
+          "observed": "200 returned with {data: {id, deleted: true}}"
+        },
+        {
+          "action": "GET /api/shares/:id for the deleted share",
+          "expected": "404",
+          "observed": "404 with code 'NOT_FOUND', message 'Share grant not found'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": "DELETE /api/shares/0b312cb7-... -> 200 {data: {id, deleted: true}}; GET /api/shares/0b312cb7-... -> 404 {error: {code: 'NOT_FOUND'}}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-017",
+      "title": "Share creation validates input",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/shares with empty allowed_metrics array",
+          "expected": "400 with validation error",
+          "observed": "400 with VALIDATION_ERROR: 'At least one metric is required'"
+        },
+        {
+          "action": "POST /api/shares with data_end before data_start",
+          "expected": "400 with validation error",
+          "observed": "400 with VALIDATION_ERROR: 'data_end must be on or after data_start'"
+        },
+        {
+          "action": "POST /api/shares with invalid date format",
+          "expected": "400 with validation error",
+          "observed": "400 with VALIDATION_ERROR: 'Must be YYYY-MM-DD format'"
+        },
+        {
+          "action": "POST /api/shares with empty body {}",
+          "expected": "400 with multiple validation errors",
+          "observed": "400 with VALIDATION_ERROR and 5 field-level detail errors (label, allowed_metrics, data_start, data_end, expires_in_days)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": "POST /api/shares (empty metrics) -> 400; POST /api/shares (bad dates) -> 400; POST /api/shares (invalid format) -> 400; POST /api/shares ({}) -> 400. All return {error: {code: 'VALIDATION_ERROR', message, details: [...]}}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-018",
+      "title": "Active share limit enforced",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create shares until reaching 50 active (started at 3, created 47 more)",
+          "expected": "All 50 creations succeed with 201",
+          "observed": "All 50 shares created successfully"
+        },
+        {
+          "action": "Verify active count is 50",
+          "expected": "GET /api/shares?status=active returns 50 items",
+          "observed": "50 active shares confirmed"
+        },
+        {
+          "action": "POST /api/shares to create 51st share",
+          "expected": "409 CONFLICT",
+          "observed": "409 with code 'MAX_SHARES_EXCEEDED', message 'Maximum 50 active shares allowed. Revoke or wait for existing shares to expire.'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": "POST /api/shares (51st) -> 409 {error: {code: 'MAX_SHARES_EXCEEDED', message: 'Maximum 50 active shares allowed. Revoke or wait for existing shares to expire.'}}. Source confirms MAX_ACTIVE_SHARES = 50 in src/app/api/shares/route.ts"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-037",
+      "title": "Share hard-delete rejects active shares",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "DELETE /api/shares/:id for an active (not revoked/expired) share",
+          "expected": "403 error",
+          "observed": "403 with code 'SHARE_STILL_ACTIVE', message 'Cannot delete an active share. Revoke it first.'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": "DELETE /api/shares/0b312cb7-... (active) -> 403 {error: {code: 'SHARE_STILL_ACTIVE', message: 'Cannot delete an active share. Revoke it first.'}}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-API-038",
+      "title": "Share revocation is idempotent",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "PATCH /api/shares/:id with {\"action\":\"revoke\"} on already-revoked share",
+          "expected": "200 (not error)",
+          "observed": "200 returned with {data: {id, status: 'revoked', revoked_at: '2026-03-09T12:55:05.336Z'}} — same revoked_at timestamp preserved"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": "PATCH /api/shares/0b312cb7-... (already revoked) -> 200 {data: {id, status: 'revoked', revoked_at: '2026-03-09T12:55:05.336Z'}}"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 9 assertions: 9 passed, 0 failed. All share CRUD operations, validation, pagination, revocation (including idempotency), hard delete (with active share rejection), and the 50-share active limit enforcement work correctly."
+}
