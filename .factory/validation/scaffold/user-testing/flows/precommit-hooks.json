@@ -1,0 +1,13 @@
+{
+  "flowId": "precommit-hooks",
+  "assertions": {
+    "VAL-SCAF-009": {
+      "status": "fail",
+      "evidence": "Husky v9 is installed (devDependencies: husky ^9.1.7) with prepare script configured. lint-staged v15 is installed (devDependencies: lint-staged ^15.5.0). .husky/pre-commit runs 'bunx lint-staged'. lint-staged config in package.json runs 'eslint --fix' and 'prettier --write' on *.{ts,tsx} files, and 'prettier --write' on *.{json,md,css} files. However, typecheck (tsc --noEmit) is NOT included in the lint-staged configuration or the pre-commit hook pipeline.",
+      "details": "The pre-commit hook only runs eslint --fix and prettier --write via lint-staged. Typecheck (tsc --noEmit) is missing from the pre-commit pipeline. The assertion requires BOTH lint AND typecheck to run on staged files during commit. A 'typecheck' script exists in package.json ('tsc --noEmit') but it is not wired into the pre-commit flow. To fix: add 'tsc --noEmit' to the lint-staged config for *.{ts,tsx} files, or add a separate typecheck step in .husky/pre-commit."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["Read", "Glob"]
+}
