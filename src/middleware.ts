@@ -35,6 +35,7 @@ const PUBLIC_PATHS = [
   "/api/auth/session",
   "/api/viewer/validate",
   "/api/health",
+  "/api/connections/oura/callback",
 ];
 
 /**
