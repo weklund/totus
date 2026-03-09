@@ -1,7 +1,7 @@
 {
   "milestone": "api",
-  "round": 1,
-  "status": "fail",
+  "round": 2,
+  "status": "pass",
   "validatorsRun": {
     "test": { "passed": true, "command": "bun run test", "exitCode": 0 },
     "typecheck": {
@@ -12,106 +12,108 @@
     "lint": { "passed": true, "command": "bun run lint", "exitCode": 0 }
   },
   "reviewsSummary": {
-    "total": 6,
-    "passed": 5,
-    "failed": 1,
-    "failedFeatures": ["api-viewer"]
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
   },
-  "blockingIssues": [
-    {
-      "featureId": "api-viewer",
-      "severity": "blocking",
-      "description": "POST /api/viewer/validate returns distinct error codes (403 SHARE_EXPIRED, 403 SHARE_REVOKED) instead of the LLD-mandated generic 404 SHARE_NOT_FOUND. LLD Section 7.5.1 explicitly warns: 'do NOT reveal whether the token was revoked vs. expired vs. never existed. This prevents information leakage.' An attacker probing tokens can distinguish expired/revoked (once-valid) tokens from never-existed tokens, enabling token enumeration. Fix: change both expired and revoked branches to return 404 SHARE_NOT_FOUND with a generic message, and update the corresponding tests."
-    }
-  ],
+  "blockingIssues": [],
   "nonBlockingIssues": [
     {
+      "featureId": "fix-viewer-validate-info-leak",
+      "severity": "non_blocking",
+      "description": "The error message text for the not-found case differs from the expired/revoked cases ('This share link is not available. It may have expired, been revoked, or never existed.' vs 'The share link was not found or is no longer available.'). Although status code (404) and error code (SHARE_NOT_FOUND) are identical, differing message text could theoretically allow message-level fingerprinting. Out of scope for this fix but should be unified."
+    },
+    {
       "featureId": "api-shares",
       "severity": "non_blocking",
-      "description": "GET /api/shares/:id recent_views query doesn't filter by eventType — will return non-view audit events (share.created, etc.) once viewer endpoints emit share.viewed/data.viewed events."
+      "description": "GET /api/shares/:id recent_views query doesn't filter by eventType — will return non-view audit events (share.created, etc.) once viewer endpoints emit share.viewed/data.viewed events.",
+      "fromRound": 1
     },
     {
       "featureId": "api-health-data",
       "severity": "non_blocking",
-      "description": "Significant code duplication between health-data/route.ts and viewer/data/route.ts (DataPoint interface, aggregation helpers, query/decrypt/response logic). Should extract to shared module."
+      "description": "Significant code duplication between health-data/route.ts and viewer/data/route.ts (DataPoint interface, aggregation helpers, query/decrypt/response logic). Should extract to shared module.",
+      "fromRound": 1
     },
     {
       "featureId": "api-health-data",
       "severity": "non_blocking",
-      "description": "Types endpoint response field names deviate from LLD (date_range.start/end vs earliest_date/latest_date, count vs data_point_count). Matches feature description but not LLD."
+      "description": "Types endpoint response field names deviate from LLD (date_range.start/end vs earliest_date/latest_date, count vs data_point_count). Matches feature description but not LLD.",
+      "fromRound": 1
     },
     {
       "featureId": "api-connections",
       "severity": "non_blocking",
-      "description": "TOCTOU race condition in sync endpoint: sync_status check and status update are not atomic. Two concurrent POST /sync requests could both start syncing. Fix: use UPDATE...WHERE sync_status != 'syncing' RETURNING."
+      "description": "TOCTOU race condition in sync endpoint: sync_status check and status update are not atomic. Two concurrent POST /sync requests could both start syncing. Fix: use UPDATE...WHERE sync_status != 'syncing' RETURNING.",
+      "fromRound": 1
     },
     {
       "featureId": "api-connections",
       "severity": "non_blocking",
-      "description": "OAuth state JWT signing reuses MOCK_AUTH_SECRET env var. When real Clerk is swapped in, MOCK_AUTH_SECRET may not exist."
+      "description": "OAuth state JWT signing reuses MOCK_AUTH_SECRET env var. When real Clerk is swapped in, MOCK_AUTH_SECRET may not exist.",
+      "fromRound": 1
     },
     {
       "featureId": "api-shares",
       "severity": "non_blocking",
-      "description": "Date validation uses regex only — '2026-13-45' would pass. Consider adding a refinement to verify parsed date validity."
+      "description": "Date validation uses regex only — '2026-13-45' would pass. Consider adding a refinement to verify parsed date validity.",
+      "fromRound": 1
     },
     {
       "featureId": "api-shares",
       "severity": "non_blocking",
-      "description": "computeStatus() helper duplicated across shares/route.ts and shares/[id]/route.ts. Should extract to shared module."
+      "description": "computeStatus() helper duplicated across shares/route.ts and shares/[id]/route.ts. Should extract to shared module.",
+      "fromRound": 1
     },
     {
       "featureId": "api-infrastructure",
       "severity": "non_blocking",
-      "description": "Pagination API surface deviates from spec (paginateResults instead of paginatedQuery). Works correctly but consumers must implement cursor-based WHERE clauses independently."
+      "description": "Pagination API surface deviates from spec (paginateResults instead of paginatedQuery). Works correctly but consumers must implement cursor-based WHERE clauses independently.",
+      "fromRound": 1
     },
     {
       "featureId": "api-viewer",
       "severity": "non_blocking",
-      "description": "GET /api/viewer/data supports owner role access which is unnecessary — duplicates GET /api/health-data for owners. LLD specifies viewer-only for this endpoint."
+      "description": "GET /api/viewer/data supports owner role access which is unnecessary — duplicates GET /api/health-data for owners. LLD specifies viewer-only for this endpoint.",
+      "fromRound": 1
     }
   ],
-  "appliedUpdates": [
-    {
-      "target": "library",
-      "description": "Documented fire-and-forget audit event pattern and the critical exception for DELETE /api/user/account (must await before cascade)",
-      "sourceFeature": "api-user-audit, api-connections, api-shares, api-viewer"
-    },
-    {
-      "target": "library",
-      "description": "Documented rate limiter configuration (3 pre-configured instances: general 100/min, validation 10/min, healthData 30/min) with usage pattern",
-      "sourceFeature": "api-infrastructure"
-    }
-  ],
+  "appliedUpdates": [],
   "suggestedGuidanceUpdates": [
     {
       "target": "AGENTS.md",
       "suggestion": "Add precedence rule: 'When the feature description conflicts with the LLD (e.g., different error codes, field names), the LLD is the canonical source. Feature descriptions may simplify or paraphrase the LLD but must not override deliberate design decisions. If a conflict is unclear, prefer the LLD.' This was the root cause of the api-viewer blocking issue.",
       "evidence": "api-viewer worker encountered a conflict between the feature description (403 SHARE_EXPIRED/SHARE_REVOKED) and LLD Section 7.5.1 (generic 404 SHARE_NOT_FOUND). Worker chose the feature description. Also affected api-health-data (types endpoint field names) and api-shares (missing LLD validations).",
-      "isSystemic": true
+      "isSystemic": true,
+      "fromRound": 1
     },
     {
       "target": "AGENTS.md",
       "suggestion": "Add convention: 'Audit events use fire-and-forget pattern: db.insert().catch(). Exception: DELETE /api/user/account must await audit insert before cascade deletion.' This pattern is used in every API route but was undocumented, causing repeated observations across all 6 reviews.",
       "evidence": "Found in api-connections (3 occurrences), api-shares (3 occurrences), api-viewer (2 occurrences), api-health-data (1 occurrence), api-user-audit (2 occurrences, with correct await for account deletion). All 6 reviewers flagged this as undocumented.",
-      "isSystemic": true
+      "isSystemic": true,
+      "fromRound": 1
     },
     {
       "target": "skills",
       "suggestion": "Consider relaxing the strict TDD (red-green-refactor) requirement in the backend-worker skill, or at least acknowledge that workers may write implementation and tests in close succession rather than strict test-first. Every API milestone worker deviated from this and all reported followedProcedure: true. The current prescription doesn't match reality and causes misleading handoff reports.",
       "evidence": "All 6 api milestone workers deviated from skill step 3 ('Write tests FIRST (red)...Run bun run test — tests should FAIL'). Workers wrote implementation then tests, or interleaved them. Quality was not affected — all features have comprehensive test coverage (483 tests total, 24-43 tests per feature).",
-      "isSystemic": true
+      "isSystemic": true,
+      "fromRound": 1
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add note about aligning feature verificationSteps with skill procedure steps. The fix-viewer-validate-info-leak worker didn't run 'bun run lint' because it wasn't in the feature's verificationSteps, even though the skill procedure requires it.",
+      "evidence": "fix-viewer-validate-info-leak handoff shows only 'bun run test' and 'bun run typecheck' in verification but not 'bun run lint'. Lint was verified at the scrutiny level and passed.",
+      "isSystemic": false
     }
   ],
   "rejectedObservations": [
     {
-      "observation": "Empty .factory/library/ directory (from api-user-audit review)",
-      "reason": "Already resolved — library has architecture.md, environment.md, and user-testing.md. The reviewer's glob may have run before checking, or the files were added by prior milestone validators."
-    },
-    {
-      "observation": "Duplicated getStateSecret() function across authorize and callback routes (from api-connections review)",
-      "reason": "Duplicate code within a single feature's files is a code quality observation, not a shared state issue. The reviewer already captured it as a non-blocking code issue."
+      "observation": "Worker did not run lint during fix-viewer-validate-info-leak",
+      "reason": "The feature's verificationSteps only listed test and typecheck. The worker followed the feature spec. Lint was verified at the scrutiny validator level and passed. Captured as a suggested guidance update instead."
     }
   ],
-  "previousRound": null
+  "previousRound": ".factory/validation/api/scrutiny/synthesis-round1.json"
 }

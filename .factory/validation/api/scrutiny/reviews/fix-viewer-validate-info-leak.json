@@ -1,0 +1,28 @@
+{
+  "featureId": "fix-viewer-validate-info-leak",
+  "reviewedAt": "2026-03-09T12:50:00.000Z",
+  "commitId": "871358cab0ad7a8240a9cab4d5e950c56325655b",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix correctly addresses the blocking security issue from the api-viewer review. Both the expired and revoked branches in POST /api/viewer/validate now return 404 with SHARE_NOT_FOUND instead of distinct 403 SHARE_EXPIRED/SHARE_REVOKED codes. The corresponding tests were updated to expect 404 SHARE_NOT_FOUND. The JSDoc comment was also updated to reflect the security rationale. The diff is minimal and focused (2 files, 32 lines changed). All 483 tests pass and typecheck is clean. One minor observation: the error message text for the not-found case differs from the expired/revoked cases, which could theoretically allow message-level fingerprinting, but this is outside the fix's defined scope.",
+    "issues": [
+      {
+        "file": "src/app/api/viewer/validate/route.ts",
+        "line": 75,
+        "severity": "non_blocking",
+        "description": "The not-found branch (line 75) uses message 'This share link is not available. It may have expired, been revoked, or never existed.' while the expired (line 93) and revoked (line 85) branches use 'The share link was not found or is no longer available'. Although the status code (404) and error code (SHARE_NOT_FOUND) are identical across all three, the differing message text still allows an attacker to distinguish non-existent tokens from expired/revoked ones. The feature description only scoped changes to the expired/revoked branches, so this is out-of-scope for this fix, but ideally all three messages should be unified for true indistinguishability."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The worker did not run 'bun run lint' as part of verification, which is step 5 in the backend-worker skill procedure. The feature's verificationSteps only listed 'bun run test' and 'bun run typecheck', so the worker followed the feature spec. However, the skill procedure mandates lint as well. This is a minor gap — the skill and feature verification steps should be aligned.",
+      "evidence": "Handoff verification.commandsRun includes 'bun run test' and 'bun run typecheck' but not 'bun run lint'. Skill SKILL.md step 5 says 'bun run lint — zero warnings'. Feature verificationSteps only lists test and typecheck."
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/api/scrutiny/reviews/api-viewer.json",
+  "summary": "The fix adequately addresses the blocking issue from the api-viewer review. The expired and revoked token branches now return 404 SHARE_NOT_FOUND instead of distinct 403 codes, preventing information leakage via status/error code enumeration. Tests are updated and pass. The only non-blocking observation is that the error message text for the not-found case differs from the expired/revoked cases (different strings, same code/status), which was outside the fix's defined scope. Passing."
+}
