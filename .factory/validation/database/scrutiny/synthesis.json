@@ -1,0 +1,75 @@
+{
+  "milestone": "database",
+  "round": 1,
+  "status": "fail",
+  "validatorsRun": {
+    "test": { "passed": true, "command": "bun run test", "exitCode": 0 },
+    "typecheck": {
+      "passed": true,
+      "command": "bun run typecheck",
+      "exitCode": 0
+    },
+    "lint": { "passed": true, "command": "bun run lint", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 4,
+    "passed": 3,
+    "failed": 1,
+    "failedFeatures": ["db-schema-migrations"]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "db-schema-migrations",
+      "severity": "blocking",
+      "description": "The 'packageManager' field in package.json still references yarn@1.22.22 but was explicitly required to be removed (feature requirement A). The worker claimed it was done in the commit message and handoff, but the diff shows it was never removed. The field is at line 66 of package.json."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add convention: Workers must verify all supplemental/config changes (non-code requirements like removing fields from package.json, renaming env vars, etc.) with an explicit diff check before claiming completion. The commit diff should be reviewed against the feature description to confirm all items are addressed.",
+      "evidence": "db-schema-migrations worker claimed to have removed 'packageManager' from package.json in commit message and handoff, but the actual diff shows it was never removed. This was caught only during scrutiny review.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add convention: LLD Appendix 19.1 is the canonical source of truth for metric type IDs (not feature descriptions which may use alternate names). Category names follow the implementation convention: Sleep, Cardio, Activity, Body (not the LLD's Cardiovascular/Readiness separate categories).",
+      "evidence": "db-encryption-metrics worker had to reconcile feature description metric names (total_sleep_duration, deep_sleep_duration) with LLD canonical IDs (sleep_duration, deep_sleep). The LLD Appendix 19.1 was correctly chosen as authoritative. Category names were simplified from LLD (Cardiovascular→Cardio, Readiness merged into Activity) per the feature description.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add testing convention: To clean up audit_events rows in tests, workers must disable the immutability trigger first: `ALTER TABLE audit_events DISABLE TRIGGER trg_audit_events_immutable`, then delete, then re-enable. This pattern is required because the trigger prevents DELETE operations.",
+      "evidence": "Both audit-immutability.test.ts and schema.test.ts independently discovered and implemented this pattern. Future workers writing tests that create audit events will need this.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add convention: Custom SQL migrations (non-Drizzle-generated) require manual additions to drizzle/meta/_journal.json (new entry with idx, hash, and when fields) and a copy of the latest snapshot file with updated id/prevId. The SQL file goes in drizzle/ alongside Drizzle-generated files.",
+      "evidence": "db-audit-immutability worker created drizzle/0001_audit_immutability.sql as a custom migration and had to manually update the journal and create a snapshot copy. This procedure is not documented anywhere.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add convention: The seed script stores a raw share token directly in share_grants.token (not SHA-256 hashed). Production share token handling should hash tokens before storage. Future auth-viewer-tokens feature must implement SHA-256 hashing for token storage and account for the seed's dev shortcut.",
+      "evidence": "db-seed-script stores raw token 'a]b3c4d5e6...' in share_grants.token, while the schema comment says 'Token is stored as SHA-256 hash'. The seed is intentionally simplified for dev, but the auth-viewer-tokens feature must implement proper hashing.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Worker deviated from backend-worker skill's TDD procedure for schema-only and seed features",
+      "reason": "Both db-schema-migrations and db-seed-script workers noted that TDD is impractical for DDL/schema and seed features. This is a valid observation but it's a skill-level change that should be decided by the orchestrator as part of the suggested guidance updates above, not applied directly."
+    },
+    {
+      "observation": "tsx was installed as a dev dependency for the seed script runner",
+      "reason": "already-documented — tsx is correctly reflected in package.json devDependencies and the db:seed command in services.yaml/package.json."
+    },
+    {
+      "observation": "Index ordering (ASC vs DESC) on several indexes deviates from LLD specification",
+      "reason": "This is a non-blocking code quality issue noted in the review, not a shared state gap. PostgreSQL can scan btree indexes in reverse, so the functional impact is minimal. The issue is tracked in the db-schema-migrations review."
+    }
+  ],
+  "previousRound": null
+}

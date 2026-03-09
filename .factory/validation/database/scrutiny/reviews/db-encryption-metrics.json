@@ -1,0 +1,57 @@
+{
+  "featureId": "db-encryption-metrics",
+  "reviewedAt": "2026-03-09T09:15:00.000Z",
+  "commitId": "5db8dd3",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Clean, well-implemented feature. The encryption service correctly implements AES-256-GCM envelope encryption with the specified wire format [0x01][4-byte DEK length][encrypted DEK][12-byte nonce][ciphertext][16-byte auth tag]. The LocalEncryptionProvider properly generates a random DEK per encrypt call, encrypts it with the master key, and encrypts data with the DEK. Decrypt correctly parses the wire format with proper validation (version check, length check, truncation detection). The metric registry contains all 21 metric types from LLD Appendix 19.1 with correct IDs, labels, units, value types, and unique chart colors. Tests are thorough: 17 encryption tests cover roundtrip, wire format verification, tamper detection, and error handling; 27 metric registry tests cover completeness, structure, lookups, category filtering, and uniqueness constraints. All verification commands pass (test, typecheck, lint).",
+    "issues": [
+      {
+        "file": "src/config/metrics.ts",
+        "line": 16,
+        "severity": "non_blocking",
+        "description": "Category names diverge slightly from LLD Section 8.6: LLD uses 'Cardiovascular' (implementation uses 'Cardio'), and LLD has 'Readiness' as a separate category (implementation merges readiness_score into 'Activity'). This follows the feature description's categories (Sleep, Cardio, Activity, Body) which take precedence, but future workers referencing the LLD may be confused by the discrepancy."
+      },
+      {
+        "file": "src/lib/encryption/index.ts",
+        "line": 82,
+        "severity": "non_blocking",
+        "description": "The _userId parameter is unused in LocalEncryptionProvider.encrypt() and decrypt(). This is intentionally designed for the interface contract (future KMS provider would use userId for per-user CMK derivation), but there's no JSDoc comment on the parameter explaining this design choice. A brief comment would help future maintainers understand the unused parameter."
+      },
+      {
+        "file": "src/config/metrics.ts",
+        "line": 354,
+        "severity": "non_blocking",
+        "description": "METRIC_TYPE_IDS is typed as readonly string[] rather than a const tuple type. Downstream Zod enum usage (e.g., z.enum(METRIC_TYPE_IDS)) would require a cast to [string, ...string[]]. Consider typing as a const tuple for stricter type safety when used with Zod."
+      },
+      {
+        "file": "src/config/metrics.ts",
+        "line": 213,
+        "severity": "non_blocking",
+        "description": "Both readiness_score and activity_score have ouraField set to 'score', which is correct but could be confusing since they come from different Oura API endpoints (daily_readiness vs daily_activity). The ouraField alone is insufficient to determine the correct API endpoint. This is acceptable since the Oura sync feature will need to handle endpoint routing separately, but worth noting."
+      },
+      {
+        "file": "src/lib/encryption/index.ts",
+        "line": 72,
+        "severity": "non_blocking",
+        "description": "The constructor validates key format but does not use a constant-time comparison or wipe the key material after use. For a local dev provider this is acceptable, but the production KMS provider should avoid holding key material in memory. No action needed now — this is a local-only provider."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "LLD Section 8.6 specifies categories as 'Cardiovascular', 'Readiness', 'Activity', 'Body' (with 'Sleep' implied), but the implementation and feature description use 'Sleep', 'Cardio', 'Activity', 'Body' — merging Readiness into Activity and shortening Cardiovascular to Cardio. AGENTS.md doesn't document this category simplification. Future workers building category-based UI or API responses may reference the LLD and use different category names.",
+      "evidence": "docs/api-database-lld.md lines 1540-1570 shows 'Cardiovascular:' and 'Readiness:' as separate categories; src/config/metrics.ts line 16 defines MetricCategory = 'Sleep' | 'Cardio' | 'Activity' | 'Body'"
+    },
+    {
+      "area": "conventions",
+      "observation": "The feature description listed metric names like total_sleep_duration, rem_sleep_duration, deep_sleep_duration, equivalent_walking_distance, lowest_hr, average_hr — but the LLD Appendix 19.1 uses different canonical IDs (sleep_duration, rem_sleep, deep_sleep) and doesn't include equivalent_walking_distance, lowest_hr, or average_hr at all. The worker correctly followed the LLD over the feature description. AGENTS.md should note that the LLD Appendix 19.1 is the canonical source of truth for metric type IDs.",
+      "evidence": "LLD Appendix 19.1 (line 2626+) lists 21 canonical IDs; feature description in features.json lists alternate names"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. The encryption service and metric type registry are well-implemented and thoroughly tested. The encryption service correctly implements AES-256-GCM envelope encryption matching the wire format spec. The metric registry contains all 21 LLD-specified metrics with correct metadata. All 44 new tests pass, typecheck is clean, lint is clean. Five non-blocking issues noted: category name simplification from LLD, unused userId parameter lacking JSDoc, METRIC_TYPE_IDS typing for Zod compatibility, ambiguous ouraField for score metrics, and no constant-time key handling (acceptable for local dev). Two shared state observations about category naming and canonical metric ID source of truth."
+}

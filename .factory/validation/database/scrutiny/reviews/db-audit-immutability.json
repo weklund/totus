@@ -1,0 +1,51 @@
+{
+  "featureId": "db-audit-immutability",
+  "reviewedAt": "2026-03-09T09:10:00.000Z",
+  "commitId": "651f7d3",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation that faithfully reproduces the trigger SQL from the LLD spec. The migration file (drizzle/0001_audit_immutability.sql) creates the prevent_audit_mutation() trigger function and attaches it as a BEFORE UPDATE OR DELETE row-level trigger on audit_events, exactly matching the LLD. Table and column COMMENTs are included. The drizzle journal and snapshot were correctly updated. The integration test suite (17 tests) thoroughly covers all 4 required scenarios: INSERT succeeds, UPDATE raises error, DELETE raises error, and audit events persist after user deletion. Additional edge-case tests (no-match WHERE, SELECT operations, full-field INSERT) go beyond the minimum. The existing schema.test.ts was properly updated to disable/re-enable the trigger during cleanup. No blocking issues found.",
+    "issues": [
+      {
+        "file": "drizzle/0001_audit_immutability.sql",
+        "line": 11,
+        "severity": "non_blocking",
+        "description": "CREATE TRIGGER (without IF NOT EXISTS) will fail if the trigger already exists. This is fine for a migration that runs exactly once, but CREATE OR REPLACE FUNCTION is used for the function while CREATE TRIGGER is not idempotent. PostgreSQL 14+ supports OR REPLACE for triggers but the project uses Docker Compose PostgreSQL which may vary. For a one-shot migration this is acceptable, but a DROP TRIGGER IF EXISTS before CREATE TRIGGER would make it more robust for manual re-runs."
+      },
+      {
+        "file": "src/db/__tests__/audit-immutability.test.ts",
+        "line": 68,
+        "severity": "non_blocking",
+        "description": "Test cleanup uses ALTER TABLE ... DISABLE TRIGGER which requires superuser or table owner privileges. This works in the dev environment (totus role is the owner) but would fail against a production-like setup where the app role has restricted permissions. Not a problem for this test environment but worth noting for future awareness."
+      },
+      {
+        "file": "drizzle/meta/0001_snapshot.json",
+        "line": 1,
+        "severity": "non_blocking",
+        "description": "The snapshot file is a copy of 0000_snapshot.json with only the id/prevId changed. It doesn't reflect the trigger addition. This is technically correct since Drizzle snapshots only track schema objects (tables, columns, indexes) not triggers/functions, but it means drizzle-kit introspection won't know about the trigger. This is the expected behavior for custom SQL migrations."
+      },
+      {
+        "file": "src/db/__tests__/audit-immutability.test.ts",
+        "line": 249,
+        "severity": "non_blocking",
+        "description": "The 'audit events persist after user deletion' describe block uses ordered it() tests that depend on execution order (first checks events exist, then deletes user, then checks events persist). Vitest runs tests within a describe sequentially by default so this works, but the tests are implicitly order-dependent. A comment noting this dependency would improve readability."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Worker used ALTER TABLE ... DISABLE/ENABLE TRIGGER for test cleanup of immutable audit_events rows. This is a pattern that will recur in any test that needs to clean up audit_events data. AGENTS.md does not document this pattern, which could cause future workers to struggle with audit_events cleanup in tests.",
+      "evidence": "src/db/__tests__/audit-immutability.test.ts:66-74 and src/db/__tests__/schema.test.ts:571-579 both use the same disable-trigger/delete/enable-trigger pattern for cleanup."
+    },
+    {
+      "area": "conventions",
+      "observation": "Custom SQL migrations (non-Drizzle-generated) require manual journal entry and snapshot file creation. The worker correctly added to drizzle/meta/_journal.json and created a snapshot copy. This procedure for adding raw SQL migrations alongside Drizzle-managed ones is not documented in AGENTS.md.",
+      "evidence": "drizzle/meta/_journal.json entry idx:1 and drizzle/meta/0001_snapshot.json were manually created. The LLD section 8.5 mentions migration files but doesn't explain the Drizzle journal mechanics for custom SQL."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The db-audit-immutability feature is well-implemented and passes review. The PostgreSQL trigger function prevent_audit_mutation() and trigger trg_audit_events_immutable match the LLD specification exactly. The migration is properly structured as a raw SQL file in the drizzle/ directory with correct journal integration. All 4 required integration tests are covered (INSERT succeeds, UPDATE fails, DELETE fails, audit events survive user deletion) plus 13 additional edge-case and setup verification tests. The existing schema test was correctly updated to handle the new trigger during cleanup. No blocking issues found. Minor observations: CREATE TRIGGER lacks idempotency guard, test cleanup requires superuser-level ALTER TABLE privileges, and the disable-trigger cleanup pattern should be documented as a convention for future workers."
+}

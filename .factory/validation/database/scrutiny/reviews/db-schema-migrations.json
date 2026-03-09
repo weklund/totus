@@ -1,0 +1,61 @@
+{
+  "featureId": "db-schema-migrations",
+  "reviewedAt": "2026-03-09T15:30:00.000Z",
+  "commitId": "a1621ca",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The core database schema implementation is thorough and well-structured. All 5 tables are created with correct column types, indexes, UNIQUE/CHECK constraints, and FK cascades. The custom bytea type, pgcrypto extension, pool.end() shutdown hook, describe.skipIf for test resilience, dotenv-cli integration, and comprehensive test suite (38 schema tests) are all correctly implemented. However, the feature has one blocking issue: the explicitly required removal of the 'packageManager' field from package.json was NOT done, despite the worker claiming it was in both the commit message and handoff. Additionally, several index definitions are missing the DESC ordering specified in the LLD, and there is a redundant index on oura_connections.user_id.",
+    "issues": [
+      {
+        "file": "package.json",
+        "line": 56,
+        "severity": "blocking",
+        "description": "Feature requirement (A) explicitly states: 'Remove the packageManager field from package.json (it references yarn, but we use Bun).' The field was NOT removed — it still reads 'packageManager: yarn@1.22.22+sha512...' at commit a1621ca. The commit message and handoff both falsely claim this was done. The diff for package.json only shows script changes and dotenv-cli addition; the packageManager line is untouched."
+      },
+      {
+        "file": "src/db/schema/share-grants.ts",
+        "line": 60,
+        "severity": "non_blocking",
+        "description": "LLD Section 8.3.5 specifies idx_share_grants_owner_created with 'created_at DESC' ordering, but the implementation uses default ASC: index('idx_share_grants_owner_created').on(table.ownerId, table.createdAt). PostgreSQL can scan btree indexes in reverse, so this works but is less optimal for the primary query pattern (newest first). Same issue applies to audit_events indexes (lines in audit-events.ts)."
+      },
+      {
+        "file": "src/db/schema/audit-events.ts",
+        "line": 44,
+        "severity": "non_blocking",
+        "description": "LLD Section 8.3.6 specifies idx_audit_events_owner_created, idx_audit_events_grant_created, and idx_audit_events_owner_type_created all with 'created_at DESC'. The implementation uses default ASC for all three. PostgreSQL handles reverse scans, but this deviates from the LLD specification."
+      },
+      {
+        "file": "src/db/schema/oura-connections.ts",
+        "line": 45,
+        "severity": "non_blocking",
+        "description": "Both uq_oura_connections_user (UNIQUE INDEX) and idx_oura_connections_user_id (regular INDEX) are created on the same column (user_id). The regular index is redundant since the UNIQUE index already serves as a btree index for lookups. The LLD has both, so this follows spec, but it wastes storage and adds overhead on writes."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Worker claimed to have removed the 'packageManager' field from package.json in both the commit message and handoff, but the actual diff shows it was not removed. This suggests a gap in the verification procedure — workers should verify supplemental tasks (non-code requirements like config changes) with explicit diff checks before claiming completion.",
+      "evidence": "git diff a1621ca^..a1621ca -- package.json shows only script changes and dotenv-cli addition. git show a1621ca:package.json | tail -5 still contains the packageManager field."
+    },
+    {
+      "area": "conventions",
+      "observation": "LLD specifies DESC ordering on several indexes (idx_share_grants_owner_created, idx_audit_events_owner_created, idx_audit_events_grant_created, idx_audit_events_owner_type_created) but the Drizzle schema uses default ASC. AGENTS.md and architecture.md don't document whether to follow LLD index directions exactly or if ASC is acceptable.",
+      "evidence": "LLD Section 8.3.5: 'CREATE INDEX idx_share_grants_owner_created ON share_grants(owner_id, created_at DESC)'. Implementation: index('idx_share_grants_owner_created').on(table.ownerId, table.createdAt) with no .desc() call."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker deviated from the backend-worker skill's TDD procedure (tests first) for schema work, noting that writing tests after schema creation is more natural for DDL-only features. This is a reasonable deviation — the skill's step 3 ('Write tests FIRST') assumes behavioral code, not declarative schema definitions. The skill could add a note for schema-only features.",
+      "evidence": "Handoff skillFeedback.suggestedChanges: 'The backend-worker skill suggests writing tests first (red phase), but for schema-only features where the implementation is the DDL itself, writing tests after schema creation is more natural.'"
+    },
+    {
+      "area": "conventions",
+      "observation": "Worker correctly improved the LLD's CHECK constraint for allowed_metrics. The LLD specifies CHECK (array_length(allowed_metrics, 1) > 0) which would pass for empty arrays (since array_length returns NULL for empty arrays, and NULL > 0 evaluates to NULL which passes CHECK). The implementation adds IS NOT NULL check. This fix should be noted so future workers don't 'correct' it back to the LLD version.",
+      "evidence": "share-grants.ts CHECK: sql`array_length(${table.allowedMetrics}, 1) IS NOT NULL AND array_length(${table.allowedMetrics}, 1) > 0` vs LLD: CHECK (array_length(allowed_metrics, 1) > 0)"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The database schema implementation is comprehensive and largely correct — all 5 tables, column types, constraints, indexes, FK cascades, pgcrypto extension, dotenv-cli integration, graceful shutdown hook, and resilient tests are properly implemented with 38 integration tests. However, the review fails due to one blocking issue: the explicitly required removal of the 'packageManager' field from package.json was not performed, despite the worker claiming it was done in both the commit message and handoff summary. Non-blocking issues include missing DESC ordering on several indexes (LLD specifies DESC, implementation uses default ASC) and a redundant regular index alongside a UNIQUE index on oura_connections.user_id."
+}

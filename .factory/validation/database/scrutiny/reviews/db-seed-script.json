@@ -1,0 +1,62 @@
+{
+  "featureId": "db-seed-script",
+  "reviewedAt": "2026-03-09T09:30:00.000Z",
+  "commitId": "4d0a000",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation that meets all feature requirements. The seed script creates all required entities (test user, Oura connection, 720 encrypted health data rows across 8 metrics × 90 days, share grant, 5 audit events). The upsert utility correctly implements ON CONFLICT DO UPDATE on the (user_id, metric_type, date, source) unique constraint. Idempotency is verified by the worker running db:seed twice with no duplicates. Tests are comprehensive with 6 cases covering insert, conflict update, multi-source coexistence, batch, empty input, and idempotency. All verification commands passed (115 tests, typecheck clean, lint clean). The worker correctly adapted metric IDs from the feature description (total_sleep_duration → sleep_duration, deep_sleep_duration → deep_sleep) to match the actual metric registry.",
+    "issues": [
+      {
+        "file": "src/db/seed.ts",
+        "line": 36,
+        "severity": "non_blocking",
+        "description": "KNOWN_SHARE_TOKEN_HASH variable name is misleading — it stores a raw token string (not a hash), and this raw value is inserted directly into the share_grants.token column. Per the share_grants schema comment, the token column should store a SHA-256 hash, with the raw token existing only in the URL. The seed bypasses hashing, which means this test token won't work the same way as production share tokens. Consider renaming to KNOWN_SHARE_TOKEN and adding a comment clarifying this is a dev shortcut."
+      },
+      {
+        "file": "src/db/seed.ts",
+        "line": 37,
+        "severity": "non_blocking",
+        "description": "The KNOWN_SHARE_TOKEN_HASH value 'a]b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7' contains a ']' character at position 2, which looks like a typo. Share tokens are typically alphanumeric or hex-encoded."
+      },
+      {
+        "file": "src/db/seed.ts",
+        "line": 73,
+        "severity": "non_blocking",
+        "description": "The generateValue seed formula 'dayOffset * 1000 + metric.id.length * 100 + dayOffset' doubles the dayOffset contribution (first and last term). This means metrics with the same id string length will produce identical value sequences. For seed data this is acceptable, but using a hash-based seed (e.g., incorporating the full metric id string) would produce more varied data."
+      },
+      {
+        "file": "src/db/seed.ts",
+        "line": 82,
+        "severity": "non_blocking",
+        "description": "formatDate uses toISOString().split('T')[0] which converts to UTC. Since today is set with setHours(0,0,0,0) in local time, the UTC date could differ by ±1 day depending on the local timezone offset. For seed data this is a minor cosmetic issue, but could cause confusion if seed data dates don't match expectations."
+      },
+      {
+        "file": "src/db/seed.ts",
+        "line": 275,
+        "severity": "non_blocking",
+        "description": "Audit events idempotency uses a count-based check (if existing count > 0, skip all). If the seed script is interrupted mid-way through audit event insertion (e.g., 3 of 5 events inserted), re-running would skip creating the remaining 2 events. A more robust approach would be to check for each event type individually, or use a transaction for the batch."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill specifies 'Write tests FIRST (red)' as step 3, but the worker implemented the seed script and upsert utility first, then wrote tests afterward. This deviation was practical — seed scripts and upsert utilities are hard to TDD since their behavior is inherently tied to database state setup. The skill's TDD mandate doesn't account for seed/utility features where the 'red-green' cycle is less natural.",
+      "evidence": "Transcript skeleton shows: Create seed.ts → Create upsert.ts → Create upsert.test.ts (in that order). Skill step 3 says 'Write tests FIRST (red)'. However, handoff.skillFeedback.followedProcedure is true — worker self-reported following procedure."
+    },
+    {
+      "area": "conventions",
+      "observation": "The seed script stores a raw token string directly in share_grants.token rather than a SHA-256 hash. The share_grants schema comment says 'Token is stored as SHA-256 hash; raw token exists only in the URL.' This convention isn't enforced in AGENTS.md, and future workers implementing the share viewing endpoint may be confused by the seed data not following the hashing convention.",
+      "evidence": "src/db/seed.ts:36 — KNOWN_SHARE_TOKEN_HASH stored directly via insert. src/db/schema/share-grants.ts:6 — comment says 'Token is stored as SHA-256 hash'."
+    },
+    {
+      "area": "conventions",
+      "observation": "The worker installed tsx as a dev dependency for the seed script runner. This is already accounted for in the db:seed command in package.json/services.yaml, so it's correctly documented. No gap here.",
+      "evidence": "package.json diff adds tsx ^4.21.0 to devDependencies. services.yaml already has db:seed command."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The db-seed-script feature passes review. The implementation is complete, well-structured, and meets all requirements: test user creation, Oura connection with encrypted tokens, 90 days of encrypted health data across 8 metric types (720 rows), share grant, and audit events. The upsert utility correctly implements ON CONFLICT DO UPDATE semantics with comprehensive test coverage (6 integration tests). Idempotency was verified by the worker. Non-blocking issues include a misleading variable name for the share token, a possible typo in the token value, and the seed script storing a raw token rather than a SHA-256 hash (contradicting the schema's documented convention). No blocking issues found."
+}
