@@ -1,5 +1,8 @@
 import { Suspense } from "react";
 import { ConnectionsManager } from "@/components/settings/ConnectionsManager";
+import { ProfileForm } from "@/components/settings/ProfileForm";
+import { ExportSection } from "@/components/settings/ExportSection";
+import { DeleteAccountDialog } from "@/components/settings/DeleteAccountDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 
@@ -7,19 +10,40 @@ import { Separator } from "@/components/ui/separator";
  * Settings page — account management with profile, connections, export, and deletion.
  *
  * This is the RSC shell; client components handle interactive sections.
- * Currently implements the ConnectionsManager section.
- * Profile, export, and danger zone sections will be added by later features.
  *
- * The page title "Settings" is rendered by the Header component via pathname detection.
+ * See: /docs/web-ui-lld.md Section 7.7
  */
 export default function SettingsPage() {
   return (
     <div className="space-y-8">
       <div>
+        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
         <p className="text-muted-foreground text-sm">
           Manage your account and connections.
         </p>
       </div>
+
+      {/* Profile section */}
+      <section>
+        <h3 className="mb-3 text-lg font-medium">Profile</h3>
+        <p className="text-muted-foreground mb-4 text-sm">
+          Update your display name. This is visible to anyone viewing your
+          shared health data.
+        </p>
+        <Suspense
+          fallback={
+            <div className="space-y-3">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-9 w-full max-w-sm" />
+              <Skeleton className="h-9 w-16" />
+            </div>
+          }
+        >
+          <ProfileForm />
+        </Suspense>
+      </section>
+
+      <Separator />
 
       {/* Connections section */}
       <section>
@@ -36,15 +60,24 @@ export default function SettingsPage() {
 
       <Separator />
 
-      {/* Placeholder for future settings sections */}
+      {/* Export section */}
       <section>
-        <h3 className="text-muted-foreground mb-3 text-lg font-medium">
-          More settings coming soon
+        <h3 className="mb-3 text-lg font-medium">Export Data</h3>
+        <ExportSection />
+      </section>
+
+      <Separator />
+
+      {/* Danger zone */}
+      <section>
+        <h3 className="text-destructive mb-3 text-lg font-medium">
+          Danger Zone
         </h3>
-        <p className="text-muted-foreground text-sm">
-          Profile editing, data export, and account management will be available
-          in a future update.
+        <p className="text-muted-foreground mb-4 text-sm">
+          Permanently delete your account and all associated data. This action
+          cannot be undone.
         </p>
+        <DeleteAccountDialog />
       </section>
     </div>
   );
