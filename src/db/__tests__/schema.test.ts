@@ -567,10 +567,16 @@ describe.skipIf(!canConnect)("database schema", () => {
       );
       expect(parseInt(auditAfter.rows[0].cnt)).toBeGreaterThan(0);
 
-      // Cleanup audit events manually
+      // Cleanup audit events manually (must disable immutability trigger first)
+      await pool.query(
+        "ALTER TABLE audit_events DISABLE TRIGGER trg_audit_events_immutable",
+      );
       await pool.query("DELETE FROM audit_events WHERE owner_id = $1", [
         testUserId,
       ]);
+      await pool.query(
+        "ALTER TABLE audit_events ENABLE TRIGGER trg_audit_events_immutable",
+      );
     });
   });
 
