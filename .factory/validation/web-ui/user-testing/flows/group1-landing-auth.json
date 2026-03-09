@@ -1,0 +1,44 @@
+{
+  "groupId": "group1-landing-auth",
+  "testedAt": "2026-03-09T00:00:00.000Z",
+  "credentials": {
+    "account": "uitest_g1@example.com",
+    "namespace": "uitest_g1"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": {
+    "VAL-UI-001": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-001_landing_page.png shows hero section with 'Your Personal Health Data Vault' heading, feature cards (Interactive Dashboard, Secure Sharing, Complete Audit Trail, You're in Control), How it works section with 3 steps (Connect, Visualize, Share), and sign-up CTA 'Get Started — It's Free' linking to /sign-up. No console errors.",
+      "notes": ""
+    },
+    "VAL-UI-002": {
+      "status": "pass",
+      "evidence": "Clicked 'Get Started' link on landing page hero section. Browser navigated to http://localhost:3000/sign-up. Screenshot VAL-UI-002_get_started_to_signup.png shows the sign-up registration form. No console errors.",
+      "notes": "The hero section has two 'Get Started' links (header @e3 and hero body @e4); clicked the hero body one which correctly navigates to /sign-up."
+    },
+    "VAL-UI-003": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-003_sign_in_page.png shows sign-in page at /sign-in with 'Sign in' heading, email address text field, password text field, 'Sign in' button, and 'Sign up' link. No console errors.",
+      "notes": ""
+    },
+    "VAL-UI-004": {
+      "status": "pass",
+      "evidence": "Filled email 'uitest_g1@example.com' and password 'testpass123' on /sign-in, clicked 'Sign in' button. Browser redirected to http://localhost:3000/dashboard. Screenshot VAL-UI-004_dashboard_after_signin.png shows authenticated dashboard with sidebar navigation, user name 'UI Test Group 1', and empty state CTA. No console errors.",
+      "notes": "Mock auth auto-created the user on first sign-in as expected."
+    },
+    "VAL-UI-005": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-002_get_started_to_signup.png (same as VAL-UI-002) shows /sign-up page with 'Create your account' heading, Display name field, Email address field, Password field, 'Create account' button, and 'Sign In' link. No console errors.",
+      "notes": "Sign-up page verified during VAL-UI-002 navigation test."
+    },
+    "VAL-UI-040": {
+      "status": "pass",
+      "evidence": "While authenticated (signed in as uitest_g1@example.com), navigated to http://localhost:3000/sign-in. Browser immediately redirected to http://localhost:3000/dashboard. Screenshot VAL-UI-040_signin_redirect.png shows the dashboard page confirming the redirect. No console errors.",
+      "notes": ""
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 6 assertions: all 6 passed. Landing page renders correctly with all required sections. Get Started CTA navigates to sign-up. Sign-in and sign-up forms render properly. Sign-in flow authenticates and redirects to dashboard. Authenticated users are redirected from /sign-in to /dashboard."
+}

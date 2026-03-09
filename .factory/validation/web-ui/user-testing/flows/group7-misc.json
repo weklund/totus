@@ -1,0 +1,39 @@
+{
+  "groupId": "group7-misc",
+  "testedAt": "2026-03-09T11:15:00Z",
+  "credentials": {
+    "account": "test@totus.dev",
+    "namespace": "test@totus.dev"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": {
+    "VAL-UI-031": {
+      "status": "pass",
+      "evidence": "Screenshots taken in light mode (VAL-UI-031_light_mode.png) and dark mode (VAL-UI-031_dark_mode.png). Clicking 'Toggle theme' button switched entire UI to dark theme — background, sidebar, header, and charts all changed to dark colors. No console errors.",
+      "notes": "Dark mode toggle is a sun/moon icon button labeled 'Toggle theme' in the header. Theme switch is immediate with no flicker."
+    },
+    "VAL-UI-032": {
+      "status": "pass",
+      "evidence": "Screenshots at mobile 375px (VAL-UI-032_mobile_375px.png), tablet 768px (VAL-UI-032_tablet_768px.png), and desktop 1920px (VAL-UI-032_desktop_1920px.png). Mobile: sidebar collapses to hamburger menu, content stacks vertically. Tablet: sidebar collapses, content uses full width with larger chart. Desktop: full sidebar visible with expanded navigation links and wide chart area.",
+      "notes": "Responsive breakpoints work correctly. Sidebar collapses at both mobile and tablet widths, and chart layout adapts appropriately."
+    },
+    "VAL-UI-035": {
+      "status": "pass",
+      "evidence": "Screenshot sequence: Dashboard (/dashboard) -> Shared Links (/dashboard/share) -> Activity Log (/dashboard/audit) -> Settings (/dashboard/settings). All sidebar links navigate to the correct pages. Screenshots: VAL-UI-035_nav_dashboard.png, VAL-UI-035_nav_shares.png, VAL-UI-035_nav_audit.png, VAL-UI-035_nav_settings.png.",
+      "notes": "Sidebar links are: Dashboard, Shared Links, Activity Log, Settings. All navigate correctly to their respective routes."
+    },
+    "VAL-UI-039": {
+      "status": "pass",
+      "evidence": "Screenshot of 404 page (VAL-UI-039_404_page.png). Navigating to /nonexistent-route shows custom 404 page with heart icon, '404' heading, 'Page not found' text, description, and 'Go Home' button linking back to home.",
+      "notes": "Custom 404 page renders correctly with clear messaging and a link back to home."
+    },
+    "VAL-CROSS-008": {
+      "status": "pass",
+      "evidence": "Screenshot of dashboard with seeded data (VAL-CROSS-008_dashboard_seeded_data.png). After signing in as test@totus.dev, the dashboard shows Oura Ring connected, metric selectors for Sleep/Cardio/Activity categories, and interactive time-series charts with Sleep Score, Heart Rate Variability, and Resting Heart Rate data plotted over the date range Dec 9, 2025 – Mar 9, 2026.",
+      "notes": "Seed data is visible with 90 data points per metric across 8 metric types. Charts render correctly with Recharts."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: all 5 passed. Dark mode toggle switches entire UI including charts (VAL-UI-031). Responsive layout adapts correctly at mobile/tablet/desktop widths (VAL-UI-032). Sidebar navigation works for all 4 pages (VAL-UI-035). Custom 404 page renders with Go Home link (VAL-UI-039). Seed data visible in dashboard charts (VAL-CROSS-008). No console errors detected."
+}

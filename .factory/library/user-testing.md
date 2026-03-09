@@ -345,6 +345,75 @@ cd /Users/weseklund/Projects/totus && docker compose exec -T db psql -U totus -d
 
 ---
 
+## Flow Validator Guidance: Web UI (agent-browser)
+
+**Surface:** Web application pages — validated via browser automation using agent-browser skill.
+
+**Testing tool:** agent-browser skill (invoke via `Skill` tool at start of session). This automates a Chromium browser for navigation, screenshots, clicking, form interaction.
+
+**Pre-started services:**
+
+- PostgreSQL: Running on port 5432 via Docker Compose (user: totus, password: totus, db: totus)
+- Next.js dev server: Running on port 3000
+
+**Project root:** `/Users/weseklund/Projects/totus`
+
+**App URL:** `http://localhost:3000`
+
+**Key URLs:**
+
+- Landing: `http://localhost:3000/`
+- Sign-in: `http://localhost:3000/sign-in`
+- Sign-up: `http://localhost:3000/sign-up`
+- Dashboard: `http://localhost:3000/dashboard`
+- Share management: `http://localhost:3000/dashboard/share`
+- Share wizard: `http://localhost:3000/dashboard/share/new`
+- Audit log: `http://localhost:3000/dashboard/audit`
+- Settings: `http://localhost:3000/dashboard/settings`
+- Viewer: `http://localhost:3000/v/{token}`
+- 404 test: `http://localhost:3000/nonexistent-route`
+
+**How to sign in via browser:**
+
+1. Navigate to `http://localhost:3000/sign-in`
+2. Fill email field with your assigned email
+3. Fill password field with any non-empty string (mock auth accepts anything)
+4. Click "Sign In" button
+5. Wait for redirect to `/dashboard`
+
+**Mock auth details:**
+
+- Mock auth accepts ANY password — just enter something non-empty
+- Sign-in auto-creates users if they don't exist
+- Session is stored in `__session` cookie
+- User ID follows pattern `mock_<email_with_special_chars_replaced_by_underscores>`
+
+**Isolation rules for parallel browser testing:**
+
+- Each subagent MUST use its own unique browser session via `--session` parameter
+- Each subagent uses its own test account (unique email)
+- Do NOT modify source code
+- Do NOT stop or restart services
+- Do NOT interact with other subagents' accounts or data
+- If a subagent needs to test sign-up, use a completely unique email not used by any other subagent
+- Take screenshots for evidence of each assertion
+
+**Screenshot evidence:**
+
+- For each assertion tested, take a screenshot showing the result
+- Use descriptive names: `VAL-UI-001_landing_page.png`, `VAL-UI-004_sign_in_success.png`, etc.
+- agent-browser will save screenshots to `.factory/validation/web-ui/user-testing/flows/` or similar
+
+**Common gotchas:**
+
+- The dev server may take a moment to compile pages on first visit — wait for the page to load
+- Mock auth sign-in form is at `/sign-in` (not `/sign-in/...`)
+- After sign-in, expect redirect to `/dashboard`
+- Charts use Recharts — they may take a moment to render after data loads
+- Dark mode toggle is in the Header component (sun/moon icon)
+- Toast notifications use sonner — they appear briefly and auto-dismiss
+- The share wizard has 4 steps — metrics selection, date range, expiration, review
+
 ## Validated Findings
 
 ### Pre-commit Hook Testing (VAL-SCAF-009) — Round 3

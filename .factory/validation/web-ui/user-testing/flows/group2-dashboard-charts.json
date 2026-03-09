@@ -1,0 +1,73 @@
+{
+  "groupId": "group2-dashboard-charts",
+  "testedAt": "2026-03-09T12:00:00Z",
+  "credentials": {
+    "dataUser": "test@totus.dev",
+    "emptyUser": "uitest_g2_empty@example.com",
+    "namespace": "g2"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": {
+    "VAL-UI-006": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-006_dashboard.png shows dashboard layout with sidebar (Dashboard, Shared Links, Activity Log, Settings), header (Dashboard title, theme toggle, user avatar 'test'), and content area (Oura connection card, metric selector, date range, resolution toggle, charts).",
+      "notes": "No console errors. All layout elements present and properly rendered."
+    },
+    "VAL-UI-007": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-007_empty_dashboard.png shows empty state with heartbeat icon, 'Connect your Oura Ring to get started' heading, descriptive text, and 'Connect Oura' CTA button. Signed in as uitest_g2_empty@example.com.",
+      "notes": "Empty state renders correctly for a user with no connections or data."
+    },
+    "VAL-UI-008": {
+      "status": "pass",
+      "evidence": "Screenshots VAL-UI-008_charts_with_data.png and VAL-UI-012_metric_overlay.png show interactive time-series charts rendered with Recharts. Three metrics (Sleep Score, Heart Rate Variability, Resting Heart Rate) displayed as line charts with date axis, dual Y-axes, and color-coded legend.",
+      "notes": "Charts render correctly with 90 days of seed data across 8 metric types. Tooltip shown on hover with date and metric values."
+    },
+    "VAL-UI-009": {
+      "status": "pass",
+      "evidence": "Screenshot sequence: VAL-UI-009_metric_deselected.png shows chart after deselecting Sleep Score (chart title changes to 'Heart Rate Variability · Resting Heart Rate'). VAL-UI-009_metric_reselected.png shows chart after re-selecting Sleep Score (chart title shows all 3 metrics again). Metric chips toggle between selected (colored) and deselected (outline) states.",
+      "notes": "Metrics that aren't currently selected show as disabled when max overlay limit (3) is reached. Deselecting a metric enables other chips."
+    },
+    "VAL-UI-010": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-010_date_range_1W.png shows date range changed from 'Dec 9, 2025 – Mar 9, 2026' (3M default) to 'Mar 2, 2026 – Mar 9, 2026' (1W). The 1W button is highlighted and chart shows fewer data points matching the 7-day range.",
+      "notes": "All preset buttons visible: 1W, 1M, 3M, 6M, 1Y, 5Y, All. Date range display updates accordingly."
+    },
+    "VAL-UI-011": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-011_weekly_resolution.png shows Weekly tab selected with smoother averaged data. VAL-UI-011_monthly_resolution.png shows Monthly tab selected with even fewer data points (monthly averages). Daily tab was also confirmed working (default view).",
+      "notes": "All three resolution tabs (Daily, Weekly, Monthly) work correctly. Data aggregation changes visibly in the chart."
+    },
+    "VAL-UI-012": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-012_metric_overlay.png shows 3 metrics overlaid: Heart Rate Variability (teal), Resting Heart Rate (red), Sleep Score (blue) on the same chart. Chart has dual Y-axes (ms on left, Score on right) and a color-coded legend at the bottom identifying all 3 metrics.",
+      "notes": "Overlay works correctly with multiple Y-axis scales and clear color differentiation."
+    },
+    "VAL-UI-033": {
+      "status": "pass",
+      "evidence": "Code inspection confirms skeleton loaders are implemented: ChartGrid.tsx (lines 78-90) renders skeleton cards with Skeleton components during isLoading state; MetricChart.tsx (lines 61-66) renders a chart skeleton; DashboardContent.tsx (lines 165-168) renders skeleton chips for metric selector. Could not capture visual screenshot because local dev server loads data too quickly.",
+      "notes": "Pass with caveats: Skeleton components are properly implemented using shadcn/ui Skeleton with animate-pulse. The loading state transitions too quickly on localhost to capture visually, but code clearly implements the behavior."
+    },
+    "VAL-UI-038": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-038_error_state.png shows the ChartGrid error card with red border, error icon, 'Failed to load data' heading, 'Failed to fetch' message, and 'Retry' button. Tested by blocking the /api/health-data API via network route. Screenshot VAL-UI-038_after_retry.png confirms Retry button works - clicking it after unblocking the network successfully reloads chart data.",
+      "notes": "Error state renders correctly with clear error message and functional Retry button. Retry successfully reloads data when the API becomes available."
+    }
+  },
+  "frictions": [
+    {
+      "description": "Navigating to /sign-in while authenticated redirects to /dashboard - had to clear cookies to sign out before signing in as empty user",
+      "resolved": true,
+      "resolution": "Used agent-browser cookies clear to sign out",
+      "affectedAssertions": ["VAL-UI-007"]
+    },
+    {
+      "description": "Skeleton loaders (VAL-UI-033) cannot be visually captured because local dev server data loads too quickly. Had to rely on code inspection.",
+      "resolved": true,
+      "resolution": "Verified code implementation in ChartGrid.tsx, MetricChart.tsx, and DashboardContent.tsx confirms proper skeleton loader implementation",
+      "affectedAssertions": ["VAL-UI-033"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 9 assertions: 9 passed (1 with caveats). Dashboard renders correctly with sidebar, header, and charts. Empty state shows Connect Oura CTA. Metric selector toggles work. Date range presets update chart range. Resolution toggle switches between daily/weekly/monthly. Metric overlay displays 2-3 metrics with legend. Error state shows with Retry button that works. Skeleton loaders confirmed via code inspection."
+}

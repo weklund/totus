@@ -1,0 +1,56 @@
+{
+  "groupId": "group6-viewer",
+  "testedAt": "2026-03-09T15:14:30.000Z",
+  "credentials": {
+    "account": "test@totus.dev",
+    "namespace": "uitest_g6"
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertions": {
+    "VAL-UI-027": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-027_viewer_page.png shows read-only dashboard with charts rendering shared health data (Sleep Score, HRV, RHR, Steps, Readiness Score) at /v/[valid-token]. Metric selector shows 5 granted metrics with data point counts. Charts render with time-series data. No console errors.",
+      "notes": ""
+    },
+    "VAL-UI-028": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-027_viewer_page.png shows 'Shared by test' header in the banner area and a blue info banner stating 'You are viewing shared health data: Sleep Score, Heart Rate Variability, Resting Heart Rate, Steps, Readiness Score from Dec 1, 2025 to Jun 1, 2026.' No console errors.",
+      "notes": ""
+    },
+    "VAL-UI-029": {
+      "status": "pass",
+      "evidence": "Full DOM snapshot confirms: no sidebar navigation present, no ActionBar (no share/export/settings buttons), no settings link. MetricSelector only shows the 5 granted metrics (Sleep Score, HRV, RHR, Steps, Readiness Score) matching the share grant scope. Date range selector shows the granted range. Resolution tabs (Daily/Weekly/Monthly) are available for viewing. Screenshot VAL-UI-027_viewer_page.png confirms restricted layout. No console errors.",
+      "notes": ""
+    },
+    "VAL-UI-030": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-030_invalid_token.png shows 'This link is no longer available' page with message 'It may have expired, been revoked, or never existed. If you believe this is an error, contact the person who shared it.' when navigating to /v/invalid-token-that-does-not-exist. No console errors.",
+      "notes": ""
+    },
+    "VAL-CROSS-001": {
+      "status": "pass",
+      "evidence": "curl POST /api/shares created share with token returning share_url http://localhost:3000/v/ViucszjJVSXENU-pcIM3z8nf744Q0cpuK8bO7q0Vgd4 (allowed_metrics: sleep_score, hrv, rhr; date range: 2025-12-01 to 2026-06-01). Screenshot VAL-CROSS-001_e2e_share_view.png shows viewer page with 'Shared by test' header, info banner listing Sleep Score, HRV, RHR metrics, and charts rendering scoped health data. No console errors.",
+      "notes": "Share creation requires a 'label' field which is not mentioned in all documentation."
+    },
+    "VAL-CROSS-002": {
+      "status": "pass",
+      "evidence": "curl PATCH /api/shares/306af6cb-c9f0-414d-9192-235a53dae11b with action 'revoke' returned status 'revoked' with revoked_at timestamp. Screenshot VAL-CROSS-002_revoked_share.png shows 'This link is no longer available' page when visiting the revoked share URL /v/V5hBYYmH5quXv86WbyxkxW_qukVPc-uKPH16GKfMXpA. No console errors.",
+      "notes": ""
+    },
+    "VAL-CROSS-010": {
+      "status": "pass",
+      "evidence": "curl PATCH /api/user/profile with display_name 'Updated Test User' returned updated profile. Screenshot VAL-CROSS-010_updated_name.png shows viewer page header changed to 'Shared by Updated Test User' when visiting the existing share URL. Display name was restored to 'test' after verification. No console errors.",
+      "notes": ""
+    }
+  },
+  "frictions": [
+    {
+      "description": "Share creation API requires a 'label' field which was not initially obvious from the task instructions — first attempt returned VALIDATION_ERROR",
+      "resolved": true,
+      "resolution": "Added 'label' field to the share creation request body",
+      "affectedAssertions": ["VAL-CROSS-001"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 7 assertions: all 7 passed. Viewer page correctly renders shared data for valid tokens, shows shared-by banner with owner name, restricts UI interactions, displays error for invalid/revoked tokens, supports end-to-end share creation and viewing, blocks access after revocation, and reflects display name changes."
+}

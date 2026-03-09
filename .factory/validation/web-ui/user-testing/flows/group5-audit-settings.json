@@ -1,0 +1,49 @@
+{
+  "groupId": "group5-audit-settings",
+  "testedAt": "2026-03-09T15:15:00.000Z",
+  "credentials": {
+    "account": "uitest_g5@totus.dev",
+    "namespace": "g5"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": {
+    "VAL-UI-021": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-021_audit_page.png shows /dashboard/audit page with Activity Log heading, filter controls (All Events, All Actors, Start date, End date), and paginated table with Time, Actor, Event columns. 50 audit events displayed with timestamps and descriptions.",
+      "notes": "No console errors. Page loads correctly with all UI elements."
+    },
+    "VAL-UI-022": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-022_filtered_audit.png shows audit log filtered by 'Data Viewed' event type. Only 2 data.viewed events displayed, confirming the filter correctly narrows results from 50+ events. Filter dropdown includes options: All Events, Data Viewed, Data Exported, Data Synced, Data Imported, Share Created, Share Revoked, Share Viewed, Share Deleted, Account Connected, Account Disconnected, Settings Changed.",
+      "notes": "Event type filter, actor type filter, and date range filters are all present. Tested event type filter specifically."
+    },
+    "VAL-UI-023": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-023_pagination_before.png shows 'Load More' button at bottom of 50-event page. Screenshot VAL-UI-023_pagination_after.png shows additional events loaded after clicking Load More (Shares 17 down to 1, plus older events). Load More button disappeared after all 54 events were loaded.",
+      "notes": "Pagination uses cursor-based infinite scroll pattern with useInfiniteQuery. Page size is 50."
+    },
+    "VAL-UI-024": {
+      "status": "pass",
+      "evidence": "Screenshots VAL-UI-024_settings_page.png and VAL-UI-024_settings_page_bottom.png show all 4 sections: Profile (Display Name input + Save button), Data Sources (Oura Ring connection card), Export Data (Export All Data button), and Danger Zone (Delete Account button in red).",
+      "notes": "All required sections present with correct UI elements."
+    },
+    "VAL-UI-025": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-025_profile_updated.png shows Display Name field changed to 'Updated G5 Name' with green toast notification 'Profile updated successfully' at bottom right. Save button was initially disabled, became enabled after name change, and profile was saved via PATCH /api/user/profile.",
+      "notes": "Save button correctly enables only when name differs from current. Toast confirmation appears on success."
+    },
+    "VAL-UI-026": {
+      "status": "pass",
+      "evidence": "Screenshot sequence: VAL-UI-026_delete_step1.png (Danger Zone with Delete Account button), VAL-UI-026_delete_step2_dialog.png (Delete Account dialog with confirmation input and disabled Delete My Account button), VAL-UI-026_delete_step3_redirect.png (landing page at / with 'Account deleted successfully' toast). User redirected from /dashboard/settings to / after deletion.",
+      "notes": "Signed in as uitest_g5_delete@example.com. Dialog requires typing 'DELETE MY ACCOUNT' to enable the Delete My Account button. After confirmation, account was deleted and user was redirected to landing page."
+    },
+    "VAL-UI-037": {
+      "status": "pass",
+      "evidence": "Screenshot VAL-UI-037_empty_state.png shows /dashboard/audit page for 'Empty G5 User' (uitest_g5_empty@example.com) with 'No activity recorded yet' message, 'Activity will appear here as you use Totus' subtitle, activity icon, and filter controls still visible.",
+      "notes": "Empty state displays correctly for a fresh user with no audit events."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 7 assertions: all 7 passed. Audit log page renders correctly with filters, pagination, and empty state. Settings page shows all sections (profile, connections, export, danger zone). Profile update works with toast confirmation. Account deletion flow requires 'DELETE MY ACCOUNT' confirmation and redirects to landing page on success."
+}

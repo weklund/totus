@@ -1,0 +1,39 @@
+{
+  "groupId": "group4-share-management",
+  "testedAt": "2026-03-09T11:15:00Z",
+  "credentials": {
+    "account": "uitest_g4@totus.dev",
+    "namespace": "g4"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": {
+    "VAL-UI-017": {
+      "status": "pass",
+      "evidence": "Screenshot shows /dashboard/share page with all 6 active shares listed. Each share card displays: label (e.g., 'G4 Revoke Target', 'G4 Test Share 5'), status badge ('Active'), metrics (Sleep Score, Heart Rate Variability), date range (Dec 1, 2025 – Jun 7, 2026), expiration info ('Expires in 7 days'), view count ('0 views'), and Revoke button. Filter tabs (All, Active, Expired, Revoked) are visible at the top.",
+      "notes": "Screenshots: VAL-UI-017_share_management_page.png, VAL-UI-017_share_management_page_scrolled.png. No console errors."
+    },
+    "VAL-UI-018": {
+      "status": "pass",
+      "evidence": "Screenshot sequence shows: (1) Before state with 'G4 Revoke Target' showing Active status and Revoke button (VAL-UI-018_before_revoke.png), (2) Confirmation dialog 'Revoke Share Link - Are you sure you want to revoke G4 Revoke Target?' with Cancel and Revoke buttons (VAL-UI-018_revoke_dialog.png), (3) After confirmation: share status changed to 'Revoked' badge, 'Revoked less than a minute ago' timestamp shown, Revoke button replaced by Delete button, toast notification 'Share link revoked' displayed (VAL-UI-018_after_revoke.png).",
+      "notes": "No console errors. Revocation was immediate after confirming the dialog."
+    },
+    "VAL-UI-019": {
+      "status": "pass",
+      "evidence": "Screenshot sequence shows: (1) Before state with revoked 'G4 Revoke Target' showing Delete button (VAL-UI-019_before_delete.png), (2) Confirmation dialog 'Delete Share Link - Are you sure you want to permanently delete G4 Revoke Target? This will remove all records of this share. This action cannot be undone.' with Cancel and Delete buttons (VAL-UI-019_delete_dialog.png), (3) After confirmation: 'G4 Revoke Target' removed from list, list now starts with 'G4 Test Share 5', toast notification 'Share link deleted' displayed (VAL-UI-019_after_delete.png).",
+      "notes": "No console errors. Share was removed from the list immediately after confirming deletion."
+    },
+    "VAL-UI-020": {
+      "status": "pass",
+      "evidence": "Screenshots show: (1) 'Revoked' filter tab selected - only 'G4 Test Share 5' (revoked) shown, no active shares visible (VAL-UI-020_filter_revoked.png), (2) 'Active' filter tab selected - only active shares (G4 Test Share 4, 3, 2, 1) shown, revoked share excluded (VAL-UI-020_filter_active.png). Both screenshots confirm the filter tabs correctly update the displayed list based on status.",
+      "notes": "No console errors. Revoked one additional share (G4 Test Share 5) to have data for filter testing. All four filter tabs (All, Active, Expired, Revoked) are present."
+    },
+    "VAL-UI-034": {
+      "status": "pass",
+      "evidence": "Toast notifications observed during testing: (1) 'Share link revoked' - green success toast appeared at bottom-right after revoking 'G4 Revoke Target' (visible in VAL-UI-018_after_revoke.png), (2) 'Share link deleted' - green success toast appeared at bottom-right after deleting 'G4 Revoke Target' (visible in VAL-UI-019_after_delete.png). Toasts use sonner library, auto-dismiss after a few seconds.",
+      "notes": "Toast notifications were captured in existing screenshots from revoke and delete flows. Both showed green checkmark icon with success message."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: all 5 passed (VAL-UI-017, VAL-UI-018, VAL-UI-019, VAL-UI-020, VAL-UI-034). Share management page correctly displays all shares with status, metrics, dates, and view counts. Revocation flow works with confirmation dialog and status update. Deletion removes revoked shares from the list. Status filters correctly show only matching shares. Toast notifications display for successful revoke and delete actions. No console errors detected throughout testing."
+}
