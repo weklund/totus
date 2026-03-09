@@ -1,0 +1,39 @@
+{
+  "milestone": "database",
+  "round": 1,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 16,
+    "passed": 16,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-DB-001",
+    "VAL-DB-002",
+    "VAL-DB-003",
+    "VAL-DB-004",
+    "VAL-DB-005",
+    "VAL-DB-006",
+    "VAL-DB-007",
+    "VAL-DB-008",
+    "VAL-DB-009",
+    "VAL-DB-010",
+    "VAL-DB-011",
+    "VAL-DB-012",
+    "VAL-DB-013",
+    "VAL-DB-014",
+    "VAL-DB-015",
+    "VAL-DB-016"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added 'Flow Validator Guidance: Database/Terminal' section with database query instructions, seed data details, encryption and metric registry source paths",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null
+}

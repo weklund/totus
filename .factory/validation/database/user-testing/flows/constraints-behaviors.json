@@ -1,0 +1,35 @@
+{
+  "flowId": "constraints-behaviors",
+  "testedAt": "2026-03-09T09:29:00Z",
+  "assertions": {
+    "VAL-DB-006": {
+      "status": "pass",
+      "evidence": "UPDATE audit_events SET event_type='hacked' WHERE id=98 returned: ERROR: audit_events table is immutable: UPDATE operations are not permitted (PL/pgSQL function prevent_audit_mutation()). DELETE FROM audit_events WHERE id=98 returned: ERROR: audit_events table is immutable: DELETE operations are not permitted. INSERT succeeds normally. Vitest audit-immutability.test.ts: 17/17 tests passed including trigger existence, UPDATE rejection, DELETE rejection, and SELECT still working.",
+      "details": "Trigger trg_audit_events_immutable (tgtype=27: BEFORE ROW UPDATE|DELETE) calls prevent_audit_mutation() which raises an exception on any UPDATE or DELETE attempt. INSERT and SELECT are unaffected."
+    },
+    "VAL-DB-007": {
+      "status": "pass",
+      "evidence": "Created temp user 'user_cascade_val' with 1 oura_connection, 1 health_data row, 1 share_grant, and 1 audit_event. After DELETE FROM users WHERE id='user_cascade_val': oura_connections=0, health_data=0, share_grants=0 (all cascaded), audit_events=1 (persisted, no FK). Vitest schema.test.ts foreign key cascades section: 4/4 tests passed.",
+      "details": "All three child tables (oura_connections, health_data, share_grants) have FK references to users(id) with ON DELETE CASCADE. audit_events.owner_id has no FK constraint, so audit records survive user deletion."
+    },
+    "VAL-DB-013": {
+      "status": "pass",
+      "evidence": "Created temp user 'user_upsert_val'. Inserted health_data row (id=2272, value=0102030405). Ran INSERT ... ON CONFLICT (user_id, metric_type, date, source) DO UPDATE with new value 0a0b0c0d0e. Result: same id=2272, updated value=0a0b0c0d0e, updated imported_at, total_rows=1 (no duplicate). Vitest upsert.test.ts: 6/6 tests passed including 'updates existing row on conflict' and 'running seed twice does not create duplicates (idempotency)'.",
+      "details": "UNIQUE constraint uq_health_data_user_metric_date_source on (user_id, metric_type, date, source) enables ON CONFLICT DO UPDATE upsert semantics. The upsertHealthData() function in src/db/upsert.ts implements this via Drizzle's onConflictDoUpdate."
+    },
+    "VAL-DB-014": {
+      "status": "pass",
+      "evidence": "Test 1 (data_end < data_start): INSERT with data_start='2026-03-08', data_end='2026-03-01' returned: ERROR: new row for relation 'share_grants' violates check constraint 'chk_share_grants_date_range'. Test 2 (empty metrics): INSERT with allowed_metrics=ARRAY[]::text[] returned: ERROR: new row for relation 'share_grants' violates check constraint 'chk_share_grants_metrics_nonempty'. Vitest schema.test.ts: 'rejects data_end < data_start' and 'rejects empty allowed_metrics array' both passed.",
+      "details": "Two CHECK constraints enforce: chk_share_grants_date_range (data_end >= data_start) and chk_share_grants_metrics_nonempty (array_length(allowed_metrics, 1) IS NOT NULL AND array_length(allowed_metrics, 1) > 0)."
+    },
+    "VAL-DB-016": {
+      "status": "pass",
+      "evidence": "Created temp user 'user_cascade_val' with 1 audit_event. After DELETE FROM users: user count=0 but audit_events count=1 for owner_id='user_cascade_val'. Vitest audit-immutability.test.ts 'audit events persist after user deletion' section: 4/4 tests passed (events exist before deletion, user deleted, events persist after, data retained).",
+      "details": "audit_events.owner_id is deliberately NOT a foreign key to users(id). The schema comment states: 'owner_id is NOT a foreign key to users(id) because audit events must persist after account deletion.' Confirmed by schema.test.ts: 'owner_id is NOT a foreign key' assertion (pg_constraint query returns 0 FK constraints)."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["psql", "vitest"],
+  "summary": "Tested 5 assertions: all 5 passed. VAL-DB-006 confirmed audit immutability via trigger. VAL-DB-007 confirmed FK cascades to oura_connections, health_data, share_grants. VAL-DB-013 confirmed upsert semantics (ON CONFLICT DO UPDATE). VAL-DB-014 confirmed CHECK constraints on date range and non-empty metrics. VAL-DB-016 confirmed audit events persist after user deletion. All 3 Vitest test suites passed (61/61 total tests)."
+}

@@ -1,0 +1,40 @@
+{
+  "flowId": "schema-validation",
+  "testedAt": "2026-03-09T00:00:00.000Z",
+  "assertions": {
+    "VAL-DB-001": {
+      "status": "pass",
+      "evidence": "\\d users shows: id VARCHAR(64) PK, display_name VARCHAR(100) NOT NULL, kms_key_arn VARCHAR(256) NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(). Primary key users_pkey on id. Referenced by health_data, oura_connections, share_grants FKs with ON DELETE CASCADE.",
+      "details": "All columns present with correct types, constraints, and defaults."
+    },
+    "VAL-DB-002": {
+      "status": "pass",
+      "evidence": "\\d oura_connections shows: id UUID PK DEFAULT gen_random_uuid(), user_id VARCHAR(64) NOT NULL FK->users ON DELETE CASCADE, access_token_enc BYTEA NOT NULL, refresh_token_enc BYTEA NOT NULL, token_expires_at TIMESTAMPTZ NOT NULL, last_sync_at TIMESTAMPTZ nullable, sync_cursor VARCHAR(256) nullable, sync_status VARCHAR(16) NOT NULL DEFAULT 'idle', sync_error TEXT nullable, created_at TIMESTAMPTZ NOT NULL DEFAULT now(). UNIQUE constraint uq_oura_connections_user on user_id. CHECK constraint chk_oura_sync_status ensuring sync_status IN ('idle','syncing','error').",
+      "details": "All columns, encrypted token fields (BYTEA), sync_status CHECK constraint, and UNIQUE on user_id confirmed."
+    },
+    "VAL-DB-003": {
+      "status": "pass",
+      "evidence": "\\d health_data shows: id BIGSERIAL (bigint with nextval), user_id VARCHAR(64) NOT NULL FK->users ON DELETE CASCADE, metric_type VARCHAR(64) NOT NULL, date DATE NOT NULL, value_encrypted BYTEA NOT NULL, source VARCHAR(32) NOT NULL, source_id VARCHAR(256) nullable, imported_at TIMESTAMPTZ NOT NULL DEFAULT now(). UNIQUE constraint uq_health_data_user_metric_date_source on (user_id, metric_type, date, source). Additional indexes on (user_id, metric_type, date) and (user_id, metric_type).",
+      "details": "BIGSERIAL id, user_id FK, metric_type, date, value_encrypted (BYTEA), source, and UNIQUE(user_id, metric_type, date, source) all confirmed."
+    },
+    "VAL-DB-004": {
+      "status": "pass",
+      "evidence": "\\d share_grants shows: id UUID PK DEFAULT gen_random_uuid(), token VARCHAR(64) NOT NULL UNIQUE, owner_id VARCHAR(64) NOT NULL FK->users ON DELETE CASCADE, label VARCHAR(255) NOT NULL, note VARCHAR(1000) nullable, allowed_metrics TEXT[] NOT NULL, data_start DATE NOT NULL, data_end DATE NOT NULL, grant_expires TIMESTAMPTZ NOT NULL, revoked_at TIMESTAMPTZ nullable, view_count INTEGER NOT NULL DEFAULT 0, last_viewed_at TIMESTAMPTZ nullable, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(). CHECK constraints: chk_share_grants_date_range (data_end >= data_start), chk_share_grants_metrics_nonempty (array_length > 0). Partial index idx_share_grants_active_token on token WHERE revoked_at IS NULL.",
+      "details": "All columns including allowed_metrics (TEXT[]), CHECK constraints on dates and non-empty metrics, and partial index on active tokens confirmed."
+    },
+    "VAL-DB-005": {
+      "status": "pass",
+      "evidence": "\\d audit_events shows: id BIGSERIAL (bigint with nextval), owner_id VARCHAR(64) NOT NULL, actor_type VARCHAR(16) NOT NULL, actor_id VARCHAR(64) nullable, grant_id UUID nullable, event_type VARCHAR(64) NOT NULL, resource_type VARCHAR(64) nullable, resource_detail JSONB nullable, ip_address INET nullable, user_agent TEXT nullable, session_id VARCHAR(256) nullable, created_at TIMESTAMPTZ NOT NULL DEFAULT now(). Indexes: idx_audit_events_owner_created on (owner_id, created_at), idx_audit_events_owner_type_created on (owner_id, event_type, created_at), idx_audit_events_grant_created on (grant_id, created_at) WHERE grant_id IS NOT NULL. CHECK constraint chk_audit_actor_type. Trigger trg_audit_events_immutable prevents UPDATE/DELETE.",
+      "details": "BIGSERIAL id, all required columns, ip_address (INET), indexes on (owner_id, created_at) and more, plus immutability trigger confirmed."
+    },
+    "VAL-DB-015": {
+      "status": "pass",
+      "evidence": "SELECT extname, extversion FROM pg_extension WHERE extname = 'pgcrypto' returned: pgcrypto 1.3. SELECT gen_random_uuid() returned: e8c7e24f-f4d7-47d9-b106-7fd44b0e4e9b (valid UUID).",
+      "details": "pgcrypto extension enabled (v1.3) and gen_random_uuid() is functional."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["psql"],
+  "summary": "Tested 6 assertions: all 6 passed. Users, oura_connections, health_data, share_grants, and audit_events tables all exist with correct schemas, constraints, indexes, and foreign keys. pgcrypto extension is enabled with gen_random_uuid() available."
+}

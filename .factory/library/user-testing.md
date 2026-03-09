@@ -75,6 +75,61 @@ Will be populated after seed script is created:
 - Use curl to verify the dev server responds
 - Use `docker compose exec -T db pg_isready -U totus` to verify DB connectivity
 
+## Flow Validator Guidance: Database/Terminal
+
+**Surface:** Database schema, constraints, triggers, encryption, seed data — all validated via terminal commands.
+
+**Testing tool:** Direct shell commands via Execute tool, plus Read/Grep for source inspection. No agent-browser or tuistory needed.
+
+**Isolation rules:**
+
+- Database assertions are mostly read-only queries — they inspect table schemas, run constraint tests, and verify behavior
+- Groups that write data (constraint tests, upsert tests) use their own isolated test data and clean up after themselves
+- Do NOT modify any source files — only run read-only commands, SQL queries, and inspect output
+- Do NOT start or stop services — PostgreSQL is already running on port 5432
+- Do NOT re-run db:push or db:seed — schema and seed data are already applied
+
+**Pre-started services:**
+
+- PostgreSQL: Running on port 5432 via Docker Compose (container: totus-db, user: totus, password: totus, db: totus)
+- Schema: Already pushed via `bun run db:push`
+- Seed data: Already populated via `bun run db:seed` (1 user, 720 health data rows, 1 share grant, 5 audit events)
+
+**How to query the database:**
+
+```bash
+cd /Users/weseklund/Projects/totus && docker compose exec -T db psql -U totus -d totus -c "YOUR SQL HERE"
+```
+
+**How to run Vitest tests:**
+
+```bash
+cd /Users/weseklund/Projects/totus && bun run test -- --reporter=verbose path/to/test/file
+```
+
+**Project root:** `/Users/weseklund/Projects/totus`
+
+**Seed user details:**
+
+- User ID: `user_test_001`
+- 8 metric types with 90 data points each = 720 total health data rows
+- 1 share grant with token hash stored
+- 5 audit events
+
+**Encryption details:**
+
+- Uses AES-256-GCM with local key from ENCRYPTION_KEY env var
+- Wire format: [1 byte version 0x01][4 bytes DEK length][N bytes encrypted DEK][12 bytes nonce][M bytes ciphertext][16 bytes auth tag]
+- Source: `src/lib/encryption/index.ts`
+- Tests: `src/lib/encryption/__tests__/encryption.test.ts`
+
+**Metric registry:**
+
+- Source: `src/config/metrics.ts`
+- Tests: `src/config/__tests__/metrics.test.ts`
+
+---
+
 ## Validated Findings
 
 ### Pre-commit Hook Testing (VAL-SCAF-009) — Round 3

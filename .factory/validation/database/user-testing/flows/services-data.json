@@ -1,0 +1,35 @@
+{
+  "flowId": "services-data",
+  "testedAt": "2026-03-09T05:28:00Z",
+  "assertions": {
+    "VAL-DB-008": {
+      "status": "pass",
+      "evidence": "Ran encryption test suite (src/lib/encryption/__tests__/encryption.test.ts) with Vitest: 17/17 tests passed. Tests cover encrypt/decrypt roundtrip for simple strings, empty buffers, large payloads, various JSON health data values, and different user IDs. All roundtrips return original plaintext. AES-256-GCM is used via LocalEncryptionProvider.",
+      "details": "Test output: 5 roundtrip tests pass (simple string, empty buffer, large payload, various JSON values, different user IDs). Tamper detection tests (4) also pass, confirming AES-256-GCM auth tag verification works."
+    },
+    "VAL-DB-009": {
+      "status": "pass",
+      "evidence": "Wire format tests in the same encryption test suite pass: version byte is 0x01, DEK length field at bytes 1-4 is valid (big-endian uint32), structure parses correctly as [1 byte version][4 bytes DEK length][N bytes encrypted DEK][12 bytes nonce][M bytes ciphertext][16 bytes auth tag]. Different encryptions produce different nonces and ciphertexts.",
+      "details": "5 wire format tests pass: version byte check, DEK length field validation, full structure parse, different ciphertexts for same plaintext (random nonce), and different nonces per encryption."
+    },
+    "VAL-DB-010": {
+      "status": "pass",
+      "evidence": "Ran metric registry test suite (src/config/__tests__/metrics.test.ts) with Vitest: 27/27 tests passed. Registry contains exactly 21 metric types matching LLD Appendix 19.1: sleep_score, sleep_duration, sleep_efficiency, sleep_latency, deep_sleep, rem_sleep, light_sleep, awake_time, hrv, rhr, respiratory_rate, body_temperature_deviation, readiness_score, activity_score, steps, active_calories, total_calories, spo2, glucose, weight, body_fat. Each has id, label, unit, category, valueType, chartColor, and sources.",
+      "details": "Categories verified: Sleep (8 metrics), Cardio (4 metrics: hrv, rhr, respiratory_rate, spo2), Activity (5 metrics: readiness_score, activity_score, steps, active_calories, total_calories), Body (4 metrics: body_temperature_deviation, glucose, weight, body_fat). All labels/colors unique. Specific property checks pass for sleep_score, sleep_duration, hrv, rhr, steps, active_calories, body_temperature_deviation, readiness_score, spo2."
+    },
+    "VAL-DB-011": {
+      "status": "pass",
+      "evidence": "Queried PostgreSQL database directly. Found: 1 test user (user_test_001, display_name='Test User'), 720 total health_data rows across 8 metric types (active_calories, deep_sleep, hrv, readiness_score, rhr, sleep_duration, sleep_score, steps), each with 90 days of data. Date range: 2025-12-10 to 2026-03-09 (90 days).",
+      "details": "SQL queries: SELECT COUNT(*) FROM users -> 1; SELECT COUNT(*) FROM health_data -> 720; GROUP BY metric_type shows 90 rows each for 8 types; date range spans exactly 90 days."
+    },
+    "VAL-DB-012": {
+      "status": "pass",
+      "evidence": "Ran 'bun run db:push' which executes 'drizzle-kit push'. Output: 'Pulling schema from database... No changes detected'. Schema is already current — all migrations have been applied successfully.",
+      "details": "drizzle-kit push compares the Drizzle schema definition against the live PostgreSQL database and reports no differences, confirming all schema changes (tables, constraints, indexes, triggers) are applied."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["vitest", "psql", "bun", "drizzle-kit"],
+  "summary": "Tested 5 assertions: all 5 passed. VAL-DB-008/009: encryption roundtrip and wire format verified via 17 passing Vitest tests. VAL-DB-010: metric registry verified via 27 passing tests covering all 21 metric types. VAL-DB-011: seed data confirmed with 720 rows (8 metrics × 90 days) for 1 test user. VAL-DB-012: db:push reports no changes, confirming schema is current."
+}
