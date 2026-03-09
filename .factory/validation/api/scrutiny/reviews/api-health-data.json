@@ -1,0 +1,62 @@
+{
+  "featureId": "api-health-data",
+  "reviewedAt": "2026-03-09T13:15:00.000Z",
+  "commitId": "7d5efaf",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of GET /api/health-data and GET /api/health-data/types endpoints. Code is well-structured, follows existing codebase patterns (encryption, auth, error envelope, fire-and-forget audit events), and has comprehensive test coverage (24 tests). The main issues are minor: response schema for the /types endpoint deviates from the LLD field names (uses date_range.start/end and count instead of earliest_date/latest_date/data_point_count), two LLD-specified validations are missing (start-not-in-future and max-5-year date range span), and significant code duplication exists with the viewer/data route. All core requirements from the feature description are met: decryption, daily/weekly/monthly resolution, viewer scope enforcement, empty-array-not-404, audit events, and auth enforcement.",
+    "issues": [
+      {
+        "file": "src/app/api/health-data/types/route.ts",
+        "line": 62,
+        "severity": "non_blocking",
+        "description": "Types endpoint response field names deviate from LLD Section 7.3.2. LLD specifies 'earliest_date', 'latest_date', 'data_point_count' but implementation uses 'date_range: { start, end }' and 'count'. The implementation matches the feature description text, but not the LLD spec. If frontend consumers are built from the LLD, this will cause a mismatch."
+      },
+      {
+        "file": "src/app/api/health-data/types/route.ts",
+        "line": 66,
+        "severity": "non_blocking",
+        "description": "Category values use PascalCase from the metric registry ('Sleep', 'Cardio', 'Activity') but the LLD Section 7.3.2 shows lowercase ('sleep', 'cardiovascular', 'activity'). Minor inconsistency that could affect frontend filtering."
+      },
+      {
+        "file": "src/app/api/health-data/route.ts",
+        "line": 30,
+        "severity": "non_blocking",
+        "description": "Missing two LLD-specified validation rules: (1) 'start: Valid date, not in the future' and (2) 'Date range: Maximum span of 1,825 days (5 years)'. The feature description didn't explicitly require these, but the LLD validation rules section does."
+      },
+      {
+        "file": "src/app/api/health-data/route.ts",
+        "line": 85,
+        "severity": "non_blocking",
+        "description": "Significant code duplication with src/app/api/viewer/data/route.ts. The DataPoint interface, getIsoWeekMonday(), getFirstOfMonth(), aggregatePoints() functions, and much of the query/decrypt/response logic are copy-pasted. These should be extracted into a shared utility (e.g., src/lib/health-data/query.ts) for maintainability."
+      },
+      {
+        "file": "src/app/api/health-data/route.ts",
+        "line": 88,
+        "severity": "non_blocking",
+        "description": "In aggregatePoints(), the 'source' for aggregated periods is taken from the first point encountered. If a user has data from multiple sources for the same metric in the same week/month, the aggregated source will be arbitrary. Consider returning 'mixed' or an array of sources for multi-source periods."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The /types endpoint response field naming deviates from LLD Section 7.3.2 (date_range.start/end vs earliest_date/latest_date, count vs data_point_count). The feature description used different naming than the LLD. AGENTS.md should clarify that the LLD is the canonical API contract and feature descriptions should not override field names.",
+      "evidence": "src/app/api/health-data/types/route.ts:62-70 returns { date_range: { start, end }, count } but LLD Section 7.3.2 response example shows { earliest_date, latest_date, data_point_count }"
+    },
+    {
+      "area": "conventions",
+      "observation": "Health data query/decrypt/aggregate logic is duplicated across two routes (health-data/route.ts and viewer/data/route.ts). The DataPoint interface, aggregation helpers (getIsoWeekMonday, getFirstOfMonth, aggregatePoints), and core query+decrypt+response flow are nearly identical. This could be documented as a pattern to extract into a shared module.",
+      "evidence": "health-data/route.ts lines 55-100 (aggregation helpers) are identical to viewer/data/route.ts lines 55-100. Query/decrypt/response logic (lines 160-280) is also near-identical."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker reported followedProcedure: true, but the transcript shows tests and implementation were created sequentially without running tests in the 'red' phase first (the skill procedure step 3 says 'Run bun run test — tests should FAIL (red phase)'). The worker created tests, then implementation, then ran all tests together. This is a minor procedural deviation that doesn't affect quality.",
+      "evidence": "Transcript skeleton shows: Create test file -> Create route.ts -> Create types/route.ts -> Execute bun run test (all pass). No intermediate test run to verify red phase."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. The api-health-data feature is well-implemented with comprehensive test coverage (24 tests). Both endpoints (GET /api/health-data and GET /api/health-data/types) correctly handle auth enforcement, input validation, data decryption, resolution aggregation (daily/weekly/monthly), viewer scope enforcement (metric filtering + date clamping), empty result handling (200 not 404), and audit event emission. Non-blocking issues found: (1) types endpoint field names deviate from LLD spec (match feature description instead), (2) category casing mismatch vs LLD, (3) missing LLD-specified validations (start-not-in-future, max-5-year range), (4) significant code duplication with viewer/data route, (5) aggregation source handling for mixed-source periods. All tests, typecheck, and lint pass."
+}

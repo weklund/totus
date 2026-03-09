@@ -1,0 +1,45 @@
+{
+  "featureId": "api-connections",
+  "reviewedAt": "2026-03-09T12:15:00.000Z",
+  "commitId": "3ed028e",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of all 5 connection management endpoints with comprehensive test coverage. All feature requirements and expectedBehavior items are fully met. Code follows existing codebase patterns (ApiError, createErrorResponse, getRequestContext, envelope encryption, audit events). The 20 tests cover auth enforcement, happy paths, error cases, user isolation, and the full OAuth flow end-to-end. Middleware correctly updated to whitelist callback as a public path. Minor non-blocking observations noted below.",
+    "issues": [
+      {
+        "file": "src/app/api/connections/[id]/sync/route.ts",
+        "line": 89,
+        "severity": "non_blocking",
+        "description": "TOCTOU race condition: The sync_status check (line 89) and the status update to 'syncing' (line 97) are not atomic. Two concurrent POST /sync requests could both pass the check and start syncing simultaneously. A safer pattern would be UPDATE ... SET sync_status='syncing' WHERE sync_status != 'syncing' RETURNING ... to do an atomic check-and-set. Acceptable for mock mode since real concurrent requests are unlikely, but should be addressed before production."
+      },
+      {
+        "file": "src/app/api/connections/oura/authorize/route.ts",
+        "line": 27,
+        "severity": "non_blocking",
+        "description": "Duplicated getStateSecret() function: The same getStateSecret() helper appears in both authorize/route.ts (line 27) and callback/route.ts (line 24). Consider extracting to a shared module (e.g., src/lib/oauth/state.ts) to keep DRY. Not a bug, just a maintenance concern."
+      },
+      {
+        "file": "src/app/api/connections/oura/callback/route.ts",
+        "line": 57,
+        "severity": "non_blocking",
+        "description": "Minor inconsistency with feature spec: The feature description says errors should redirect to /dashboard?error=oura_connect_failed, but invalid state JWTs redirect to /dashboard?error=oura_state_invalid instead. This is arguably an improvement (more specific error codes aid debugging), but deviates slightly from the spec. Both error paths redirect correctly to /dashboard."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Fire-and-forget audit event pattern is used consistently across all connection endpoints (disconnect, sync, callback). The pattern is: db.insert(auditEvents).values({...}).catch((err) => console.error(...)). This is an established pattern in the codebase but is not documented in AGENTS.md or library/architecture.md. Future workers implementing audit events would benefit from knowing this pattern.",
+      "evidence": "src/app/api/connections/[id]/route.ts:51-57, src/app/api/connections/[id]/sync/route.ts:132-144, src/app/api/connections/oura/callback/route.ts:103-113 — all use the same .catch() fire-and-forget pattern for audit inserts"
+    },
+    {
+      "area": "conventions",
+      "observation": "OAuth state JWT signing reuses MOCK_AUTH_SECRET env var rather than having a dedicated secret. This is documented inline in comments but not in AGENTS.md or architecture.md. When real Clerk is swapped in, MOCK_AUTH_SECRET may not exist, so the OAuth state signing would need its own secret (e.g., OAUTH_STATE_SECRET).",
+      "evidence": "src/app/api/connections/oura/authorize/route.ts:28-34 — getStateSecret() reads MOCK_AUTH_SECRET, comment says 'Reuses MOCK_AUTH_SECRET for signing OAuth state JWTs'"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. All 5 connection management endpoints (list, authorize, callback, disconnect, sync) are correctly implemented per LLD Section 7.2. The 7 files changed (6 new route/test files + 1 middleware update) produce a clean, well-structured implementation. 20 tests comprehensively cover auth enforcement (401), happy paths, error cases (404, 409), user isolation, full OAuth flow, and health data preservation on disconnect. The worker followed the backend-worker skill procedure (read context, implement, verify with tests/typecheck/lint, manual curl). Three non-blocking issues identified: a TOCTOU race in sync status checking, a duplicated getStateSecret() helper, and a minor spec deviation in callback error codes. None warrant a failure."
+}

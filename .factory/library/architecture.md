@@ -57,6 +57,55 @@ Standard codes: VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMIT
 - FK cascades: deleting a user cascades to `oura_connections`, `health_data`, and `share_grants`
 - `audit_events.owner_id` is NOT a foreign key — audit events persist after user deletion
 
+## Audit Event Pattern
+
+Audit events are inserted using a **fire-and-forget** pattern in all API routes:
+
+```ts
+db.insert(auditEvents)
+  .values({
+    ownerId: userId,
+    actorType: "owner",
+    actorId: userId,
+    eventType: "share.created",
+    resourceType: "share_grant",
+    resourceId: grant.id,
+    ipAddress: request.headers.get("x-forwarded-for") || "unknown",
+  })
+  .catch((err) => console.error("Failed to create audit event:", err));
+```
+
+**Important exception:** `DELETE /api/user/account` must **await** the audit event insertion _before_ deleting the user, since the cascade would make it impossible to emit the event after deletion.
+
+## Rate Limiter Configuration
+
+Pre-configured rate limiter instances in `src/lib/api/rate-limit.ts`:
+
+| Limiter     | Import name             | Limit   | Window | Use for                                      |
+| ----------- | ----------------------- | ------- | ------ | -------------------------------------------- |
+| General     | `generalRateLimiter`    | 100 req | 1 min  | Standard API endpoints                       |
+| Validation  | `validationRateLimiter` | 10 req  | 1 min  | Token validation (POST /api/viewer/validate) |
+| Health Data | `healthDataRateLimiter` | 30 req  | 1 min  | Data query endpoints                         |
+
+Usage pattern:
+
+```ts
+import {
+  generalRateLimiter,
+  createRateLimitResponse,
+  addRateLimitHeaders,
+} from "@/lib/api/rate-limit";
+
+const rateLimitResult = generalRateLimiter.check(ctx.userId || ip);
+if (!rateLimitResult.allowed) {
+  return createRateLimitResponse(rateLimitResult);
+}
+// ... handler logic ...
+return addRateLimitHeaders(response, rateLimitResult);
+```
+
+Note: In-memory rate limiting resets on server restart. Redis adapter needed for production.
+
 ## Testing Patterns
 
 ### Vitest .env.local Loading

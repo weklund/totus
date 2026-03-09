@@ -1,0 +1,39 @@
+{
+  "featureId": "api-infrastructure",
+  "reviewedAt": "2026-03-09T10:30:00.000Z",
+  "commitId": "5a10928",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of all 6 API infrastructure utilities. The ApiError class and createErrorResponse produce correctly-formatted error envelopes. Zod validation middleware is clean, type-safe, and properly maps Zod issues to the details array. Cursor pagination uses proper base64url encoding with the specified { c, i } payload format. Rate limiter implements sliding window correctly with configurable limits, cleanup intervals, and proper X-RateLimit-* headers. Security headers were already present in middleware.ts (correctly identified by the worker). Health check endpoint correctly returns 200/503 based on DB connectivity using dynamic import to avoid module-level DATABASE_URL validation. 68 tests provide thorough coverage of all utilities. One naming deviation: the spec called for `paginatedQuery(query, cursor, limit)` but the implementation provides `paginateResults(items, limit, getCreatedAt, getId)` — a lower-level utility that separates query construction from result pagination. This is a reasonable design choice and downstream features (shares, audit) use it successfully with manual cursor-based WHERE clauses.",
+    "issues": [
+      {
+        "file": "src/lib/api/pagination.ts",
+        "line": 93,
+        "severity": "non_blocking",
+        "description": "Function named `paginateResults` instead of spec's `paginatedQuery`. The spec described `paginatedQuery(query, cursor, limit)` — a higher-level function that accepts a query and cursor. The implementation instead provides a lower-level `paginateResults(items, limit, getCreatedAt, getId)` that operates on already-fetched results and doesn't accept or process a cursor parameter. This means each consumer must implement cursor-based WHERE clauses independently (visible in shares/route.ts:240-245 and audit/route.ts:208-213). The approach works correctly and downstream features use it consistently, but the API surface deviates from the spec."
+      },
+      {
+        "file": "src/lib/api/rate-limit.ts",
+        "line": 67,
+        "severity": "non_blocking",
+        "description": "The cleanup interval runs `setInterval` at module-global scope when pre-configured instances (generalRateLimiter, validationRateLimiter, healthDataRateLimiter) are created. In a serverless/edge environment, these intervals are per-instance and won't survive cold starts. The code correctly documents this as needing Redis for production and calls `.unref()` to avoid preventing process exit. Acceptable for MVP but worth noting."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "Worker did not follow strict TDD (red-green-refactor) as prescribed by the backend-worker skill procedure step 3. The transcript shows the worker wrote implementation files first, then test files, rather than writing failing tests before implementing. The worker acknowledged this deviation: 'I'll write all implementation files first (since the feature is well-specified) and then tests, which is more efficient.' However, the handoff's skillFeedback.followedProcedure is reported as true with no deviations listed.",
+      "evidence": "Transcript skeleton shows Create calls for implementation files (errors.ts, validation.ts, pagination.ts, rate-limit.ts) before test files. Skill step 3 says 'Write tests FIRST (red)... Run bun run test — tests should FAIL (red phase)'. The handoff reports followedProcedure: true and deviations: []."
+    },
+    {
+      "area": "conventions",
+      "observation": "The pre-configured rate limiter instances (generalRateLimiter: 100/min, validationRateLimiter: 10/min, healthDataRateLimiter: 30/min) define endpoint-specific rate limits that other workers need to know about when building API routes. These rate limit values and the pattern for applying them (check → createRateLimitResponse or addRateLimitHeaders) are not documented in AGENTS.md or architecture.md.",
+      "evidence": "src/lib/api/rate-limit.ts lines 195-221 define three pre-configured instances. Downstream features would need to import the correct limiter and apply it, but there's no documented guidance on which limiter to use for which endpoint type."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. All 6 required utilities are implemented correctly: ApiError + createErrorResponse (error envelope), validateRequest (Zod validation), encodeCursor/decodeCursor/paginateResults (cursor pagination), RateLimiter + response helpers (rate limiting), security headers (pre-existing in middleware.ts), and GET /api/health (200/503 based on DB connectivity). 68 well-structured tests cover happy paths, edge cases, and error scenarios. Code quality is high with proper TypeScript types, JSDoc comments, and clean module organization. Two non-blocking issues noted: (1) the pagination utility is named `paginateResults` with a different API than the spec's `paginatedQuery`, and (2) rate limiter intervals in serverless context. Worker accurately reported skill compliance but actually deviated from strict TDD ordering."
+}

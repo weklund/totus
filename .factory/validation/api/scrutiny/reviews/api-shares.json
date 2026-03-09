@@ -1,0 +1,68 @@
+{
+  "featureId": "api-shares",
+  "reviewedAt": "2026-03-09T12:30:00.000Z",
+  "commitId": "c2132aa974fd4acfbded5cd0ca5146f85ad6372f",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "All 5 share management endpoints (POST, GET, GET/:id, PATCH, DELETE) are implemented correctly and match the feature description requirements. Zod validation covers all specified fields with correct constraints. Max 50 active shares enforcement, idempotent revocation, delete restrictions (403 for active shares), cursor pagination, and status filtering all work as specified. 43 comprehensive tests cover auth enforcement, validation errors, edge cases, pagination, and audit events. Code follows project conventions (snake_case API fields, @/ imports, standard error envelope, NextResponse patterns). Two non-blocking spec gaps were identified where the LLD has stricter requirements than the feature description.",
+    "issues": [
+      {
+        "file": "src/app/api/shares/[id]/route.ts",
+        "line": 88,
+        "severity": "non_blocking",
+        "description": "recent_views query does not filter by eventType. The LLD (Section 7.4.3) specifies that recent_views should contain 'the 10 most recent share.viewed and data.viewed audit events for this grant', but the query fetches ALL audit events for the grant (including share.created, share.revoked, share.deleted). Should add a filter like: eq(auditEvents.eventType, sql`ANY(ARRAY['share.viewed','data.viewed'])`) or use an IN clause. Currently this is latent — it won't manifest until viewer endpoints emit share.viewed/data.viewed events, but will return incorrect data once they do."
+      },
+      {
+        "file": "src/app/api/shares/route.ts",
+        "line": 91,
+        "severity": "non_blocking",
+        "description": "LLD Section 7.4.1 processing step 2 says 'Validate that allowed_metrics contains only metrics the user actually has data for (prevents creating a share that would show nothing).' The implementation only validates that metric type IDs are valid (exist in METRIC_TYPE_IDS), but does not check if the user has actual health_data rows for those metrics. The feature description only says '1-21 valid types' so this matches the feature spec, but diverges from the LLD."
+      },
+      {
+        "file": "src/app/api/shares/route.ts",
+        "line": 50,
+        "severity": "non_blocking",
+        "description": "LLD Section 7.4.1 field constraints say data_start should be 'Valid date, not in the future'. The implementation validates YYYY-MM-DD format via regex but does not check whether data_start is in the future. The feature description does not mention this constraint, so this is an LLD gap rather than a feature spec violation."
+      },
+      {
+        "file": "src/app/api/shares/route.ts",
+        "line": 50,
+        "severity": "non_blocking",
+        "description": "Date validation uses regex /^\\d{4}-\\d{2}-\\d{2}$/ which only checks format, not date validity. Strings like '2026-13-45' or '2026-02-30' would pass validation. Consider adding a refinement that verifies the parsed date is actually valid (e.g., new Date(str) produces a valid date matching the input)."
+      },
+      {
+        "file": "src/app/api/shares/route.ts",
+        "line": 72,
+        "severity": "non_blocking",
+        "description": "computeStatus() helper function is duplicated identically in both src/app/api/shares/route.ts (line 72) and src/app/api/shares/[id]/route.ts (line 44). Should be extracted to a shared utility (e.g., src/lib/shares/utils.ts) for DRY consistency."
+      },
+      {
+        "file": "src/app/api/shares/route.ts",
+        "line": 149,
+        "severity": "non_blocking",
+        "description": "Audit event insertion uses fire-and-forget pattern (no await, .catch only). While this is acceptable for non-critical audit logging, unhandled promise rejections could silently drop audit events in production. The pattern is used consistently across all three audit emissions (share.created, share.revoked, share.deleted) so this is a design choice, not an oversight."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The computeStatus() helper is duplicated across route.ts and [id]/route.ts. As more features may need share status computation (e.g., the viewer endpoints), there's no convention documented in AGENTS.md about where to place shared domain logic for share grants.",
+      "evidence": "src/app/api/shares/route.ts:72-77 and src/app/api/shares/[id]/route.ts:44-49 have identical computeStatus() implementations."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker reported followedProcedure: true with no deviations, but the transcript skeleton shows the worker created route handler files before writing tests (Create route.ts, then Create [id]/route.ts, then Create __tests__/route.test.ts). The SKILL.md procedure step 3 says 'Write tests FIRST (red)' before step 4 'Implement to make tests pass (green)'. This is a minor TDD process deviation.",
+      "evidence": "Transcript skeleton shows Create tool calls in order: route.ts -> [id]/route.ts -> __tests__/route.test.ts. SKILL.md step 3 says 'Write tests FIRST (red).'"
+    },
+    {
+      "area": "conventions",
+      "observation": "The fire-and-forget pattern for audit event emission (db.insert().values().catch()) is used in all three audit emissions in the shares endpoints. This pattern isn't documented in AGENTS.md. Other routes (viewer, health-data) also use similar patterns. Should be documented as the standard approach for audit event emission.",
+      "evidence": "src/app/api/shares/route.ts:145-156, src/app/api/shares/[id]/route.ts:213-224, src/app/api/shares/[id]/route.ts:279-290 all use the same fire-and-forget pattern."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The api-shares feature passes review. All 5 share management endpoints are correctly implemented with comprehensive validation, auth enforcement, pagination, status filtering, idempotent revocation, and delete restrictions. 43 tests provide thorough coverage. The main non-blocking finding is that the recent_views query in GET /api/shares/:id does not filter by event type (share.viewed/data.viewed), which will return incorrect results once viewer endpoints are active. Other non-blocking items include missing LLD-specified validations (metrics-with-data check, future date check) that weren't required by the feature description, and duplicated helper code."
+}

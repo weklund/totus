@@ -1,0 +1,51 @@
+{
+  "featureId": "api-viewer",
+  "reviewedAt": "2026-03-09T12:45:00.000Z",
+  "commitId": "7d7f303",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The implementation covers both endpoints (POST /api/viewer/validate and GET /api/viewer/data) with 23 comprehensive tests. The data endpoint is well-implemented: it correctly re-validates grants against the DB, enforces scope via enforcePermissions, decrypts health data, supports resolution aggregation, and emits audit events. However, the validate endpoint deviates from the LLD's explicit security recommendation by returning distinct error codes for expired/revoked tokens instead of a generic 404, which enables information leakage.",
+    "issues": [
+      {
+        "file": "src/app/api/viewer/validate/route.ts",
+        "line": 86,
+        "severity": "blocking",
+        "description": "Security: LLD Section 7.5.1 explicitly states 'If invalid: return 404 with SHARE_NOT_FOUND (generic — do NOT reveal whether the token was revoked vs. expired vs. never existed)' and includes a Security Note: 'The response does NOT distinguish between invalid token, expired grant, and revoked grant. This prevents information leakage.' The implementation returns 403 SHARE_REVOKED (line 86) and 403 SHARE_EXPIRED (line 93) as distinct codes, contradicting this deliberate security design. An attacker probing tokens can distinguish between tokens that once existed (expired/revoked) and tokens that never existed, enabling enumeration. The feature description conflicts with the LLD on this point; AGENTS.md designates the LLD as the 'PRIMARY reference for backend work'. Both the expired and revoked checks should return 404 SHARE_NOT_FOUND with the same generic message."
+      },
+      {
+        "file": "src/app/api/viewer/validate/route.ts",
+        "line": 65,
+        "severity": "non_blocking",
+        "description": "The validate route duplicates the token lookup and validity-check logic from src/lib/auth/viewer.ts (validateShareToken). If the generic 404 approach from the LLD is adopted, the existing validateShareToken() helper could be reused directly, reducing code duplication."
+      },
+      {
+        "file": "src/app/api/viewer/data/route.ts",
+        "line": 285,
+        "severity": "non_blocking",
+        "description": "The isValidUuid() regex check before inserting grantId into audit events is defensive but unnecessary — the grantId originates from the viewer JWT which was signed by the server, and the middleware already parses it. If the JWT payload is tampered with, signature verification would fail before reaching this code. Not harmful, just redundant."
+      },
+      {
+        "file": "src/app/api/viewer/data/route.ts",
+        "line": 116,
+        "severity": "non_blocking",
+        "description": "The route supports owner role access (via the ctx.role check), effectively duplicating GET /api/health-data for owners. The LLD Section 7.5.2 specifies 'Auth: Viewer (requires valid totus_viewer cookie)' — this endpoint is meant exclusively for viewer access. While the extra path doesn't break anything (enforcePermissions handles it correctly), it's unnecessary surface area."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The feature description in features.json specifies distinct error codes for expired (403 SHARE_EXPIRED) and revoked (403 SHARE_REVOKED) tokens, while the LLD Section 7.5.1 explicitly requires a generic 404 SHARE_NOT_FOUND for all invalid cases to prevent information leakage. AGENTS.md says the LLD is the PRIMARY reference but doesn't address how to handle conflicts between feature descriptions and the LLD. Workers need clear guidance on precedence.",
+      "evidence": "Feature description says 'If expired: 403 SHARE_EXPIRED. If revoked: 403 SHARE_REVOKED.' LLD Section 7.5.1 says 'If invalid: return 404 with SHARE_NOT_FOUND (generic — do NOT reveal...)'. Transcript shows the worker noticed this conflict and chose the feature description."
+    },
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill says 'The primary reference for backend work is /docs/api-database-lld.md' but doesn't explicitly address how to handle conflicts between the feature description and the LLD. The worker followed the feature description over the LLD for the validate error codes. The skill's procedure was otherwise followed correctly (TDD approach, all verification commands run, manual testing not done but tests were comprehensive).",
+      "evidence": "Transcript shows worker noted the LLD/feature conflict and chose feature description. Skill file step 1 says to read the LLD but doesn't address conflict resolution. handoff.skillFeedback.followedProcedure is true."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The api-viewer feature has a solid implementation of both endpoints with 23 comprehensive tests, proper grant re-validation, scope enforcement, encryption, and audit events. However, there is one blocking security issue: POST /api/viewer/validate returns distinct error codes for expired and revoked tokens (403 SHARE_EXPIRED/SHARE_REVOKED) instead of the LLD-mandated generic 404 SHARE_NOT_FOUND, which enables token enumeration. The LLD explicitly warns against this information leakage. The fix is straightforward: change both error branches to return 404 SHARE_NOT_FOUND with the generic message, and update the corresponding tests."
+}
