@@ -1,0 +1,45 @@
+{
+  "featureId": "auth-viewer-tokens",
+  "reviewedAt": "2026-03-09T10:05:00.000Z",
+  "commitId": "68653f5",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The viewer token system is correctly implemented across 264 lines in src/lib/auth/viewer.ts with 5 exported functions and 1 exported config object. All 5 required capabilities are present: (1) generateShareToken with 32 crypto random bytes and base64url encoding to 43 chars, (2) validateShareToken with DB lookup by SHA-256 hash and expired/revoked checks, (3) issueViewerJwt with all required JWT claims and min(grant_expires, now+4h) TTL, (4) verifyViewerJwt with dual-secret rotation, (5) VIEWER_COOKIE_CONFIG with correct settings. The implementation uses jose for JWTs (Edge Runtime compatible per AGENTS.md conventions), Drizzle ORM for DB queries, and crypto for hashing/randomness. All types and functions are properly re-exported from src/lib/auth/index.ts. 38 comprehensive tests cover token format, uniqueness, hash correctness, grant validation (valid/expired/revoked/missing), JWT payload claims, TTL calculation (3 scenarios), dual-secret verification (6 scenarios), and cookie configuration.",
+    "issues": [
+      {
+        "file": "src/lib/auth/viewer.ts",
+        "line": 136,
+        "severity": "non_blocking",
+        "description": "The type cast `grant.allowedMetrics as string[]` is safe since the Drizzle schema has `.array().notNull()`, but if the Drizzle type inference already yields `string[]`, the cast is redundant. If it yields `string[] | null` in some Drizzle versions despite `.notNull()`, the cast suppresses a legitimate null check. This is unlikely to cause issues in practice but is worth noting."
+      },
+      {
+        "file": "src/lib/auth/viewer.ts",
+        "line": 258,
+        "severity": "non_blocking",
+        "description": "VIEWER_COOKIE_CONFIG.secure is evaluated at module load time based on process.env.NODE_ENV. This is standard Node.js practice and unlikely to cause issues, but consumers should be aware the value is captured once."
+      },
+      {
+        "file": "src/lib/auth/viewer.ts",
+        "line": 178,
+        "severity": "non_blocking",
+        "description": "issueViewerJwt does not guard against a grant with grantExpires in the past. If called with an already-expired grant, it would produce a JWT with exp in the past (immediately rejected by verifyViewerJwt). This is acceptable since validateShareToken already filters expired grants, but callers constructing ViewerJwtGrant manually should be aware."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The worker followed the RED-GREEN TDD approach as specified in the backend-worker skill: wrote 38 tests first (saw them fail), then implemented viewer.ts to make them pass. This is consistent with the documented procedure.",
+      "evidence": "Transcript skeleton shows: test file created first → tests run (failed) → viewer.ts created → tests run (passed) → verification commands run."
+    },
+    {
+      "area": "conventions",
+      "observation": "The worker did NOT perform manual verification (step 6 of backend-worker skill: start bun dev, curl endpoints). However, this is justified because the feature is a library module with no HTTP endpoints — there is nothing to curl. The skill procedure assumes API route work; pure library features should skip step 6.",
+      "evidence": "Handoff verification.commandsRun includes test/typecheck/lint but no interactiveChecks. Feature is src/lib/auth/viewer.ts (not an API route)."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. The auth-viewer-tokens feature is correctly and completely implemented. All 5 functions (generateShareToken, hashToken, validateShareToken, issueViewerJwt, verifyViewerJwt) and VIEWER_COOKIE_CONFIG match the feature description. The implementation uses the correct libraries (jose for JWTs, crypto for hashing/randomness, Drizzle for DB), follows project conventions (TypeScript strict, @/ imports, camelCase), and handles edge cases (empty tokens, expired JWTs, unknown secrets, missing previous secret). 38 tests provide thorough coverage. Three non-blocking observations noted: a type cast on allowedMetrics, module-load-time evaluation of secure flag, and no guard against expired grants in issueViewerJwt (mitigated by validateShareToken). No blocking issues found."
+}

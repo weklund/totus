@@ -1,0 +1,63 @@
+{
+  "milestone": "auth",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": { "passed": true, "command": "bun run test", "exitCode": 0 },
+    "typecheck": {
+      "passed": true,
+      "command": "bun run typecheck",
+      "exitCode": 0
+    },
+    "lint": { "passed": true, "command": "bun run lint", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Elevate the 'packageManager' quirk warning. Move it from 'Known Quirks' to a more prominent location (e.g., the 'Coding Conventions' section) or add a bold callout. Multiple workers have re-committed this field despite the existing warning, suggesting it's not visible enough.",
+      "evidence": "Feature auth-mock-clerk (commit a175383) re-introduced the packageManager field to package.json that was previously removed in commit d3e1fff. The AGENTS.md 'Known Quirks' section documents this but workers keep missing it.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add a convention about module import boundaries: 'When a module provides a unified public API via index.ts (e.g., @/lib/auth), prefer importing from the barrel export rather than directly from implementation files. This keeps internal module structure refactorable.'",
+      "evidence": "Feature auth-mock-clerk: sign-in/sign-up/sign-out route handlers import from '@/lib/auth/mock-auth' directly, while session/route.ts imports from '@/lib/auth'. The unified index.ts was created as the public API but internal routes bypass it inconsistently.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add guidance for API milestone workers: 'Middleware allows viewers (role=viewer) to access /dashboard/* routes. Page components and API route handlers must check role appropriateness themselves — middleware only blocks unauthenticated access to /dashboard/* and provides RequestContext for downstream authorization decisions.'",
+      "evidence": "Feature auth-middleware-permissions: middleware.ts only blocks unauthenticated users from /dashboard, allowing viewers through. Architecture design FR-2 specifies owners see full dashboard with edit/admin while viewers see read-only. Downstream workers need to enforce this distinction.",
+      "isSystemic": true
+    },
+    {
+      "target": "skills",
+      "suggestion": "Backend-worker skill step 6 (manual verification via bun dev + curl) should note an exception: pure library/utility features with no HTTP endpoints can skip manual HTTP verification. The step should say 'If your feature includes API routes or pages, start bun dev and verify via curl/browser. If your feature is a pure library module, skip this step.'",
+      "evidence": "Feature auth-viewer-tokens is a pure library module (src/lib/auth/viewer.ts) with no API routes. Worker correctly skipped manual curl verification since there was nothing to curl. Skill procedure doesn't explicitly account for this case.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Worker followed TDD approach as specified in backend-worker skill (auth-viewer-tokens review).",
+      "reason": "Positive feedback, not an actionable shared state change."
+    },
+    {
+      "observation": "Worker followed backend-worker skill procedure correctly with no deviations (auth-middleware-permissions review).",
+      "reason": "Positive feedback, not an actionable shared state change."
+    },
+    {
+      "observation": "Unauthenticated RequestContext sets permissions to 'full', which is semantically confusing but functionally harmless since enforcePermissions rejects unauthenticated role regardless.",
+      "reason": "This is a code-level implementation detail, not a shared state or convention gap. The enforcePermissions function is already well-tested and the behavior is correct. Documenting this edge case would add noise to AGENTS.md without preventing real issues."
+    }
+  ],
+  "previousRound": null
+}

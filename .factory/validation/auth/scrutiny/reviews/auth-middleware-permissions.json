@@ -1,0 +1,62 @@
+{
+  "featureId": "auth-middleware-permissions",
+  "reviewedAt": "2026-03-09T10:15:00.000Z",
+  "commitId": "9e69949",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of unified auth middleware, RequestContext system, and enforcePermissions pure function. The middleware correctly implements three-tier auth detection (owner session → viewer JWT → unauthenticated) with dual-secret rotation for viewer JWTs. Route protection correctly redirects /dashboard/* to /sign-in for unauthenticated users and returns 401 for owner-only /api/* routes. The enforcePermissions function correctly implements metric intersection and date clamping per the architecture pseudocode. Security headers (HSTS, X-Frame-Options, X-Content-Type-Options, CSP) are applied to all responses including error responses. 78 well-structured tests cover all auth paths, route protection, public routes, security headers, permissions enforcement for all role+scope combinations, and RequestContext serialization/deserialization. All verification steps passed (262 tests, typecheck clean, lint clean, manual curl verification).",
+    "issues": [
+      {
+        "file": "src/middleware.ts",
+        "line": 23,
+        "severity": "non_blocking",
+        "description": "REQUEST_CONTEXT_HEADER is defined locally in middleware.ts as a string literal ('x-request-context') and also exported from request-context.ts. The middleware imports the RequestContext type from request-context.ts but not the REQUEST_CONTEXT_HEADER constant, so the value is duplicated. If the header name ever changes, both files must be updated. Consider importing the constant from request-context.ts instead. (Note: this may be intentional to avoid importing non-type values in Edge Runtime middleware, but the jose library is already imported so Edge compatibility is not the concern.)"
+      },
+      {
+        "file": "src/middleware.ts",
+        "line": 206,
+        "severity": "non_blocking",
+        "description": "The pathname.includes('.') check to skip static files is a broad heuristic. If a future API route ever contains a dot (e.g., /api/v1.0/data), it would be skipped by middleware entirely (no auth, no security headers). The matcher config already excludes _next/static, _next/image, and favicon.ico. Consider removing this broad check or making it more specific (e.g., check for common static file extensions)."
+      },
+      {
+        "file": "src/lib/auth/permissions.ts",
+        "line": 128,
+        "severity": "non_blocking",
+        "description": "Non-null assertion `ctx.userId!` for viewer context. This is safe because the middleware always sets userId for viewer contexts (from claims.ownerId), but a type narrowing approach (e.g., discriminated union types for RequestContext by role) would be more type-safe and eliminate the need for the assertion."
+      },
+      {
+        "file": "src/lib/auth/permissions.ts",
+        "line": 85,
+        "severity": "non_blocking",
+        "description": "The architecture pseudocode (architecture-design.md lines 440-445) includes explicit checks for grant revocation (revoked_at IS NOT NULL) and grant expiry (grant_expires < now()). These checks are omitted from enforcePermissions. This is a reasonable design choice since: (1) the viewer JWT has a short TTL (≤4h), (2) revocation/expiry are checked at JWT issuance time, (3) the JWT's own exp claim prevents use after expiry. However, a revoked grant could still be used within the JWT's remaining TTL. Future features (real-time revocation) may need to add a DB check here."
+      },
+      {
+        "file": "src/middleware.ts",
+        "line": 188,
+        "severity": "non_blocking",
+        "description": "CSP includes 'unsafe-inline' and 'unsafe-eval' for script-src. This is typical for Next.js dev mode (HMR requires eval) but should be tightened for production. Consider using nonce-based CSP or making the policy environment-dependent. Not blocking for MVP since this is dev-only currently."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The unauthenticated RequestContext sets permissions to 'full', which is semantically confusing (an unauthenticated user appears to have 'full' permissions). The enforcePermissions function correctly rejects unauthenticated users regardless, so this is functionally harmless, but future workers reading the RequestContext type might be confused. AGENTS.md or architecture.md could note that 'full' on unauthenticated contexts is a placeholder/default and enforcePermissions always rejects unauthenticated role regardless of permissions value.",
+      "evidence": "src/lib/auth/request-context.ts:78 — createUnauthenticatedContext returns { permissions: 'full' }; src/lib/auth/permissions.ts:86 — enforcePermissions checks role first and rejects unauthenticated before examining permissions"
+    },
+    {
+      "area": "conventions",
+      "observation": "The middleware allows viewers (role='viewer') to access /dashboard/* routes. The feature description specifies dashboard protection only against unauthenticated users, which the implementation follows correctly. However, the architecture design (FR-2) says owners see full dashboard with edit/admin and viewers see read-only mode. Downstream route handlers/components will need to enforce the owner-vs-viewer distinction for /dashboard routes. This is not a bug in the middleware but an important convention for future workers: middleware provides the RequestContext, but page/API-level authorization must still check role appropriateness.",
+      "evidence": "src/middleware.ts:267 — isDashboardPath check only blocks unauthenticated; architecture-design.md FR-2 — 'owners see full dashboard with edit/admin actions and viewers see the same dashboard in read-only mode'"
+    },
+    {
+      "area": "skills",
+      "observation": "Worker followed the backend-worker skill procedure correctly. Read design docs first, examined existing code, wrote tests, implemented to pass tests, ran all verification commands (test, typecheck, lint), did manual curl verification, and updated shared knowledge in .factory/library/architecture.md. skillFeedback confirms followedProcedure=true with no deviations.",
+      "evidence": "Handoff verification section shows all 6 verification commands passed; transcript shows systematic reading of design docs before implementation; .factory/library/architecture.md was updated with 'Unified Middleware' section"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. The auth-middleware-permissions feature is well-implemented and thoroughly tested. The middleware correctly implements three-tier auth detection with proper priority ordering, dual-secret rotation for viewer JWTs, and comprehensive route protection. The enforcePermissions pure function correctly narrows viewer access via metric intersection and date clamping per the architecture design. Security headers are applied consistently. 78 new tests provide strong coverage. Five non-blocking issues noted: duplicated header constant, broad static file skip heuristic, non-null assertion in permissions, omitted grant revocation/expiry checks (by design — relies on JWT expiry), and permissive CSP for dev mode. No blocking issues found."
+}

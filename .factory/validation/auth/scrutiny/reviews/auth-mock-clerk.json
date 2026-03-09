@@ -1,0 +1,39 @@
+{
+  "featureId": "auth-mock-clerk",
+  "reviewedAt": "2026-03-09T10:15:00.000Z",
+  "commitId": "a175383",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of the mock Clerk auth layer. All 8 requirements from the feature description are fulfilled: mockAuth() function, MockAuthProvider with useAuth(), sign-in/sign-up/sign-out API routes, sign-in and sign-up pages, and unified auth module. JWT signing uses HS256 via jose with MOCK_AUTH_SECRET. Session cookie is correctly configured as __session, httpOnly, SameSite=Lax, path=/. Tests are comprehensive with 31 cases covering JWT creation/verification, all API routes, validation errors, duplicate handling, and cookie management. Two non-blocking issues found.",
+    "issues": [
+      {
+        "file": "package.json",
+        "line": 68,
+        "severity": "non_blocking",
+        "description": "The `packageManager` field referencing yarn was committed, violating the AGENTS.md 'Known Quirks' convention which explicitly states 'Do NOT commit this field'. A prior commit (d3e1fff) had specifically removed this field, and this worker's commit re-introduced it via `bun install`."
+      },
+      {
+        "file": "src/app/api/auth/sign-in/route.ts",
+        "line": 6,
+        "severity": "non_blocking",
+        "description": "Route handlers (sign-in, sign-up, sign-out) import directly from '@/lib/auth/mock-auth' instead of the unified module '@/lib/auth'. The unified index.ts was created specifically to be the public API surface, but internal route handlers bypass it. The session/route.ts correctly imports from '@/lib/auth'. This inconsistency should be aligned for maintainability."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Worker committed the `packageManager` field to package.json despite AGENTS.md explicitly documenting this as a known quirk to avoid. A prior commit (d3e1fff) was created solely to remove this field, and this worker re-introduced it. The convention warning in AGENTS.md may not be prominent enough, or workers may not be reading the 'Known Quirks' section.",
+      "evidence": "package.json line 68 in commit a175383 adds `packageManager: yarn@1.22.22+sha512...`. AGENTS.md 'Known Quirks' section says: 'Running bun install may re-add a packageManager field referencing yarn to package.json. Do NOT commit this field.' Commit d3e1fff specifically fixed this previously."
+    },
+    {
+      "area": "conventions",
+      "observation": "No consistent convention documented about whether internal modules should import from the unified public API (e.g., '@/lib/auth') or directly from implementation files (e.g., '@/lib/auth/mock-auth'). The session route uses the unified import, but sign-in/sign-up/sign-out routes use direct imports. A convention note in AGENTS.md about module boundaries would prevent inconsistency.",
+      "evidence": "src/app/api/auth/session/route.ts:1 imports from '@/lib/auth'. src/app/api/auth/sign-in/route.ts:6, sign-up/route.ts:6, sign-out/route.ts:1 import from '@/lib/auth/mock-auth'."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The auth-mock-clerk feature passes review. Implementation is thorough and complete — all 8 requirements are satisfied with proper JWT handling, cookie management, API routes, pages, and a unified auth module. 31 well-structured tests cover happy paths, validation errors, edge cases, and security scenarios (wrong secret, expired tokens, missing claims). Two non-blocking issues: (1) packageManager field committed to package.json violating documented convention, (2) inconsistent import paths between route handlers (some use unified module, others import directly from implementation files). Neither issue affects functionality."
+}
