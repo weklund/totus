@@ -12,9 +12,10 @@
     "test:watch": "vitest",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio",
+    "db:generate": "dotenv -e .env.local -- drizzle-kit generate",
+    "db:push": "dotenv -e .env.local -- drizzle-kit push",
+    "db:studio": "dotenv -e .env.local -- drizzle-kit studio",
+    "db:seed": "dotenv -e .env.local -- tsx src/db/seed.ts",
     "prepare": "husky"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
     "@vitejs/plugin-react": "^4.4.1",
+    "dotenv-cli": "^11.0.0",
     "drizzle-kit": "^0.31.9",
     "eslint": "^9.26.0",
     "eslint-config-next": "15.3.2",

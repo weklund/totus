@@ -29,6 +29,11 @@ if [ -f ".env.example" ] && [ ! -f ".env.local" ]; then
   echo "Created .env.local from .env.example"
 fi
 
+# Ensure pgcrypto extension is enabled
+if docker compose exec -T db pg_isready -U totus 2>/dev/null; then
+  docker compose exec -T db psql -U totus -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" 2>/dev/null || true
+fi
+
 # Apply database schema if drizzle is configured
 if [ -f "drizzle.config.ts" ] && [ -f "package.json" ]; then
   echo "Applying database schema..."

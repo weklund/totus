@@ -40,10 +40,22 @@ Standard codes: VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMIT
 
 ## Drizzle ORM Notes
 
-- `bytea` is a native type in recent Drizzle versions
-- `inet` is a native type in recent Drizzle versions
-- TEXT arrays: use `text('col').array()` with `default(sql\`'{}'::text[]\`)`
+- `bytea` is NOT natively available in drizzle-orm 0.45.1 — use `customType` from `drizzle-orm/pg-core` (see `src/db/schema/custom-types.ts`)
+- `inet` IS a native type in drizzle-orm 0.45.1
+- TEXT arrays: use `text('col').array()` — the Drizzle type maps to `TEXT[]` in PostgreSQL
 - Use `pg` driver (returns Buffer for BYTEA)
+- PostgreSQL partial indexes cannot use STABLE functions like `now()` — only IMMUTABLE functions allowed in index predicates. The `idx_share_grants_active_token` uses `WHERE revoked_at IS NULL` (without `grant_expires > now()`)
+- CHECK constraints: `array_length(col, 1)` returns NULL for empty arrays, not 0. Use `IS NOT NULL AND > 0` to reject empty arrays
+- drizzle-kit doesn't manage CHECK constraint updates automatically — manual ALTER TABLE needed when changing CHECK constraint definitions
+- drizzle-kit commands need `dotenv-cli` to load `.env.local` (Next.js auto-loads it but drizzle-kit doesn't). Scripts use `dotenv -e .env.local -- drizzle-kit <command>`
+
+## Database Schema Notes
+
+- pgcrypto extension is enabled via Docker init script (`docker/init/01-extensions.sql`) and also via `.factory/init.sh`
+- All 5 tables: `users`, `oura_connections`, `health_data`, `share_grants`, `audit_events`
+- Schema files in `src/db/schema/` — one file per table plus `custom-types.ts` and `index.ts`
+- FK cascades: deleting a user cascades to `oura_connections`, `health_data`, and `share_grants`
+- `audit_events.owner_id` is NOT a foreign key — audit events persist after user deletion
 
 ## Testing Patterns
 

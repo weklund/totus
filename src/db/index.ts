@@ -26,3 +26,24 @@ export const pool = new Pool({
  * Use this for all database queries.
  */
 export const db = drizzle(pool);
+
+/**
+ * Graceful shutdown hook to close the connection pool.
+ * Prevents connection leaks during Next.js HMR in development.
+ */
+if (process.env.NODE_ENV !== "production") {
+  let isShuttingDown = false;
+
+  const cleanup = async () => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    try {
+      await pool.end();
+    } catch {
+      // Pool may already be ended (e.g., in tests)
+    }
+  };
+
+  process.on("SIGTERM", cleanup);
+  process.on("SIGINT", cleanup);
+}
