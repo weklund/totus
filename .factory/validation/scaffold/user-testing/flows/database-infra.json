@@ -1,0 +1,31 @@
+{
+  "groupId": "database-infra",
+  "testedAt": "2026-03-09T00:00:00.000Z",
+  "credentials": {
+    "account": "N/A",
+    "namespace": "N/A"
+  },
+  "toolsUsed": ["Execute"],
+  "assertions": {
+    "VAL-SCAF-005": {
+      "status": "pass",
+      "evidence": "docker compose ps: Container totus-db (postgres:15-alpine) is Up 8 minutes (healthy), ports 0.0.0.0:5432->5432/tcp. pg_isready: '/var/run/postgresql:5432 - accepting connections' (exit code 0).",
+      "issues": []
+    },
+    "VAL-SCAF-006": {
+      "status": "pass",
+      "evidence": ".env.local contains DATABASE_URL=postgresql://totus:totus@localhost:5432/totus. psql SELECT 1 returned successfully (exit code 0). drizzle-kit push connected to database and reported 'No changes detected' (exit code 0), confirming the application can connect via DATABASE_URL.",
+      "issues": []
+    }
+  },
+  "frictions": [
+    {
+      "description": "drizzle-kit push (bun run db:push) does not auto-load .env.local — DATABASE_URL must be set explicitly in the environment for drizzle-kit commands to work outside of Next.js",
+      "resolved": true,
+      "resolution": "Ran drizzle-kit push with DATABASE_URL= prefix to set the env var explicitly",
+      "affectedAssertions": ["VAL-SCAF-006"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 2 assertions: 2 passed. PostgreSQL 15 container is healthy and accepting connections on port 5432. The application connects successfully via DATABASE_URL with drizzle-kit push confirming schema sync."
+}

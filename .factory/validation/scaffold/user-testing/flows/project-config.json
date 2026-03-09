@@ -1,0 +1,101 @@
+{
+  "groupId": "project-config",
+  "testedAt": "2026-03-09T02:15:00Z",
+  "credentials": {
+    "account": "N/A",
+    "namespace": "N/A"
+  },
+  "toolsUsed": ["Read", "LS", "Grep", "Execute"],
+  "assertions": {
+    "VAL-SCAF-007": {
+      "status": "pass",
+      "evidence": "LS of src/ shows all 6 required directories: app/, components/, config/, db/, lib/, types/. Additionally found hooks/ directory. Full listing: app, components, config, db, hooks, lib, types.",
+      "steps": [
+        {
+          "action": "LS /Users/weseklund/Projects/totus/src",
+          "expected": "Directories: app/, lib/, db/, types/, config/, components/",
+          "observed": "All 6 required directories present: app/, components/, config/, db/, lib/, types/ (plus hooks/)"
+        }
+      ],
+      "issues": []
+    },
+    "VAL-SCAF-008": {
+      "status": "pass",
+      "evidence": "tsconfig.json contains \"strict\": true in compilerOptions. Running `bun run typecheck` (tsc --noEmit) exits with code 0, confirming strict mode compilation succeeds.",
+      "steps": [
+        {
+          "action": "Read tsconfig.json",
+          "expected": "\"strict\": true in compilerOptions",
+          "observed": "\"strict\": true found in compilerOptions"
+        },
+        {
+          "action": "Execute: bun run typecheck",
+          "expected": "Exit code 0, no errors",
+          "observed": "Exit code 0, no output (clean compilation)"
+        }
+      ],
+      "issues": []
+    },
+    "VAL-SCAF-009": {
+      "status": "fail",
+      "evidence": "Husky (^9.1.7) and lint-staged (^15.5.0) are in devDependencies. .husky/pre-commit exists and runs `bunx lint-staged`. lint-staged config in package.json runs `eslint --fix` and `prettier --write` on *.{ts,tsx} files. However, typecheck (tsc --noEmit) is NOT configured in lint-staged or the pre-commit hook. The assertion requires 'lint + typecheck on staged files during commit' but only lint (eslint) runs.",
+      "steps": [
+        {
+          "action": "Check package.json devDependencies for husky and lint-staged",
+          "expected": "Both packages present in devDependencies",
+          "observed": "husky ^9.1.7 and lint-staged ^15.5.0 found in devDependencies"
+        },
+        {
+          "action": "Read .husky/pre-commit",
+          "expected": "Hook runs lint-staged (and possibly typecheck)",
+          "observed": "Hook contains only: bunx lint-staged"
+        },
+        {
+          "action": "Check lint-staged config in package.json",
+          "expected": "Config runs both lint and typecheck commands",
+          "observed": "Config runs eslint --fix and prettier --write on *.{ts,tsx}, prettier --write on *.{json,md,css}. No typecheck command configured."
+        }
+      ],
+      "issues": [
+        "lint-staged config does not include typecheck (tsc --noEmit). The assertion requires pre-commit hooks to run both lint AND typecheck on staged files, but only eslint + prettier are configured. Note: running tsc on individual staged files via lint-staged is not practical since TypeScript checks the whole project; a separate `bun run typecheck` step should be added to .husky/pre-commit before or after lint-staged."
+      ]
+    },
+    "VAL-SCAF-010": {
+      "status": "pass",
+      "evidence": ".env.example exists with all 10 required variables: DATABASE_URL, NEXT_PUBLIC_USE_MOCK_AUTH, MOCK_AUTH_SECRET, VIEWER_JWT_SECRET, VIEWER_JWT_SECRET_PREVIOUS, ENCRYPTION_KEY, NEXT_PUBLIC_APP_URL, OURA_CLIENT_ID, OURA_CLIENT_SECRET, SENTRY_DSN. Each variable has placeholder values and descriptive comments organized by section (Database, Authentication, Viewer Tokens, Encryption, Application, Oura API, Observability).",
+      "steps": [
+        {
+          "action": "Read .env.example",
+          "expected": "File exists with all 10 required environment variables with placeholders and comments",
+          "observed": "File contains all 10 required variables with meaningful placeholder values and section comments"
+        }
+      ],
+      "issues": []
+    },
+    "VAL-SCAF-011": {
+      "status": "pass",
+      "evidence": "tsconfig.json has paths configured: \"@/*\": [\"./src/*\"]. Multiple source files use @/ imports (e.g., import { cn } from \"@/lib/cn\" in cn.test.ts, import(\"@/db\") in connection.test.ts, import(\"@/lib/cn\") in path-alias.test.ts). Running `bun run typecheck` (tsc --noEmit) exits with code 0, confirming all @/ path aliases resolve correctly.",
+      "steps": [
+        {
+          "action": "Check tsconfig.json paths config",
+          "expected": "@/* mapped to ./src/*",
+          "observed": "paths: { \"@/*\": [\"./src/*\"] } configured in compilerOptions"
+        },
+        {
+          "action": "Grep for @/ imports in src/",
+          "expected": "Source files using @/ alias imports",
+          "observed": "Found @/ imports in: lib/__tests__/cn.test.ts, db/__tests__/connection.test.ts, lib/__tests__/path-alias.test.ts"
+        },
+        {
+          "action": "Execute: bun run typecheck",
+          "expected": "Exit code 0 (all imports resolve)",
+          "observed": "Exit code 0, clean compilation — all @/ imports resolve successfully"
+        }
+      ],
+      "issues": []
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 4 passed, 1 failed. VAL-SCAF-009 failed because lint-staged config only runs eslint + prettier but does not include typecheck (tsc --noEmit) as required by the assertion."
+}

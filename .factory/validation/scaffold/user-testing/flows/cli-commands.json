@@ -1,0 +1,62 @@
+{
+  "groupId": "cli-commands",
+  "testedAt": "2026-03-09T02:08:00Z",
+  "credentials": {
+    "account": "N/A",
+    "namespace": "N/A"
+  },
+  "toolsUsed": ["Execute"],
+  "assertions": {
+    "VAL-SCAF-001": {
+      "status": "pass",
+      "evidence": "curl -sf http://localhost:3000 -o /dev/null -w \"%{http_code}\" returned 200 with exit code 0. Dev server is running and serving pages on port 3000.",
+      "steps": [
+        {
+          "action": "curl -sf http://localhost:3000 -o /dev/null -w \"%{http_code}\"",
+          "expected": "HTTP 200 response",
+          "observed": "HTTP 200 response, exit code 0"
+        }
+      ],
+      "issues": []
+    },
+    "VAL-SCAF-002": {
+      "status": "pass",
+      "evidence": "bun run typecheck (tsc --noEmit) exited with code 0. Zero TypeScript errors.",
+      "steps": [
+        {
+          "action": "cd /Users/weseklund/Projects/totus && bun run typecheck",
+          "expected": "Exit code 0, no errors",
+          "observed": "tsc --noEmit completed with exit code 0, no errors reported"
+        }
+      ],
+      "issues": []
+    },
+    "VAL-SCAF-003": {
+      "status": "pass",
+      "evidence": "bun run lint (next lint) exited with code 0. Output: '✔ No ESLint warnings or errors'.",
+      "steps": [
+        {
+          "action": "cd /Users/weseklund/Projects/totus && bun run lint",
+          "expected": "Exit code 0, no warnings or errors",
+          "observed": "next lint exited with code 0, output: '✔ No ESLint warnings or errors'"
+        }
+      ],
+      "issues": []
+    },
+    "VAL-SCAF-004": {
+      "status": "pass",
+      "evidence": "bun run test (vitest run) exited with code 0. 3 test files, 10 tests all passed. Files: path-alias.test.ts (1 test), cn.test.ts (5 tests), connection.test.ts (4 tests). Duration: 451ms.",
+      "steps": [
+        {
+          "action": "cd /Users/weseklund/Projects/totus && bun run test",
+          "expected": "Vitest runs and exits with code 0",
+          "observed": "vitest run v3.2.4: 3 test files, 10 tests passed, exit code 0, duration 451ms"
+        }
+      ],
+      "issues": []
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 4 assertions: all 4 passed. Dev server responds on port 3000, TypeScript compiles cleanly, ESLint reports no warnings/errors, and Vitest runs 10 tests across 3 files with all passing."
+}
