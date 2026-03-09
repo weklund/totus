@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "WebSearch",
+      "WebFetch(domain:ericclemmons.com)",
+      "WebFetch(domain:adityarohilla.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:prefix.dev)",
+      "WebFetch(domain:www.dreamfactory.com)",
+      "WebFetch(domain:workos.com)"
+    ]
+  }
+}

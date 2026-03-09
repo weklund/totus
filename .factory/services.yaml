@@ -1,0 +1,27 @@
+commands:
+  install: bun install
+  typecheck: bun run typecheck
+  build: bun run build
+  test: bun run test
+  lint: bun run lint
+  format: bun run format
+  dev: bun dev
+  db:generate: bun run db:generate
+  db:push: bun run db:push
+  db:seed: bun run db:seed
+  db:studio: bun run db:studio
+
+services:
+  postgres:
+    start: docker compose up -d
+    stop: docker compose down
+    healthcheck: docker compose exec -T db pg_isready -U totus
+    port: 5432
+    depends_on: []
+
+  web:
+    start: bun dev --port 3000
+    stop: lsof -ti :3000 | xargs kill
+    healthcheck: curl -sf http://localhost:3000
+    port: 3000
+    depends_on: [postgres]
