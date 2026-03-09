@@ -1,21 +1,16 @@
 {
   "milestone": "scaffold",
-  "round": 2,
-  "status": "fail",
+  "round": 3,
+  "status": "pass",
   "assertionsSummary": {
     "total": 1,
-    "passed": 0,
-    "failed": 1,
+    "passed": 1,
+    "failed": 0,
     "blocked": 0
   },
-  "passedAssertions": [],
-  "failedAssertions": [
-    {
-      "id": "VAL-SCAF-009",
-      "reason": "Pre-commit hooks only run eslint --fix and prettier --write via lint-staged. Typecheck (tsc --noEmit) is still not included in the pre-commit pipeline. The fix feature (fix-precommit-typecheck) is still pending and has not been implemented."
-    }
-  ],
+  "passedAssertions": ["VAL-SCAF-009"],
+  "failedAssertions": [],
   "blockedAssertions": [],
   "appliedUpdates": [],
-  "previousRound": ".factory/validation/scaffold/user-testing/synthesis-round1.json"
+  "previousRound": ".factory/validation/scaffold/user-testing/synthesis-round2.json"
 }

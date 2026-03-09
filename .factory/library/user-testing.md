@@ -74,3 +74,13 @@ Will be populated after seed script is created:
 - Use LS/Read/Grep tools to inspect file contents and directory structure
 - Use curl to verify the dev server responds
 - Use `docker compose exec -T db pg_isready -U totus` to verify DB connectivity
+
+## Validated Findings
+
+### Pre-commit Hook Testing (VAL-SCAF-009) — Round 3
+
+- The pre-commit hook at `.husky/pre-commit` runs `bun run typecheck` (tsc --noEmit) first, then `bunx lint-staged`
+- lint-staged config in package.json runs `eslint --fix` and `prettier --write` on _.ts/_.tsx files
+- To test: create a file with a type error, stage it, attempt a commit — the hook catches the error and blocks the commit
+- Husky v9 is installed with `prepare: "husky"` in package.json scripts
+- Fixed in commit 86a5889 which added typecheck to pre-commit hook before lint-staged
