@@ -1,0 +1,58 @@
+{
+  "milestone": "auth",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 19,
+    "passed": 14,
+    "failed": 0,
+    "blocked": 5
+  },
+  "passedAssertions": [
+    "VAL-AUTH-001",
+    "VAL-AUTH-002",
+    "VAL-AUTH-003",
+    "VAL-AUTH-004",
+    "VAL-AUTH-005",
+    "VAL-AUTH-009",
+    "VAL-AUTH-010",
+    "VAL-AUTH-011",
+    "VAL-AUTH-012",
+    "VAL-AUTH-013",
+    "VAL-AUTH-014",
+    "VAL-AUTH-015",
+    "VAL-AUTH-016",
+    "VAL-CROSS-007"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [
+    {
+      "id": "VAL-AUTH-006",
+      "blockedBy": "POST /api/viewer/validate endpoint not yet implemented (API milestone). Underlying library functions (validateShareToken, issueViewerJwt) pass all unit tests."
+    },
+    {
+      "id": "VAL-AUTH-007",
+      "blockedBy": "POST /api/viewer/validate endpoint not yet implemented (API milestone). Unit tests confirm validateShareToken correctly rejects expired grants."
+    },
+    {
+      "id": "VAL-AUTH-008",
+      "blockedBy": "POST /api/viewer/validate endpoint not yet implemented (API milestone). Unit tests confirm validateShareToken correctly rejects revoked grants."
+    },
+    {
+      "id": "VAL-AUTH-017",
+      "blockedBy": "POST /api/viewer/validate endpoint not yet implemented (API milestone). Unit tests confirm correct JWT TTL calculation (min(grant_expires, now + 4h))."
+    },
+    {
+      "id": "VAL-AUTH-018",
+      "blockedBy": "POST /api/viewer/validate endpoint not yet implemented (API milestone). Unit tests confirm all required JWT claims present (grantId, ownerId, allowedMetrics, dataStart, dataEnd, iat, exp, jti)."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added 'Flow Validator Guidance: Auth API' section with auth testing details: curl examples, secret values, seed data info, viewer JWT structure, isolation rules, and test file locations.",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null
+}

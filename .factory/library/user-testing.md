@@ -128,6 +128,118 @@ cd /Users/weseklund/Projects/totus && bun run test -- --reporter=verbose path/to
 - Source: `src/config/metrics.ts`
 - Tests: `src/config/__tests__/metrics.test.ts`
 
+## Flow Validator Guidance: Auth API
+
+**Surface:** Auth system (sign-in, sign-up, sign-out, viewer tokens, middleware, permissions) — all validated via curl and running Vitest tests against the live dev server.
+
+**Testing tool:** curl for API endpoint testing, Vitest tests for unit-level checks. No agent-browser needed.
+
+**Pre-started services:**
+
+- PostgreSQL: Running on port 5432 via Docker Compose (user: totus, password: totus, db: totus)
+- Next.js dev server: Running on port 3000
+
+**Project root:** `/Users/weseklund/Projects/totus`
+
+**How to create sessions via curl:**
+
+```bash
+# Sign up (creates user + session)
+curl -s -c /tmp/cookies_testN.txt http://localhost:3000/api/auth/sign-up \
+  -H "Content-Type: application/json" \
+  -d '{"email":"testN@example.com","password":"testpass","displayName":"Test N"}'
+
+# Sign in (existing user + session)
+curl -s -c /tmp/cookies_testN.txt http://localhost:3000/api/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{"email":"testN@example.com","password":"testpass"}'
+
+# Use session in subsequent requests
+curl -s -b /tmp/cookies_testN.txt http://localhost:3000/api/auth/session
+```
+
+**Mock auth details:**
+
+- Session cookie: `__session` (JWT signed with HS256 via jose)
+- Secret: `MOCK_AUTH_SECRET=dev-mock-auth-secret-change-me`
+- Viewer cookie: `totus_viewer` (JWT signed with HS256 via jose)
+- Viewer secret: `VIEWER_JWT_SECRET=dev-viewer-jwt-secret-change-me`
+- Viewer previous secret: `VIEWER_JWT_SECRET_PREVIOUS=dev-viewer-jwt-secret-previous`
+- Mock user IDs follow pattern: `mock_<email_sanitized>` (e.g., `mock_test1_example_com`)
+- Sign-in auto-creates user if not found (mock mode)
+
+**Seed data relevant to auth testing:**
+
+- Seed user: `user_test_001` (display name: "Test User")
+- Seed share grant: token hash `a]b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7` stored in DB
+  - NOTE: This is the hash itself, NOT a raw token. To test viewer validation with this grant, you must create a new share grant with a known raw token.
+- Allowed metrics on seed grant: sleep_score, hrv, rhr, steps, readiness_score
+- Seed grant expires: 30 days from seed run (~still valid)
+
+**How to create a share grant with known raw token for viewer testing:**
+
+```bash
+# First, sign in as the seed user or create a new user
+# Then use SQL to insert a share grant with a known hash
+
+# Generate token hash in Node: require('crypto').createHash('sha256').update('test-viewer-token-123').digest('hex')
+# Hash: echo -n "test-viewer-token-123" | shasum -a 256
+
+# Insert directly via SQL for testing (bypasses API layer):
+cd /Users/weseklund/Projects/totus && docker compose exec -T db psql -U totus -d totus -c "
+INSERT INTO share_grants (token, owner_id, label, allowed_metrics, data_start, data_end, grant_expires)
+VALUES (
+  '<computed_hash>',
+  'user_test_001',
+  'Test Viewer Grant',
+  ARRAY['sleep_score','hrv','rhr'],
+  '2025-12-01',
+  '2026-06-01',
+  NOW() + INTERVAL '7 days'
+) ON CONFLICT (token) DO NOTHING;
+"
+```
+
+**Isolation rules:**
+
+- Each subagent uses its own email/user namespace (testN@example.com where N differs per subagent)
+- Each subagent uses its own cookie jar file (/tmp/cookies_groupN.txt)
+- Share grants created by one subagent should not interfere with another
+- Do NOT modify source code — only run curl commands, SQL queries, and read files
+- Do NOT stop services
+- Do NOT run db:seed again — data is already seeded
+
+**Viewer JWT claim structure:**
+
+```json
+{
+  "grantId": "uuid",
+  "ownerId": "user_test_001",
+  "allowedMetrics": ["sleep_score", "hrv", "rhr"],
+  "dataStart": "2025-12-01",
+  "dataEnd": "2026-06-01",
+  "iat": 1741500000,
+  "exp": 1741514400,
+  "jti": "random-hex"
+}
+```
+
+**How to run Vitest tests:**
+
+```bash
+cd /Users/weseklund/Projects/totus && bun run test -- --reporter=verbose src/lib/auth/__tests__/
+```
+
+**Auth test files:**
+
+- `src/lib/auth/__tests__/mock-auth.test.ts` — session token creation/verification
+- `src/lib/auth/__tests__/viewer.test.ts` — viewer token generation, validation, JWT issuance/verification
+- `src/lib/auth/__tests__/permissions.test.ts` — enforcePermissions for owner/viewer/unauthenticated
+- `src/lib/auth/__tests__/request-context.test.ts` — RequestContext helpers
+- `src/app/api/auth/__tests__/sign-in.test.ts` — sign-in API route
+- `src/app/api/auth/__tests__/sign-up.test.ts` — sign-up API route
+- `src/app/api/auth/__tests__/sign-out.test.ts` — sign-out API route
+
 ---
 
 ## Validated Findings

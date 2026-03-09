@@ -1,0 +1,124 @@
+{
+  "groupId": "group1-auth-session",
+  "testedAt": "2026-03-09T00:00:00.000Z",
+  "credentials": {
+    "account": "group1_auth@example.com",
+    "namespace": "group1"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-001",
+      "title": "Mock sign-in creates session",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/auth/sign-in with {email: group1_auth@example.com, password: testpass}",
+          "expected": "Response with data.userId",
+          "observed": "Response: {\"data\":{\"userId\":\"mock_group1_auth_example_com\",\"email\":\"group1_auth@example.com\"}}"
+        },
+        {
+          "action": "GET /api/auth/session with session cookie",
+          "expected": "Returns userId matching sign-in",
+          "observed": "Response: {\"userId\":\"mock_group1_auth_example_com\"}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (curl-based test)",
+        "network": "POST /api/auth/sign-in -> 200, GET /api/auth/session -> 200 with userId"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-002",
+      "title": "Mock sign-up creates user",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/auth/sign-up with {email: group1_signup@example.com, password: testpass, displayName: Group1 Signup}",
+          "expected": "201 response with userId",
+          "observed": "HTTP 201, Response: {\"data\":{\"userId\":\"mock_group1_signup_example_com\",\"email\":\"group1_signup@example.com\",\"displayName\":\"Group1 Signup\"}}"
+        },
+        {
+          "action": "Query DB for user with id mock_group1_signup_example_com",
+          "expected": "User record exists with correct display_name",
+          "observed": "DB returned: id=mock_group1_signup_example_com, display_name=Group1 Signup"
+        },
+        {
+          "action": "GET /api/auth/session with signup session cookie",
+          "expected": "Returns userId for newly created user",
+          "observed": "Response: {\"userId\":\"mock_group1_signup_example_com\"}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (curl-based test)",
+        "network": "POST /api/auth/sign-up -> 201, SELECT users -> 1 row, GET /api/auth/session -> 200 with userId"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-003",
+      "title": "auth() returns userId for authenticated requests",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/auth/session with valid session cookie (from VAL-AUTH-001 sign-in)",
+          "expected": "Returns {\"userId\":\"mock_group1_auth_example_com\"}",
+          "observed": "Response: {\"userId\":\"mock_group1_auth_example_com\"}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (curl-based test)",
+        "network": "GET /api/auth/session -> 200 with correct userId"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-004",
+      "title": "auth() returns null for unauthenticated requests",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/auth/session without any cookies",
+          "expected": "Returns {\"userId\":null}",
+          "observed": "Response: {\"userId\":null}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (curl-based test)",
+        "network": "GET /api/auth/session -> 200 with null userId"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-016",
+      "title": "Sign-out clears session",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/auth/sign-out with valid session cookie",
+          "expected": "Success response and session cookie cleared",
+          "observed": "Response: {\"data\":{\"success\":true}}"
+        },
+        {
+          "action": "GET /api/auth/session with post-signout cookies",
+          "expected": "Returns {\"userId\":null}",
+          "observed": "Response: {\"userId\":null}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (curl-based test)",
+        "network": "POST /api/auth/sign-out -> 200, GET /api/auth/session -> 200 with null userId"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed, 0 failed. All auth session flows (sign-in, sign-up, session check, unauthenticated check, sign-out) work correctly."
+}

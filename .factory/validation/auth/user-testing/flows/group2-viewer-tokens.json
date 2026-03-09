@@ -1,0 +1,141 @@
+{
+  "groupId": "group2-viewer-tokens",
+  "testedAt": "2026-03-09T06:04:00Z",
+  "credentials": {
+    "account": "none (no sign-in needed for viewer tests)",
+    "namespace": "group2"
+  },
+  "toolsUsed": ["curl", "vitest", "source-code-inspection"],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-005",
+      "title": "Viewer token is cryptographically random",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Read source code at src/lib/auth/viewer.ts",
+          "expected": "generateShareToken() uses crypto.randomBytes(32) and base64url encoding",
+          "observed": "generateShareToken() calls randomBytes(32), encodes with .toString('base64url'), strips padding — produces 43-char base64url tokens"
+        },
+        {
+          "action": "Run Vitest: bun run test -- --reporter=verbose src/lib/auth/__tests__/viewer.test.ts",
+          "expected": "All generateShareToken tests pass (format, uniqueness, hash correctness)",
+          "observed": "All 38 tests passed. Specific tests confirm: 43-char base64url tokens, base64url charset only (no +/=/), 64-char hex SHA-256 hash, hash matches hashToken(rawToken), 100 unique tokens generated, 100 unique hashes generated"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "N/A (unit test)",
+        "testOutput": "38 passed (0 failed). Key tests: 'produces a 43-character base64url token' ✓, 'produces a base64url-encoded token (no +, /, = padding)' ✓, 'generates unique tokens across multiple calls' ✓ (100 tokens all unique), 'generates unique hashes across multiple calls' ✓ (100 hashes all unique), 'tokenHash is the SHA-256 of the raw token' ✓",
+        "sourceVerification": "src/lib/auth/viewer.ts line 68: const bytes = randomBytes(32); line 69: const rawToken = bytes.toString('base64url').replace(/=+$/, ''); line 70: const tokenHash = hashToken(rawToken); — hashToken uses createHash('sha256').update(rawToken).digest('hex')"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-006",
+      "title": "Viewer token validation issues JWT cookie",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "curl -s -D /tmp/group2_headers.txt -c /tmp/cookies_group2.txt http://localhost:3000/api/viewer/validate -H 'Content-Type: application/json' -d '{\"token\":\"test-viewer-token-group2\"}'",
+          "expected": "200 with grant details and Set-Cookie: totus_viewer (httpOnly)",
+          "observed": "404 — Next.js returned HTML 404 page. No route file at src/app/api/viewer/validate/route.ts"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "POST /api/viewer/validate -> 404 (HTML 404 page)"
+      },
+      "issues": "POST /api/viewer/validate endpoint not yet implemented (API milestone). The underlying library functions (validateShareToken, issueViewerJwt) are implemented and tested at the unit level, but no API route handler exists."
+    },
+    {
+      "id": "VAL-AUTH-007",
+      "title": "Expired viewer tokens rejected",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Attempted curl POST /api/viewer/validate with expired token",
+          "expected": "403 or 404 error response",
+          "observed": "Endpoint does not exist (404 HTML page)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "POST /api/viewer/validate -> 404 (route not found)"
+      },
+      "issues": "POST /api/viewer/validate endpoint not yet implemented (API milestone). Unit tests confirm validateShareToken returns null for expired grants."
+    },
+    {
+      "id": "VAL-AUTH-008",
+      "title": "Revoked share grants reject viewer",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Attempted curl POST /api/viewer/validate with revoked token",
+          "expected": "403 or 404 error response",
+          "observed": "Endpoint does not exist (404 HTML page)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "POST /api/viewer/validate -> 404 (route not found)"
+      },
+      "issues": "POST /api/viewer/validate endpoint not yet implemented (API milestone). Unit tests confirm validateShareToken returns null for revoked grants."
+    },
+    {
+      "id": "VAL-AUTH-017",
+      "title": "Viewer JWT has correct TTL",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Cannot decode JWT from cookie — endpoint not available to issue one",
+          "expected": "JWT exp = min(grant_expires, now + 4 hours)",
+          "observed": "No JWT cookie issued because POST /api/viewer/validate endpoint does not exist"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "N/A — endpoint not available"
+      },
+      "issues": "POST /api/viewer/validate endpoint not yet implemented (API milestone). Unit tests confirm: 'JWT exp = now + 4h when grant expires far in the future' ✓, 'JWT exp = grant_expires when grant expires sooner than 4h' ✓, 'JWT exp = min(grant_expires, now + 4h) boundary case' ✓"
+    },
+    {
+      "id": "VAL-AUTH-018",
+      "title": "Viewer JWT contains required claims",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Cannot decode JWT from cookie — endpoint not available to issue one",
+          "expected": "JWT payload includes grantId, ownerId, allowedMetrics, dataStart, dataEnd, iat, exp, jti",
+          "observed": "No JWT cookie issued because POST /api/viewer/validate endpoint does not exist"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "N/A — endpoint not available"
+      },
+      "issues": "POST /api/viewer/validate endpoint not yet implemented (API milestone). Unit tests confirm all required claims are present: grantId ✓, ownerId ✓, allowedMetrics ✓, dataStart ✓, dataEnd ✓, iat ✓, exp ✓, jti ✓"
+    }
+  ],
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "POST /api/viewer/validate API route does not exist — no file at src/app/api/viewer/validate/route.ts. This endpoint is part of the API milestone and has not been implemented yet. The underlying library functions (generateShareToken, validateShareToken, issueViewerJwt, verifyViewerJwt) are fully implemented and pass all 38 unit tests.",
+      "affectedAssertions": [
+        "VAL-AUTH-006",
+        "VAL-AUTH-007",
+        "VAL-AUTH-008",
+        "VAL-AUTH-017",
+        "VAL-AUTH-018"
+      ],
+      "quickFixAttempted": "Confirmed endpoint missing by: 1) curl returned 404 HTML page, 2) Glob search found no route file at src/app/api/viewer/**/*"
+    }
+  ],
+  "summary": "Tested 6 assertions: 1 passed (VAL-AUTH-005: token generation verified via 38 passing Vitest tests and source code inspection), 5 blocked (VAL-AUTH-006, 007, 008, 017, 018: POST /api/viewer/validate endpoint not yet implemented — part of API milestone)."
+}

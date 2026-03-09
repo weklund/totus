@@ -1,0 +1,258 @@
+{
+  "groupId": "group3-middleware-permissions",
+  "testedAt": "2026-03-09T06:04:00.000Z",
+  "credentials": {
+    "account": "group3_auth@example.com",
+    "namespace": "group3"
+  },
+  "toolsUsed": ["curl", "vitest", "source-inspection"],
+  "assertions": [
+    {
+      "id": "VAL-AUTH-009",
+      "title": "Middleware produces owner RequestContext",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run Vitest request-context.test.ts",
+          "expected": "All createOwnerContext tests pass",
+          "observed": "21/21 tests passed — createOwnerContext creates context with role=owner, userId set, permissions=full, authMethod=session, no grantId"
+        },
+        {
+          "action": "Sign in via curl POST /api/auth/sign-in",
+          "expected": "Session cookie set, userId returned",
+          "observed": "Response: {userId: mock_group3_auth_example_com}, __session cookie saved to /tmp/cookies_group3.txt"
+        },
+        {
+          "action": "Check session via curl GET /api/auth/session with cookie",
+          "expected": "userId returned from session",
+          "observed": "Response: {userId: mock_group3_auth_example_com} — confirms middleware recognized valid __session cookie"
+        },
+        {
+          "action": "Inspect middleware source (src/middleware.ts)",
+          "expected": "Middleware creates owner context with role=owner, userId, permissions=full, authMethod=session when __session is valid",
+          "observed": "Confirmed: lines 155-162 create context = { role: 'owner', userId, permissions: 'full', authMethod: 'session' } and serialize to x-request-context header"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (API/unit test)",
+        "network": "POST /api/auth/sign-in -> 200, GET /api/auth/session -> 200 {userId: mock_group3_auth_example_com}",
+        "testResults": "src/lib/auth/__tests__/request-context.test.ts: 21/21 passed"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-010",
+      "title": "Middleware produces viewer RequestContext",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run Vitest request-context.test.ts",
+          "expected": "All createViewerContext tests pass",
+          "observed": "21/21 tests passed — createViewerContext creates context with role=viewer, grantId set, userId=ownerId, permissions={allowedMetrics, dataStart, dataEnd}, authMethod=viewer_jwt"
+        },
+        {
+          "action": "Inspect middleware source (src/middleware.ts)",
+          "expected": "Middleware checks totus_viewer cookie, verifies JWT, creates viewer context",
+          "observed": "Confirmed: lines 165-180 check totus_viewer cookie, call verifyViewerToken(), and create context = { role: 'viewer', userId: claims.ownerId, grantId: claims.grantId, permissions: { allowedMetrics, dataStart, dataEnd }, authMethod: 'viewer_jwt' }"
+        },
+        {
+          "action": "Inspect verifyViewerToken in middleware",
+          "expected": "Tries current secret then previous secret",
+          "observed": "Confirmed: verifyViewerToken tries currentSecret first, then previousSecret (dual-secret rotation)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (unit test + source inspection)",
+        "network": "n/a",
+        "testResults": "src/lib/auth/__tests__/request-context.test.ts: 21/21 passed (includes createViewerContext, getRequestContext for viewer)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-011",
+      "title": "enforcePermissions allows owner full access",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run Vitest permissions.test.ts",
+          "expected": "Owner tests pass: full access to own data, all metrics unchanged, all dates unchanged",
+          "observed": "21/21 tests passed. Specific owner tests: 'allows full access to own data', 'returns all requested metrics unchanged', 'returns all requested dates unchanged' all pass"
+        },
+        {
+          "action": "Inspect permissions.ts source",
+          "expected": "Owner path returns scope unchanged",
+          "observed": "Confirmed: owner branch returns { userId: scope.userId, metrics: scope.metrics, startDate: scope.startDate, endDate: scope.endDate } — no narrowing applied"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (unit test)",
+        "network": "n/a",
+        "testResults": "src/lib/auth/__tests__/permissions.test.ts: 21/21 passed (owner suite: 4 tests pass)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-012",
+      "title": "enforcePermissions restricts viewer",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run Vitest permissions.test.ts",
+          "expected": "Viewer tests pass: metrics intersected, dates clamped, empty intersection throws",
+          "observed": "21/21 tests passed. Viewer tests confirmed: 'intersects requested metrics with granted metrics', 'narrows to granted metrics when request includes extras', 'clamps start date to grant boundary', 'clamps end date to grant boundary', 'throws when no metrics overlap', 'throws when date range is entirely outside grant window'"
+        },
+        {
+          "action": "Inspect permissions.ts source",
+          "expected": "Viewer path intersects metrics and clamps dates",
+          "observed": "Confirmed: viewer branch filters metrics via allowedMetrics.includes(), clamps startDate via maxDate(), clamps endDate via minDate(), throws if intersection empty or dates invalid"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (unit test)",
+        "network": "n/a",
+        "testResults": "src/lib/auth/__tests__/permissions.test.ts: 21/21 passed (viewer suite: 11 tests pass)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-013",
+      "title": "Owner-only routes redirect unauthenticated",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "curl -s -o /dev/null -w '%{http_code} %{redirect_url}' http://localhost:3000/dashboard",
+          "expected": "307 redirect to /sign-in",
+          "observed": "307 http://localhost:3000/sign-in"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (curl test)",
+        "network": "GET /dashboard -> 307 Location: /sign-in"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-014",
+      "title": "Invalid sessions rejected",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "curl -s -b '__session=this-is-a-tampered-invalid-jwt-token' http://localhost:3000/api/auth/session",
+          "expected": "{userId: null} — treated as unauthenticated",
+          "observed": "{\"userId\":null}"
+        },
+        {
+          "action": "curl -s -b '__session=tampered-jwt-garbage' http://localhost:3000/api/connections",
+          "expected": "401 UNAUTHORIZED",
+          "observed": "401 {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required\"}}"
+        },
+        {
+          "action": "Inspect middleware source for JWT verification",
+          "expected": "jwtVerify catches errors and returns null for invalid tokens",
+          "observed": "Confirmed: verifyOwnerSession wraps jwtVerify in try/catch, returns null on failure, middleware then sets role=unauthenticated"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (curl test + source inspection)",
+        "network": "GET /api/auth/session with tampered cookie -> 200 {userId:null}, GET /api/connections with tampered cookie -> 401"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-AUTH-015",
+      "title": "Viewer JWT dual-secret rotation",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run Vitest viewer.test.ts",
+          "expected": "Dual-secret rotation tests pass",
+          "observed": "38/38 tests passed. Key rotation tests: 'returns payload for JWT signed with current secret' PASS, 'returns payload for JWT signed with previous secret' PASS, 'returns null for JWT signed with unknown secret' PASS, 'works during secret rotation (both secrets valid)' PASS"
+        },
+        {
+          "action": "Inspect verifyViewerJwt in src/lib/auth/viewer.ts",
+          "expected": "Tries current secret first, then previous secret",
+          "observed": "Confirmed: verifyViewerJwt tries getViewerSecret() first, catches error, then tries getPreviousViewerSecret() — both paths verified"
+        },
+        {
+          "action": "Inspect middleware verifyViewerToken",
+          "expected": "Same dual-secret pattern in middleware",
+          "observed": "Confirmed: middleware's verifyViewerToken also tries currentSecret then previousSecret for the totus_viewer cookie"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (unit test + source inspection)",
+        "network": "n/a",
+        "testResults": "src/lib/auth/__tests__/viewer.test.ts: 38/38 passed (verifyViewerJwt suite: 8 tests including dual-secret rotation)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-007",
+      "title": "Auth gates protect all routes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "curl GET /dashboard (unauthenticated)",
+          "expected": "307 redirect to /sign-in",
+          "observed": "307 http://localhost:3000/sign-in"
+        },
+        {
+          "action": "curl GET /dashboard/share (unauthenticated)",
+          "expected": "307 redirect to /sign-in",
+          "observed": "307 http://localhost:3000/sign-in"
+        },
+        {
+          "action": "curl GET /dashboard/audit (unauthenticated)",
+          "expected": "307 redirect to /sign-in",
+          "observed": "307 http://localhost:3000/sign-in"
+        },
+        {
+          "action": "curl GET /dashboard/settings (unauthenticated)",
+          "expected": "307 redirect to /sign-in",
+          "observed": "307 http://localhost:3000/sign-in"
+        },
+        {
+          "action": "curl GET /api/connections (unauthenticated)",
+          "expected": "401 UNAUTHORIZED",
+          "observed": "401 {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required\"}}"
+        },
+        {
+          "action": "curl GET /api/health-data (unauthenticated)",
+          "expected": "401 UNAUTHORIZED",
+          "observed": "401 {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required\"}}"
+        },
+        {
+          "action": "curl GET /api/shares (unauthenticated)",
+          "expected": "401 UNAUTHORIZED",
+          "observed": "401 {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required\"}}"
+        },
+        {
+          "action": "curl GET /api/user/profile (unauthenticated)",
+          "expected": "401 UNAUTHORIZED",
+          "observed": "401 {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required\"}}"
+        },
+        {
+          "action": "curl GET /api/audit (unauthenticated)",
+          "expected": "401 UNAUTHORIZED",
+          "observed": "401 {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required\"}}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (curl test)",
+        "network": "GET /dashboard -> 307, GET /dashboard/share -> 307, GET /dashboard/audit -> 307, GET /dashboard/settings -> 307, GET /api/connections -> 401, GET /api/health-data -> 401, GET /api/shares -> 401, GET /api/user/profile -> 401, GET /api/audit -> 401"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 8 assertions: 8 passed, 0 failed. All middleware/permissions behaviors confirmed via Vitest unit tests (80/80 tests passed across 3 test files), curl API testing (sign-in, session, protected routes, tampered tokens), and source code inspection."
+}
