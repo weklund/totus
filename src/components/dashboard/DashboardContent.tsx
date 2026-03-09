@@ -6,15 +6,15 @@ import { format, subDays } from "date-fns";
 import { toast } from "sonner";
 import { useViewContext } from "@/lib/view-context";
 import { useHealthDataTypes } from "@/hooks/useHealthDataTypes";
+import { useConnections } from "@/hooks/useConnections";
 import { MetricSelector } from "./MetricSelector";
 import { DateRangeSelector } from "./DateRangeSelector";
 import { ResolutionToggle } from "./ResolutionToggle";
 import { ChartGrid } from "./ChartGrid";
 import { ActionBar } from "./ActionBar";
+import { ConnectionCard } from "./ConnectionCard";
+import { EmptyDashboard } from "./EmptyDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BarChart3 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 
 /**
  * Default selected metrics when dashboard first loads.
@@ -121,24 +121,27 @@ export function DashboardContent() {
     }
   }, [searchParams, router]);
 
-  // ─── Empty state: no data at all ───────────────────────────────
-  if (!typesLoading && availableMetrics.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 py-20">
-        <div className="bg-muted flex size-16 items-center justify-center rounded-full">
-          <BarChart3 className="text-muted-foreground size-8" />
-        </div>
-        <div className="text-center">
-          <h2 className="text-lg font-semibold">No health data yet</h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Connect your Oura Ring to start seeing your health data.
-          </p>
-        </div>
-        <Button asChild>
-          <Link href="/dashboard/settings">Connect Oura</Link>
-        </Button>
-      </div>
-    );
+  // ─── Connections ──────────────────────────────────────────────────
+  const { data: connectionsData, isLoading: connectionsLoading } =
+    useConnections();
+  const connections = useMemo(
+    () => connectionsData?.data ?? [],
+    [connectionsData],
+  );
+  const ouraConnection = useMemo(
+    () => connections.find((c) => c.provider === "oura"),
+    [connections],
+  );
+  const hasConnection = !!ouraConnection;
+
+  // ─── Empty state: no connections at all ────────────────────────
+  if (
+    !typesLoading &&
+    !connectionsLoading &&
+    availableMetrics.length === 0 &&
+    !hasConnection
+  ) {
+    return <EmptyDashboard />;
   }
 
   // Viewer constraints
@@ -150,6 +153,11 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-6" data-testid="dashboard-content">
+      {/* Connection status card (owner only) */}
+      {role === "owner" && !connectionsLoading && (
+        <ConnectionCard connection={ouraConnection} />
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex-1 space-y-4">

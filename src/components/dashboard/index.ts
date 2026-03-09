@@ -7,3 +7,5 @@ export { ChartGrid } from "./ChartGrid";
 export { ChartTooltip } from "./ChartTooltip";
 export { ActionBar } from "./ActionBar";
 export { ErrorCard } from "./ErrorCard";
+export { ConnectionCard } from "./ConnectionCard";
+export { EmptyDashboard } from "./EmptyDashboard";
