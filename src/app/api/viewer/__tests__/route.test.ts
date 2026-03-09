@@ -452,28 +452,28 @@ describe("POST /api/viewer/validate", () => {
   });
 
   describe("expired token", () => {
-    it("returns 403 SHARE_EXPIRED for expired grant", async () => {
+    it("returns 404 SHARE_NOT_FOUND for expired grant", async () => {
       const { rawToken } = await createExpiredGrant();
 
       const request = createValidateRequest(rawToken);
       const response = await validatePOST(request);
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(404);
 
       const body = await response.json();
-      expect(body.error.code).toBe("SHARE_EXPIRED");
+      expect(body.error.code).toBe("SHARE_NOT_FOUND");
     });
   });
 
   describe("revoked token", () => {
-    it("returns 403 SHARE_REVOKED for revoked grant", async () => {
+    it("returns 404 SHARE_NOT_FOUND for revoked grant", async () => {
       const { rawToken } = await createRevokedGrant();
 
       const request = createValidateRequest(rawToken);
       const response = await validatePOST(request);
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(404);
 
       const body = await response.json();
-      expect(body.error.code).toBe("SHARE_REVOKED");
+      expect(body.error.code).toBe("SHARE_NOT_FOUND");
     });
   });
 

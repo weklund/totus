@@ -10,8 +10,8 @@
  * 4. If valid: increment view_count, issue viewer JWT cookie, emit audit event
  * 5. Return grant details including owner display name
  *
- * Security: Returns distinct error codes for not-found vs expired vs revoked
- * per feature specification.
+ * Security: Returns generic 404 SHARE_NOT_FOUND for all invalid tokens
+ * (not found, expired, or revoked) to prevent information leakage.
  *
  * See: /docs/api-database-lld.md Section 7.5.1
  */
@@ -79,18 +79,22 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const grant = results[0];
 
-    // Check if revoked
+    // Check if revoked — return generic 404 to prevent info leakage
     if (grant.revokedAt !== null) {
       throw new ApiError(
-        "SHARE_REVOKED",
-        "This share link has been revoked by the owner.",
-        403,
+        "SHARE_NOT_FOUND",
+        "The share link was not found or is no longer available",
+        404,
       );
     }
 
-    // Check if expired
+    // Check if expired — return generic 404 to prevent info leakage
     if (grant.grantExpires <= new Date()) {
-      throw new ApiError("SHARE_EXPIRED", "This share link has expired.", 403);
+      throw new ApiError(
+        "SHARE_NOT_FOUND",
+        "The share link was not found or is no longer available",
+        404,
+      );
     }
 
     // Grant is valid — increment view_count and update last_viewed_at
