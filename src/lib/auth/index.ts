@@ -29,3 +29,17 @@ export type {
   ViewerJwtGrant,
   ViewerJwtPayload,
 } from "./viewer";
+
+// Request context
+export {
+  getRequestContext,
+  createOwnerContext,
+  createViewerContext,
+  createUnauthenticatedContext,
+  REQUEST_CONTEXT_HEADER,
+} from "./request-context";
+export type { RequestContext, ViewerPermissions } from "./request-context";
+
+// Permissions
+export { enforcePermissions, PermissionError } from "./permissions";
+export type { RequestedScope, EffectiveScope } from "./permissions";
