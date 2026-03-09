@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
       include: ["src/**/*.test.{ts,tsx}"],
       globals: true,
       env,
+      setupFiles: ["./src/test-setup.ts"],
     },
   };
 });

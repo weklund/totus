@@ -1,0 +1,45 @@
+/**
+ * TanStack Query key factory — centralized query key management.
+ *
+ * Ensures consistent cache key structure across all hooks.
+ */
+
+export const queryKeys = {
+  healthData: {
+    all: ["health-data"] as const,
+    list: (params: {
+      metrics: string[];
+      start: string;
+      end: string;
+      resolution: string;
+    }) => ["health-data", "list", params] as const,
+    types: () => ["health-data", "types"] as const,
+  },
+  viewerData: {
+    all: ["viewer-data"] as const,
+    list: (params: {
+      metrics: string[];
+      start: string;
+      end: string;
+      resolution: string;
+    }) => ["viewer-data", "list", params] as const,
+  },
+  connections: {
+    all: ["connections"] as const,
+    list: () => ["connections", "list"] as const,
+  },
+  shares: {
+    all: ["shares"] as const,
+    list: (status?: string) => ["shares", "list", status] as const,
+    detail: (id: string) => ["shares", "detail", id] as const,
+  },
+  audit: {
+    all: ["audit"] as const,
+    list: (filters?: Record<string, string>) =>
+      ["audit", "list", filters] as const,
+  },
+  user: {
+    all: ["user"] as const,
+    profile: () => ["user", "profile"] as const,
+  },
+};
