@@ -1,0 +1,21 @@
+{
+  "featureId": "fix-remove-packagemanager",
+  "reviewedAt": "2026-03-09T15:45:00.000Z",
+  "commitId": "d3e1fff4e6b6f6dd55f7aa504b2a7a899ce9c146",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix correctly removes the 'packageManager' field referencing yarn@1.22.22 from package.json. The diff is minimal and clean: only 1 file changed with the packageManager line deleted and the trailing comma on the preceding closing brace properly removed. The committed state (git show HEAD:package.json) confirms no packageManager field exists. All verification steps passed: grep returns no match, bun install works, typecheck passes, and all 115 tests pass. This directly and completely addresses the blocking issue from the db-schema-migrations review.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Running 'bun install' re-adds a 'packageManager' field to the working tree of package.json even though the committed code has it removed. This is a known Bun behavior where it writes its version into package.json. Future workers may see this in 'git status' as an unstaged change and be confused, or accidentally re-commit it. Consider adding this to AGENTS.md or .gitattributes to document the expected behavior.",
+      "evidence": "Task prompt states: 'bun install re-adds this field to the working tree, but the committed code is correct.' git status --porcelain shows 'M package.json' despite the committed state being correct."
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/database/scrutiny/reviews/db-schema-migrations.json",
+  "summary": "PASS. The fix commit d3e1fff correctly removes the packageManager field (yarn@1.22.22) from package.json, directly addressing the sole blocking issue from the db-schema-migrations review. The diff is minimal and correct — only the packageManager line and its preceding trailing comma were changed. All verification checks pass (grep, bun install, typecheck, 115 tests). Note: bun install re-adds this field to the working tree, but the committed code is correct."
+}
