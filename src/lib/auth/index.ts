@@ -1,7 +1,7 @@
 /**
  * Unified auth module.
  *
- * Exports auth(), useAuth(), and session helpers.
+ * Exports auth(), useAuth(), session helpers, and viewer token system.
  * When NEXT_PUBLIC_USE_MOCK_AUTH=true, uses mock auth layer.
  * When false, would use real Clerk (not yet implemented).
  */
@@ -14,3 +14,18 @@ export {
 } from "./mock-auth";
 export type { AuthResult } from "./mock-auth";
 export { MockAuthProvider, useAuth } from "./mock-auth-provider";
+
+// Viewer token system
+export {
+  generateShareToken,
+  hashToken,
+  issueViewerJwt,
+  validateShareToken,
+  verifyViewerJwt,
+  VIEWER_COOKIE_CONFIG,
+} from "./viewer";
+export type {
+  ValidatedGrant,
+  ViewerJwtGrant,
+  ViewerJwtPayload,
+} from "./viewer";
