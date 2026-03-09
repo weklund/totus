@@ -1,0 +1,61 @@
+{
+  "featureId": "ui-dashboard-charts",
+  "reviewedAt": "2026-03-09T14:10:00.000Z",
+  "commitId": "7d1f240",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid, comprehensive implementation of the dashboard page with interactive charts. All 9 required components were implemented: DashboardContent, MetricSelector, DateRangeSelector, ResolutionToggle, MetricChart, ChartTooltip, ChartGrid, ActionBar, ErrorCard. Three TanStack Query hooks (useHealthData, useHealthDataTypes, useViewerData) handle data fetching with proper enabled guards. Chart rendering uses Recharts ComposedChart with overlay support, dual Y-axes, and custom tooltip. ViewContext integration correctly differentiates owner vs viewer behavior. 26 tests cover all major component behaviors. Code follows project conventions: shadcn/ui primitives, Tailwind styling, @/ path aliases, proper 'use client' directives, TanStack Query patterns.",
+    "issues": [
+      {
+        "file": "src/components/dashboard/MetricChart.tsx",
+        "line": 106,
+        "severity": "non_blocking",
+        "description": "When 3 metrics are overlaid, Y-axes at indices 1 and 2 both get orientation='right', causing two right-side Y-axes to potentially overlap. Recharts stacks them but labels and tick marks may collide for dense value ranges. Consider hiding the third Y-axis or using a different visual strategy for 3-metric overlay."
+      },
+      {
+        "file": "src/components/dashboard/ChartTooltip.tsx",
+        "line": 30,
+        "severity": "non_blocking",
+        "description": "No try-catch around parseISO(label) in tooltip render, unlike the XAxis tickFormatter in MetricChart.tsx which has a try-catch. If an invalid date string reaches the tooltip, it will throw and crash the tooltip rendering. Should wrap in try-catch for defensive consistency."
+      },
+      {
+        "file": "src/components/dashboard/ChartGrid.tsx",
+        "line": 38,
+        "severity": "non_blocking",
+        "description": "Both useHealthData and useViewerData hooks are always called unconditionally (with the inactive one receiving an empty metrics array). While this works correctly due to the enabled guard in both hooks, it means unnecessary hook instances and query cache entries are created. This is an accepted React hooks pattern constraint, but worth noting for awareness."
+      },
+      {
+        "file": "src/components/dashboard/ActionBar.tsx",
+        "line": 25,
+        "severity": "non_blocking",
+        "description": "Export button has no onClick handler or functionality — it renders as a static, non-functional button. The feature description doesn't specify export behavior beyond rendering the button, so this is acceptable, but it would benefit from a disabled state or tooltip indicating 'coming soon' to improve UX."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Worker added @testing-library/jest-dom/vitest setup in src/test-setup.ts and registered it as a setupFile in vitest.config.ts. This is a cross-cutting testing infrastructure change that enables .toBeInTheDocument() and other jest-dom matchers across all test files. Future workers should know this exists to avoid duplicate setup or confusion.",
+      "evidence": "src/test-setup.ts contains 'import @testing-library/jest-dom/vitest'; vitest.config.ts now includes setupFiles: ['./src/test-setup.ts']"
+    },
+    {
+      "area": "conventions",
+      "observation": "Worker established a centralized query key factory pattern in src/lib/query-keys.ts for TanStack Query cache keys. All data fetching hooks should use this factory to ensure consistent cache invalidation. This pattern is not documented in AGENTS.md or library/architecture.md.",
+      "evidence": "src/lib/query-keys.ts exports queryKeys object with namespaced key factories (healthData, viewerData, connections, shares, audit, user); used by useHealthData.ts, useHealthDataTypes.ts, useViewerData.ts"
+    },
+    {
+      "area": "conventions",
+      "observation": "Worker established chart color management in src/lib/chart-utils.ts with a METRIC_COLORS map and getMetricColor() helper. This is separate from the chartColor field on MetricType in src/config/metrics.ts, creating two sources of truth for metric colors. Future workers should consolidate or be aware of both.",
+      "evidence": "src/lib/chart-utils.ts defines METRIC_COLORS with HSL values; src/config/metrics.ts MetricType has chartColor field with hex values (e.g., '#A78BFA'). ChartGrid/MetricChart use chart-utils exclusively."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker's skillFeedback suggests documenting that bun install re-adds packageManager:yarn to package.json. This is already in AGENTS.md under 'Known Quirks' but the skill doesn't mention it. The frontend-worker SKILL.md could reference the Known Quirks section to reduce re-discovery.",
+      "evidence": "handoff.skillFeedback.suggestedChanges: 'The frontend-worker skill could mention that bun install re-adds packageManager: yarn to package.json'. AGENTS.md already documents this under 'Known Quirks'."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The ui-dashboard-charts feature is well-implemented with all 9 specified components, 3 data hooks, chart color utilities, and a query key factory. Code follows project conventions (shadcn/ui, TanStack Query, ViewContext, Tailwind, TypeScript). 26 tests cover metric selection state, date range changes, chart rendering with mock data, loading/error/empty states, and role-based visibility. Non-blocking issues include potential Y-axis overlap with 3-metric overlay, missing error handling in ChartTooltip's parseISO call, and a non-functional Export button. The implementation fully covers the feature description and expectedBehavior requirements. PASS."
+}

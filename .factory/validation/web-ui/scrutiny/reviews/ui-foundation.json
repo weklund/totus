@@ -1,0 +1,61 @@
+{
+  "featureId": "ui-foundation",
+  "reviewedAt": "2026-03-09T14:30:00.000Z",
+  "commitId": "6cfb137",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation that covers all 9 requirements from the feature description. shadcn/ui is properly configured with New York style and 18 core primitives installed (sonner covers both toast/toaster). ViewContextProvider, RootProviders, DashboardShell, Header, dashboard layout, api-client, and query-client are all implemented correctly. Tests cover ViewContext (3 tests) and DashboardShell role-aware rendering (7 tests) as specified. Code follows project conventions (Bun, @/ imports, Tailwind CSS, 'use client' only where needed). The auth gate in dashboard/layout.tsx correctly redirects to /sign-in when unauthenticated. Dark mode via next-themes is properly integrated with suppressHydrationWarning on the html tag.",
+    "issues": [
+      {
+        "file": "src/lib/api-client.ts",
+        "line": 46,
+        "severity": "non_blocking",
+        "description": "apiClient always calls res.json() on success responses. DELETE endpoints that return 204 No Content would cause a JSON parse error. Consider checking res.status === 204 or Content-Length before parsing, or using res.json().catch(() => undefined) as a fallback."
+      },
+      {
+        "file": "src/lib/api-client.ts",
+        "line": 28,
+        "severity": "non_blocking",
+        "description": "Content-Type: application/json header is set for all requests including GET. While not harmful, it's unconventional and could theoretically cause issues with strict servers or caching proxies."
+      },
+      {
+        "file": "src/app/dashboard/layout.tsx",
+        "line": 53,
+        "severity": "non_blocking",
+        "description": "getSessionCookie() uses dynamic import for next/headers (await import('next/headers')). Since this is already a React Server Component, next/headers can be imported statically at the top of the file. The dynamic import adds unnecessary overhead."
+      },
+      {
+        "file": "src/components/layout/Header.tsx",
+        "line": 29,
+        "severity": "non_blocking",
+        "description": "handleSignOut() has no error handling — if the POST to /api/auth/sign-out fails, the user is still redirected to /sign-in, potentially leaving a stale session cookie. Consider wrapping in try/catch or at least logging the error."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Worker used sonner (via shadcn/ui's sonner integration) instead of the older shadcn/ui toast component. The feature description lists 'toast, toaster' as separate primitives, but the actual implementation installs sonner.tsx which is the current shadcn/ui recommended approach. This is the correct modern pattern but future workers should know that 'toast' in this project means sonner, not the legacy shadcn/ui toast.",
+      "evidence": "src/components/ui/sonner.tsx created; no src/components/ui/toast.tsx or toaster.tsx exist. RootProviders.tsx imports { Toaster } from '@/components/ui/sonner'."
+    },
+    {
+      "area": "conventions",
+      "observation": "The api-client.ts module establishes a convention for client-side API calls: all requests go through the `api` object (api.get, api.post, api.patch, api.delete) with automatic JSON parsing, error envelope parsing into ApiClientError, and credentials: include. This should be documented as the standard pattern for client-side data fetching.",
+      "evidence": "src/lib/api-client.ts — exports `api` object and `ApiClientError` class. Used implicitly by all future TanStack Query hooks."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker noted in skillFeedback that the frontend-worker skill step 4 (write tests FIRST / red phase) is impractical for foundation setup work like installing packages and creating layout components. The skill's TDD requirement makes more sense for feature-level components with logic, not scaffolding tasks. The deviation was justified.",
+      "evidence": "handoff.skillFeedback.suggestedChanges: 'The frontend-worker skill step 4 says write tests first (red) but for foundation setup work like installing packages and creating layout components it is more practical to create components and tests together'"
+    },
+    {
+      "area": "knowledge",
+      "observation": "Worker configured Tailwind v4 with shadcn/ui using oklch colors and the @custom-variant dark (&:is(.dark *)) pattern plus @plugin 'tailwindcss-animate'. This is the correct Tailwind v4 + shadcn/ui setup pattern but is not documented in the library. Future workers extending the theme or adding new CSS variables should reference globals.css for the established pattern.",
+      "evidence": "src/app/globals.css — 165 lines of CSS variable definitions using oklch color space, @theme inline block, and @custom-variant for dark mode. This pattern differs from Tailwind v3 conventions."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The ui-foundation feature is well-implemented and passes review. All 9 requirements from the feature description are fulfilled: shadcn/ui with New York style and 18 primitives, ViewContextProvider with useViewContext hook, RootProviders wrapping theme/query/toast providers, root layout with Inter font, DashboardShell with role-aware sidebar, Header with owner/viewer variants, dashboard layout with auth gate, api-client typed fetch wrapper, and query-client config. Tests cover ViewContext (3 tests) and DashboardShell (7 tests) as specified. Four non-blocking issues identified: api-client may fail on 204 responses, unnecessary Content-Type on GETs, dynamic import of next/headers in RSC, and missing error handling in sign-out. None are blocking for the MVP."
+}

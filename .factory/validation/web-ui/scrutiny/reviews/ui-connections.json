@@ -1,0 +1,45 @@
+{
+  "featureId": "ui-connections",
+  "reviewedAt": "2026-03-09T14:10:00.000Z",
+  "commitId": "8d18822fe2a902b736ca86c0f690d714235145c5",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation covering all 7 feature requirements. ConnectionCard handles connected/disconnected states with proper status badges, sync/disconnect actions with toast feedback, and AlertDialog confirmation. EmptyDashboard shows a full-page empty state with prominent connect CTA. Three TanStack Query hooks (useConnections, useTriggerSync, useDisconnect) correctly manage server state with query invalidation. DashboardContent integrates connections, empty state, and OAuth callback handling. ConnectionsManager on the settings page reuses ConnectionCard. 11 well-structured tests cover all ConnectionCard states and interactions. Code follows project conventions (shadcn/ui, Tailwind, TanStack Query, sonner toasts, @/ imports).",
+    "issues": [
+      {
+        "file": "src/components/dashboard/ConnectionCard.tsx",
+        "line": 51,
+        "severity": "non_blocking",
+        "description": "The handleConnect OAuth flow logic (api.get + window.location.href redirect + isConnecting state) is duplicated verbatim in EmptyDashboard.tsx (line 19). Should be extracted to a shared hook (e.g., useInitiateOAuth) to avoid drift if the flow changes. Not blocking since both copies are identical and tested."
+      },
+      {
+        "file": "src/components/dashboard/ConnectionCard.tsx",
+        "line": 51,
+        "severity": "non_blocking",
+        "description": "On successful OAuth redirect (window.location.href = ...), isConnecting is never reset to false. This is acceptable because the page navigates away, but if the redirect is blocked (e.g., popup blocker, CSP), the button remains stuck in 'Connecting...' state indefinitely with no recovery path for the user."
+      },
+      {
+        "file": "src/components/dashboard/DashboardContent.tsx",
+        "line": 113,
+        "severity": "non_blocking",
+        "description": "The empty state condition checks `availableMetrics.length === 0 && !hasConnection`. A newly connected user who hasn't synced yet would have a connection but no metrics, which would skip EmptyDashboard and show the toolbar with no chart data. This edge case is handled acceptably since the ConnectionCard with 'Sync Now' is visible, but the UX could be confusing momentarily."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Worker installed a new shadcn/ui component (alert-dialog) using 'bunx shadcn@latest add alert-dialog'. The skill procedure (step 3) mentions this pattern, but AGENTS.md does not document which shadcn/ui components are already installed in the project. Workers must check src/components/ui/ manually each time.",
+      "evidence": "src/components/ui/alert-dialog.tsx was added in this commit. The worker followed skill step 3 correctly, but the list of installed shadcn/ui components is not tracked anywhere in shared state."
+    },
+    {
+      "area": "conventions",
+      "observation": "The OAuth flow initiation pattern (api.get authorize endpoint → redirect to authorize_url) is now used in two components with identical code. If more providers are added, this pattern should be documented as a reusable hook convention.",
+      "evidence": "src/components/dashboard/ConnectionCard.tsx:51-60 and src/components/dashboard/EmptyDashboard.tsx:19-28 contain identical handleConnect implementations."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature passes review. All 7 requirements from the feature description are implemented: ConnectionCard (connected/disconnected states with badges, sync, disconnect), EmptyDashboard (full-page CTA), OAuth flow wiring, Sync Now with toast feedback, Disconnect with AlertDialog confirmation, ConnectionsManager in settings, and OAuth callback toast handling in DashboardContent. 11 tests cover ConnectionCard rendering and interactions thoroughly. Two non-blocking code quality issues noted: duplicated OAuth initiation logic across ConnectionCard and EmptyDashboard, and a minor UX edge case for post-connect pre-sync state. No blocking issues found."
+}

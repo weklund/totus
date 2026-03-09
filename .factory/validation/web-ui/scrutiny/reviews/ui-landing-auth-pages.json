@@ -1,0 +1,50 @@
+{
+  "featureId": "ui-landing-auth-pages",
+  "reviewedAt": "2026-03-09T14:00:00.000Z",
+  "commitId": "2eb6af8a06b589fd05e1f2d546cdc60643ad0437",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation that covers all feature requirements. Landing page is fully RSC (no 'use client' directives) with Hero, Features (4 cards), HowItWorks (3 steps), CallToAction, and Footer components — all using shadcn/ui + Tailwind with a clean health/wellness theme. Sign-in and sign-up pages correctly moved to catch-all routes, styled with shadcn/ui Card components, handle success/error/loading states, and call the correct mock auth API endpoints. Middleware auth redirect for authenticated users on /sign-in and /sign-up is correctly implemented and tested. Custom 404 and error boundary pages are well-structured. 30 tests across 5 files provide good coverage of form interaction, error handling, loading states, and auth redirect behavior.",
+    "issues": [
+      {
+        "file": "src/app/error.tsx",
+        "line": 8,
+        "severity": "non_blocking",
+        "description": "The error parameter is prefixed as _error and completely ignored. While Next.js handles error logging internally, consider logging the error.digest to console for debugging in non-production environments, or using it to display a reference code to the user."
+      },
+      {
+        "file": "src/components/landing/Footer.tsx",
+        "line": 7,
+        "severity": "non_blocking",
+        "description": "Footer uses `new Date().getFullYear()` which works fine for RSC but will be stale if the page is statically generated and cached across a year boundary. Minor — could use a dynamic rendering hint if needed, but acceptable for an MVP."
+      },
+      {
+        "file": "src/app/(auth)/sign-in/[[...sign-in]]/page.tsx",
+        "line": 37,
+        "severity": "non_blocking",
+        "description": "No client-side password minimum length validation before submitting. The form relies solely on HTML5 'required' attribute and server-side validation. Adding a minimum length check (e.g. 8 chars) would improve UX by preventing unnecessary network requests. Same applies to sign-up page."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The worker added a LandingHeader component that wasn't in the feature description but is a natural addition for the landing page navigation. The feature spec listed Hero, Features, HowItWorks, CallToAction, and Footer. This is a sensible enhancement, not a violation.",
+      "evidence": "src/components/landing/LandingHeader.tsx added but not listed in feature description's component list"
+    },
+    {
+      "area": "conventions",
+      "observation": "Auth forms use direct fetch() calls rather than a centralized API client. This is fine for now as no frontend API client utility has been established, but future features that add more client-side API calls may want a shared pattern (e.g., a fetch wrapper with error envelope parsing). AGENTS.md doesn't prescribe a frontend API client pattern.",
+      "evidence": "src/app/(auth)/sign-in/[[...sign-in]]/page.tsx:38 and sign-up page.tsx:39 both use raw fetch with identical error parsing logic"
+    },
+    {
+      "area": "skills",
+      "observation": "Worker followed the skill procedure correctly. Read design docs, checked existing code, wrote tests, implemented, ran all verification commands (typecheck, lint, test), and performed interactive browser checks. skillFeedback.followedProcedure is true with no deviations.",
+      "evidence": "Handoff verification section shows all 3 commands passed (523 tests, 0 failures) and 6 interactive browser checks were performed"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature passes review. All 5 deliverables (landing page, sign-in, sign-up, 404, error boundary) are correctly implemented per the feature description. The landing page is fully RSC with no client JS, auth pages use shadcn/ui Card components with proper form handling, middleware correctly redirects authenticated users, and 30 tests provide solid coverage. Three non-blocking observations noted: unused error parameter in error boundary, potential year-boundary staleness in footer, and lack of client-side password length validation. No blocking issues found."
+}

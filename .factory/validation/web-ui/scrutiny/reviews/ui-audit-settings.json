@@ -1,0 +1,39 @@
+{
+  "featureId": "ui-audit-settings",
+  "reviewedAt": "2026-03-09T14:45:00.000Z",
+  "commitId": "320b3f98c3ecceda041f7ec62c7820fb7caa835a",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation covering all 10 requirements from the feature description. Audit page has paginated table with infinite query, filters (event type, actor type, date range), expandable detail rows with IP/user-agent/resource details, actor badges, relative timestamps with absolute tooltip, empty state, and cursor-based load-more pagination. Settings page has ProfileForm with React Hook Form + Zod validation (1-100 chars), ExportSection with download link, DeleteAccountDialog with exact confirmation match, ConnectionsManager reusing ConnectionCard, and toast notifications for all actions. 20 new tests cover form validation, delete confirmation matching, and audit table rendering. Two non-blocking issues found.",
+    "issues": [
+      {
+        "file": "src/lib/format.ts",
+        "line": 16,
+        "severity": "non_blocking",
+        "description": "formatAuditEvent() utility is defined but never imported or used anywhere in the codebase. AuditEventRow displays event.description directly from the server response. The utility exists as dead code. The function comment acknowledges this ('the server also returns description pre-computed'), but it should either be imported and used as a fallback/formatter, or removed to avoid dead code."
+      },
+      {
+        "file": "src/components/settings/ExportSection.tsx",
+        "line": 22,
+        "severity": "non_blocking",
+        "description": "URL.createObjectURL(blob) is called to create a download URL but URL.revokeObjectURL() is never called — neither on component unmount nor before creating a new URL on subsequent exports. This creates a minor memory leak. Should add a useEffect cleanup or revoke the previous URL before creating a new one."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Worker correctly used the server-side session cookie clearing (maxAge: 0 in DELETE /api/user/account response) instead of calling the client-side signOut() for account deletion. This is a valid pattern since the server handles cookie clearing in the HTTP response. However, this convention (server-cleared cookies vs client-side signOut) isn't documented anywhere. Future workers may be confused about which approach to use.",
+      "evidence": "src/components/settings/DeleteAccountDialog.tsx:46 only does router.push('/') without signOut(), but src/app/api/user/account/route.ts:89-96 clears the __session cookie with maxAge: 0 in the response."
+    },
+    {
+      "area": "conventions",
+      "observation": "The react-hook-form + @hookform/resolvers packages were added as new dependencies for ProfileForm. The skill mentions 'React Hook Form + Zod' as a pattern, and AGENTS.md's coding conventions don't explicitly list react-hook-form as a project dependency. Now that it's installed, future frontend features should use this pattern for forms.",
+      "evidence": "package.json now includes react-hook-form ^7.71.2 and @hookform/resolvers ^5.2.2. ProfileForm.tsx uses useForm with zodResolver."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature passes review. All 10 requirements from the feature description are implemented: AuditTable with infinite query pagination, AuditFilters with event/actor/date dropdowns, AuditEventRow with expandable details, formatAuditEvent utility (exists but unused — server provides descriptions), cursor-based load-more, ProfileForm with RHF+Zod validation, ExportSection with blob download, DeleteAccountDialog with exact confirmation matching, ConnectionsManager reusing ConnectionCard, and toast notifications throughout. 20 new tests across 3 test files cover the key behaviors. Two non-blocking issues: dead formatAuditEvent() utility code and a minor memory leak from unreleased blob URLs in ExportSection."
+}

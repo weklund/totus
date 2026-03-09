@@ -1,0 +1,56 @@
+{
+  "featureId": "ui-sharing",
+  "reviewedAt": "2026-03-09T15:30:00.000Z",
+  "commitId": "eb5063f",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of the share wizard (4-step form) and share management page. All 14 new components/hooks and 2 pages are well-structured, follow existing codebase patterns (TanStack Query, shadcn/ui, Tailwind CSS, date-fns), and cover the feature description's requirements comprehensively. The optimistic update on revoke with rollback is correctly implemented. Tests are thorough with 22 test cases covering wizard navigation, validation, share list rendering, status badges, pagination, and URL dialog behavior. Three minor non-blocking deviations from the LLD were found.",
+    "issues": [
+      {
+        "file": "src/components/share/ShareList.tsx",
+        "line": 98,
+        "severity": "non_blocking",
+        "description": "Error state shows only text ('Failed to load shares. Please try again.') but the LLD specifies 'Error banner with retry button.' A retry button that calls refetch() or re-renders would improve UX."
+      },
+      {
+        "file": "src/components/share/ShareWizardStepExpiration.tsx",
+        "line": 119,
+        "severity": "non_blocking",
+        "description": "Uses a raw <textarea> element with manual Tailwind classes instead of a shadcn/ui Textarea component. No Textarea component is installed in src/components/ui/. This is a minor convention gap — other form fields use shadcn/ui Input and Label components."
+      },
+      {
+        "file": "src/components/share/ShareUrlDialog.tsx",
+        "line": 93,
+        "severity": "non_blocking",
+        "description": "LLD risk R-UI-5 specifies the close button should be labeled 'I've copied the link' to encourage copying before closing. The implementation uses 'Done' which is less explicit about the expected user action."
+      },
+      {
+        "file": "src/hooks/useRevokeShare.ts",
+        "line": 33,
+        "severity": "non_blocking",
+        "description": "Three @typescript-eslint/no-explicit-any suppressions for the optimistic update callback. While pragmatic (TanStack Query's setQueriesData types are complex with infinite queries), defining a typed callback or using the SharesResponse type would be cleaner."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The frontend-worker skill's example handoff shows React Hook Form + Zod for the ShareWizard, and the LLD build table lists 'RHF, Zod' as dependencies. The worker correctly identified that react-hook-form was NOT installed at time of implementation and used useState-based manual validation instead. However, react-hook-form has since been added to package.json (by a later feature). The skill procedure and example should clarify that useState is acceptable for simple wizard flows, or explicitly note when RHF should be used vs. manual state.",
+      "evidence": "Handoff skillFeedback.suggestedChanges: 'The LLD references React Hook Form + Zod for the share wizard, but react-hook-form is not installed as a dependency.' git show eb5063f:package.json confirms RHF was absent at commit time. Current package.json now includes 'react-hook-form: ^7.71.2'."
+    },
+    {
+      "area": "conventions",
+      "observation": "AGENTS.md says 'Zod for all request/response schemas' and the LLD references Zod for wizard validation, but the wizard uses manual validation (inline if-checks in validateStep()). This works fine for the 2-field validation (metrics required, date range required) but doesn't follow the documented convention. Future workers implementing more complex forms should know whether Zod schemas are required or optional for client-side validation.",
+      "evidence": "src/components/share/ShareWizard.tsx:73-87 — validateStep() uses manual checks instead of Zod schema.parse(). AGENTS.md line: 'Validation: Zod for all request/response schemas'"
+    },
+    {
+      "area": "conventions",
+      "observation": "No shadcn/ui Textarea component is installed in the project (src/components/ui/ has no textarea.tsx). Worker used a raw <textarea> with manual styling. Future workers needing textareas will face the same gap. Should be installed via 'bunx shadcn@latest add textarea' and noted as available.",
+      "evidence": "src/components/share/ShareWizardStepExpiration.tsx:119 uses raw <textarea>. Glob of src/components/ui/ shows no textarea.tsx file."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The ui-sharing feature passes review. Implementation covers all 11 requirements from the feature description: 4-step ShareWizard with step indicator, metric selection (delegating to existing MetricSelector), date range with presets and calendar picker, expiration options with note/label, review summary, non-dismissable ShareUrlDialog with copy and warning, ShareList with Load More pagination, ShareCard with status/metrics/dates/views/actions, ShareFilters with status tabs, RevokeDialog with optimistic update, and DeleteDialog for revoked/expired shares. 22 well-structured tests cover the key flows. Three non-blocking issues found: missing retry button in error state, raw textarea instead of shadcn component, and 'Done' label instead of LLD-specified 'I've copied the link'. No blocking issues."
+}

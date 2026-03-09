@@ -133,3 +133,43 @@ beforeAll(async () => {
   db = dbModule.db;
 });
 ```
+
+### jest-dom Vitest Setup
+
+`src/test-setup.ts` imports `@testing-library/jest-dom/vitest` and is registered in `vitest.config.ts` as a `setupFiles` entry. This enables `.toBeInTheDocument()` and other jest-dom matchers in all test files without per-file imports.
+
+## Frontend Patterns
+
+### TanStack Query Key Factory
+
+All data fetching hooks use centralized query keys from `src/lib/query-keys.ts`. This ensures consistent cache invalidation across components. Always use the factory when creating new hooks:
+
+```ts
+import { queryKeys } from "@/lib/query-keys";
+// queryKeys.healthData.types(), queryKeys.healthData.query(params), etc.
+```
+
+### API Client
+
+Client-side API calls use the `api` object from `src/lib/api-client.ts` (api.get, api.post, api.patch, api.delete). It handles JSON parsing, error envelope extraction, and cookie forwarding automatically.
+
+### Recharts Dark Mode Theming
+
+Recharts SVG components (CartesianGrid, XAxis, YAxis) cannot use CSS classes — they require SVG attributes. Theme adaptation uses CSS custom property values passed as props:
+
+```tsx
+<CartesianGrid stroke="var(--chart-grid)" />
+<XAxis tick={{ fill: "var(--chart-axis-label)" }} />
+```
+
+CSS custom properties are defined in `globals.css` @theme block with light/dark variants.
+
+### Next.js 15 Cookie Limitation in RSCs
+
+**CRITICAL:** Next.js 15 does not allow `cookies().set()` inside Server Components during rendering. If you need to set cookies based on server-side validation, use a hybrid RSC+Client approach: the RSC validates server-side, then a Client Component performs a client-side API call to set the httpOnly cookie. See `src/app/v/[token]/page.tsx` and `src/components/viewer/ViewerPageClient.tsx` for the pattern.
+
+### Form Libraries
+
+- **React Hook Form + Zod**: Installed (`react-hook-form`, `@hookform/resolvers`). Use for complex forms with validation (e.g., ProfileForm).
+- **Manual state**: Acceptable for simple wizard-style forms where react-hook-form adds unnecessary complexity (e.g., ShareWizard uses useState).
+- **shadcn/ui Textarea**: Not currently installed. Use `bunx shadcn@latest add textarea` if needed. Workers may use raw `<textarea>` with Tailwind classes as a fallback.

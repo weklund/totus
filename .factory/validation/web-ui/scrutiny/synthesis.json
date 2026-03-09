@@ -1,0 +1,147 @@
+{
+  "milestone": "web-ui",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "bun run test",
+      "exitCode": 0,
+      "summary": "54 test files, 642 tests passed"
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "bun run typecheck",
+      "exitCode": 0,
+      "summary": "tsc --noEmit completed with 0 errors"
+    },
+    "lint": {
+      "passed": true,
+      "command": "bun run lint",
+      "exitCode": 0,
+      "summary": "No ESLint warnings or errors"
+    }
+  },
+  "reviewsSummary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "nonBlockingIssues": [
+    {
+      "featureId": "ui-foundation",
+      "count": 4,
+      "highlights": "api-client 204 handling, Content-Type on GETs, dynamic import in RSC, missing sign-out error handling"
+    },
+    {
+      "featureId": "ui-landing-auth-pages",
+      "count": 3,
+      "highlights": "unused error parameter, year-boundary staleness, no client-side password length validation"
+    },
+    {
+      "featureId": "ui-dashboard-charts",
+      "count": 4,
+      "highlights": "Y-axis overlap with 3-metric overlay, missing try-catch in ChartTooltip, dual-hook instantiation, non-functional Export button"
+    },
+    {
+      "featureId": "ui-connections",
+      "count": 3,
+      "highlights": "duplicated OAuth flow logic, stuck loading state on blocked redirect, post-connect pre-sync UX"
+    },
+    {
+      "featureId": "ui-sharing",
+      "count": 4,
+      "highlights": "missing retry in error state, raw textarea instead of shadcn, 'Done' vs 'I've copied the link', @typescript-eslint/no-explicit-any suppressions"
+    },
+    {
+      "featureId": "ui-audit-settings",
+      "count": 2,
+      "highlights": "dead formatAuditEvent() code, URL.createObjectURL memory leak in ExportSection"
+    },
+    {
+      "featureId": "ui-viewer",
+      "count": 5,
+      "highlights": "missing grantId in UI context, no ViewerPageClient unit tests, duplicated toolbar logic, unnecessary 'use client' on ShareExpiredPage, duplicated type definitions"
+    },
+    {
+      "featureId": "ui-responsive-dark-mode",
+      "count": 4,
+      "highlights": "redundant sm:grid-cols-1, weak responsive grid test, skeleton count mismatch, inline styles vs Tailwind utilities"
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Added Frontend Patterns section to architecture.md: TanStack Query key factory, API client usage, Recharts dark mode theming via CSS vars, Next.js 15 cookie limitation in RSCs, form library conventions (RHF vs manual state), jest-dom vitest setup, and shadcn/ui Textarea availability note",
+      "sourceFeatures": [
+        "ui-foundation",
+        "ui-dashboard-charts",
+        "ui-viewer",
+        "ui-responsive-dark-mode",
+        "ui-sharing",
+        "ui-audit-settings"
+      ]
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "skills",
+      "suggestion": "Relax the frontend-worker skill's TDD 'write tests FIRST (red phase)' step for UI component work. Allow co-development of tests and implementation when LLD specs are clear. Multiple workers found strict TDD impractical for visual components, layout setup, and shadcn/ui installation.",
+      "evidence": "Features ui-foundation, ui-viewer, and ui-dashboard-charts all deviated from strict TDD in their skillFeedback. All achieved comprehensive test coverage (642 total tests) despite not writing tests first.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Clarify that 'Validation: Zod for all request/response schemas' applies to API-side validation. Client-side form validation may use manual checks for simple wizard flows or React Hook Form + Zod for complex forms. Both are acceptable.",
+      "evidence": "Feature ui-sharing used manual validation in ShareWizard (inline if-checks) while ui-audit-settings used RHF+Zod for ProfileForm. Both approaches worked correctly. The current AGENTS.md phrasing is ambiguous about whether client-side forms must use Zod.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add react-hook-form and @hookform/resolvers to the project dependencies list in coding conventions, noting they are available for complex forms.",
+      "evidence": "react-hook-form ^7.71.2 and @hookform/resolvers ^5.2.2 are now in package.json, used by ProfileForm in ui-audit-settings.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "AGENTS.md should document which shadcn/ui components are installed",
+      "reason": "Too volatile — components are added as needed. Workers should check src/components/ui/ directory directly."
+    },
+    {
+      "observation": "OAuth flow pattern duplication should be documented as a reusable hook",
+      "reason": "Localized to two files in one feature. Not systemic enough to warrant shared state documentation."
+    },
+    {
+      "observation": "Server vs client session cookie clearing convention should be documented",
+      "reason": "Already clear from the existing auth pattern documentation in architecture.md. The server sets maxAge:0 on cookies in account deletion, which is standard HTTP behavior."
+    },
+    {
+      "observation": "api-client.ts convention should be in AGENTS.md",
+      "reason": "Added to library/architecture.md instead. The api-client is self-documenting code, not a normative convention requiring orchestrator guidance."
+    },
+    {
+      "observation": "sonner vs toast naming confusion",
+      "reason": "Already resolved — sonner is what's installed and used. The original feature description's mention of 'toast, toaster' as separate primitives was a LLD artifact."
+    },
+    {
+      "observation": "LandingHeader component not in feature description but added",
+      "reason": "Natural addition for a landing page. Not a shared state concern."
+    },
+    {
+      "observation": "Auth forms use direct fetch() instead of api-client",
+      "reason": "Duplicate — already addressed by documenting the api-client pattern in library. Auth forms were written before the api-client existed."
+    },
+    {
+      "observation": "Worker did not update .factory/library/ (ui-viewer)",
+      "reason": "Addressed in this synthesis — Next.js 15 cookie limitation and other patterns have been added to library/architecture.md."
+    },
+    {
+      "observation": "Dual metric color sources (chart-utils vs config/metrics)",
+      "reason": "Localized design decision — chart-utils has UI-specific colors for overlays while config/metrics has semantic metadata. Not confusing enough to warrant documentation."
+    }
+  ],
+  "previousRound": null
+}

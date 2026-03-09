@@ -1,0 +1,51 @@
+{
+  "featureId": "ui-responsive-dark-mode",
+  "reviewedAt": "2026-03-09T15:10:00.000Z",
+  "commitId": "9e5bbe0",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of dark mode and responsive design. Dark mode uses next-themes with system preference detection, manual toggle (sun/moon icon) in Header for both owner and viewer roles, and localStorage persistence. CSS custom properties for chart theming (grid lines, axis labels, tooltip) are properly defined with light/dark variants in globals.css and consumed by MetricChart and ChartTooltip. ChartGrid responsive breakpoints updated to 1/2/3 columns at sm/md/lg. Existing responsive sidebar (hamburger Sheet on mobile, fixed on desktop) and toolbar stacking verified. Skeleton loaders present in all data-dependent components. 18 new tests added across 3 files covering theme toggle, responsive layout, and chart dark mode CSS properties. All 642 tests pass, typecheck and lint clean.",
+    "issues": [
+      {
+        "file": "src/components/dashboard/ChartGrid.tsx",
+        "line": 81,
+        "severity": "non_blocking",
+        "description": "'sm:grid-cols-1' is redundant — CSS grid defaults to single column without any grid-cols class. The class has no effect and could be removed for clarity. Same applies to line 142 and the dashboard page skeleton."
+      },
+      {
+        "file": "src/components/layout/__tests__/ResponsiveLayout.test.tsx",
+        "line": 150,
+        "severity": "non_blocking",
+        "description": "Test 'uses responsive grid classes for chart layout' only verifies ChartGrid is defined (expect(ChartGrid).toBeDefined()). It doesn't actually assert the responsive grid classes (sm:grid-cols-1, md:grid-cols-2, lg:grid-cols-3) are present. This test provides no real verification of responsive behavior."
+      },
+      {
+        "file": "src/app/dashboard/page.tsx",
+        "line": 37,
+        "severity": "non_blocking",
+        "description": "Dashboard skeleton renders only 2 skeleton cards inside a 3-column grid (lg:grid-cols-3). At desktop widths, the third column will be empty, creating an asymmetric skeleton loading state. Consider rendering 3 skeleton items to match the grid."
+      },
+      {
+        "file": "src/components/dashboard/ChartTooltip.tsx",
+        "line": 30,
+        "severity": "non_blocking",
+        "description": "Tooltip uses inline style attributes for CSS custom properties (backgroundColor, borderColor, color) instead of Tailwind utility classes. Since the @theme inline block in globals.css maps these to --color-chart-tooltip-* tokens, Tailwind v4 should generate utilities like bg-chart-tooltip-bg, border-chart-tooltip-border, text-chart-tooltip-text. Using Tailwind classes would be more consistent with the project's styling conventions. However, inline CSS vars work correctly."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Recharts components (CartesianGrid, XAxis, YAxis) require SVG attributes (stroke, fill) for theming rather than CSS classes, so CSS custom property values are passed via props (e.g., stroke=\"var(--chart-grid)\"). This is an unavoidable pattern when using Recharts with theme-aware colors. Worth noting in AGENTS.md or library so future workers handling chart modifications know to use CSS vars rather than Tailwind classes for Recharts SVG props.",
+      "evidence": "src/components/dashboard/MetricChart.tsx:92 — CartesianGrid stroke=\"var(--chart-grid)\", XAxis tick={{ fill: \"var(--chart-axis-label)\" }}. Recharts renders SVGs, so Tailwind classes don't apply to these props."
+    },
+    {
+      "area": "conventions",
+      "observation": "The @theme inline block in globals.css defines --color-chart-* tokens that generate Tailwind utility classes, but ChartTooltip uses inline style attributes instead. This creates two parallel styling approaches for chart theming. Future workers may be confused about whether to use Tailwind utilities or inline CSS vars for chart-related styling.",
+      "evidence": "globals.css @theme block has --color-chart-tooltip-bg: var(--chart-tooltip-bg) but ChartTooltip.tsx:30 uses style={{ backgroundColor: 'var(--chart-tooltip-bg)' }} instead of className=\"bg-chart-tooltip-bg\""
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature passes review. Dark mode is correctly implemented with next-themes (system preference + manual toggle + localStorage persistence). Chart theming uses CSS custom properties with proper light/dark variants. Responsive design uses appropriate Tailwind breakpoints for sidebar, chart grid, and toolbar. Skeleton loaders are present throughout. 18 well-structured tests added. Four non-blocking issues identified: redundant sm:grid-cols-1 class, a weak test that only checks component is defined, skeleton count mismatch with grid columns, and inline styles where Tailwind utilities could be used. Two shared state observations about Recharts CSS var patterns and chart styling conventions."
+}
