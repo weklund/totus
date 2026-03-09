@@ -44,3 +44,31 @@ Standard codes: VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, RATE_LIMIT
 - `inet` is a native type in recent Drizzle versions
 - TEXT arrays: use `text('col').array()` with `default(sql\`'{}'::text[]\`)`
 - Use `pg` driver (returns Buffer for BYTEA)
+
+## Testing Patterns
+
+### Vitest .env.local Loading
+
+Vitest does not automatically load `.env.local` files. To make env vars like `DATABASE_URL` available in tests, `vitest.config.ts` uses `loadEnv` from the `vite` package:
+
+```ts
+import { loadEnv } from "vite";
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  return { /* ... */ test: { env } };
+});
+```
+
+The empty string prefix (`""`) loads ALL env vars, not just `VITE_`-prefixed ones.
+
+### Dynamic Import for Database Modules
+
+`src/db/index.ts` validates `DATABASE_URL` at module load time and throws if missing. Tests that import database modules must use dynamic `await import('@/db')` inside `beforeAll` to ensure env vars are loaded first:
+
+```ts
+beforeAll(async () => {
+  const dbModule = await import("@/db");
+  pool = dbModule.pool;
+  db = dbModule.db;
+});
+```

@@ -1,0 +1,44 @@
+{
+  "featureId": "scaffold-project-init",
+  "reviewedAt": "2026-03-09T06:10:00.000Z",
+  "commitId": "137a841",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid scaffold implementation covering all required tooling, directory structure, configuration, and tests. Next.js 15.3.2 with App Router, TypeScript strict mode, Tailwind CSS v4, ESLint v9 flat config (via FlatCompat for Next.js compatibility), Prettier with Tailwind plugin, Vitest with @vitejs/plugin-react and vite-tsconfig-paths, and Husky + lint-staged pre-commit hooks are all properly configured. The .env.example contains all 10 required variables with clear documentation comments. The cn.ts utility (clsx + tailwind-merge) is well-implemented with 5 test cases covering merges, conditionals, Tailwind conflict resolution, nullish inputs, and empty input. Path alias @/* resolves correctly to src/* via both tsconfig.json paths and vite-tsconfig-paths. Directory structure matches LLD Section 6.4 with .gitkeep files for empty directories. Two minor non-blocking issues identified.",
+    "issues": [
+      {
+        "file": "package.json",
+        "line": 57,
+        "severity": "non_blocking",
+        "description": "package.json contains a `packageManager` field referencing yarn@1.22.22, which conflicts with the project convention of using Bun as the package manager. This field was likely auto-generated during project initialization. While Bun ignores it, it could confuse contributors or tooling that reads this field (e.g., corepack). Consider removing it."
+      },
+      {
+        "file": "vitest.config.ts",
+        "line": 8,
+        "severity": "non_blocking",
+        "description": "Vitest environment is set to 'node' while @testing-library/react and @testing-library/jest-dom are installed as devDependencies. Current tests (cn utility, path alias) don't need DOM, so 'node' is correct for now. However, there is no vitest setup file to register @testing-library/jest-dom matchers. Future component tests will need: (1) environment changed to 'jsdom' or 'happy-dom' per-file or globally, and (2) a setup file importing '@testing-library/jest-dom'. This is fine for the scaffold phase but will need attention when component tests are added."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "package.json contains `packageManager: \"yarn@1.22.22+...\"` field which contradicts the Bun convention documented in AGENTS.md. AGENTS.md should note that the packageManager field in package.json should be removed or set to reference Bun, to prevent confusion.",
+      "evidence": "package.json:57 — `\"packageManager\": \"yarn@1.22.22+sha512...\"` vs AGENTS.md line `**Package manager:** Bun (use bun add, bun run, NOT npm/pnpm)`"
+    },
+    {
+      "area": "skills",
+      "observation": "Worker's skillFeedback correctly identifies that the scaffold-worker SKILL.md's 'write tests first (red-green)' guidance doesn't apply to scaffold features where the testing framework itself needs to be installed first. The skill could add a note that for tooling scaffold features, tests and implementation can happen in the same step.",
+      "evidence": "Handoff skillFeedback.suggestedChanges: 'The scaffold-worker skill suggests writing tests first (red-green), but for scaffold features the tests can't fail meaningfully before the tooling is configured (Vitest won't run without being installed).'"
+    },
+    {
+      "area": "services",
+      "observation": "services.yaml includes db:generate, db:push, db:seed, db:studio commands that weren't functional at the time of this scaffold feature (no drizzle config existed yet). The init.sh script handles this gracefully with a fallback message. This is forward-looking and acceptable, but it means services.yaml was written with knowledge of future features rather than just the current scaffold.",
+      "evidence": ".factory/services.yaml lists `db:generate: bun run db:generate` etc., but no drizzle.config.ts existed in commit 137a841. init.sh line 35: `bun run db:push 2>/dev/null || echo \"db:push not yet available (expected during scaffold)\"`"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The scaffold-project-init feature passes review. All 9 expected behaviors from the feature spec are met: Next.js dev server boots on port 3000 with Turbopack, typecheck/lint/test all exit 0, directory structure matches LLD Section 6.4 (7 directories), .env.example contains all 10 required variables, @/* path alias works, Husky pre-commit runs lint-staged, and tsconfig.json has strict:true. Two non-blocking issues noted: (1) stale yarn packageManager field in package.json, (2) Vitest environment is 'node' with DOM testing libraries installed but no setup file — acceptable for scaffold phase. Implementation quality is clean with good test coverage for the cn utility."
+}
