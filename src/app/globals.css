@@ -48,6 +48,12 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-axis-label: var(--chart-axis-label);
+  --color-chart-tooltip-bg: var(--chart-tooltip-bg);
+  --color-chart-tooltip-border: var(--chart-tooltip-border);
+  --color-chart-tooltip-text: var(--chart-tooltip-text);
+
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -118,6 +124,13 @@
     --sidebar-accent-foreground: oklch(0.21 0.026 264.364);
     --sidebar-border: oklch(0.922 0.007 264.364);
     --sidebar-ring: oklch(0.606 0.25 256.788);
+
+    /* Chart-specific custom properties */
+    --chart-grid: oklch(0.922 0 0);
+    --chart-axis-label: oklch(0.556 0 0);
+    --chart-tooltip-bg: oklch(1 0 0);
+    --chart-tooltip-border: oklch(0.922 0 0);
+    --chart-tooltip-text: oklch(0.145 0 0);
   }
   .dark {
     --background: oklch(0.145 0 0);
@@ -152,6 +165,13 @@
     --sidebar-accent-foreground: oklch(0.97 0.014 264.364);
     --sidebar-border: oklch(0.278 0.033 264.364);
     --sidebar-ring: oklch(0.606 0.25 256.788);
+
+    /* Chart-specific custom properties (dark) */
+    --chart-grid: oklch(0.269 0 0);
+    --chart-axis-label: oklch(0.708 0 0);
+    --chart-tooltip-bg: oklch(0.205 0 0);
+    --chart-tooltip-border: oklch(0.35 0 0);
+    --chart-tooltip-text: oklch(0.985 0 0);
   }
 }
 

@@ -25,7 +25,14 @@ export function ChartTooltip({
   if (!active || !payload?.length || !label) return null;
 
   return (
-    <div className="bg-popover text-popover-foreground rounded-lg border p-3 shadow-md">
+    <div
+      className="rounded-lg border p-3 shadow-md"
+      style={{
+        backgroundColor: "var(--chart-tooltip-bg)",
+        borderColor: "var(--chart-tooltip-border)",
+        color: "var(--chart-tooltip-text)",
+      }}
+    >
       <p className="mb-1.5 text-xs font-medium">
         {format(parseISO(label), "MMMM d, yyyy")}
       </p>

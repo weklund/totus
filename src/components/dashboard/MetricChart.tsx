@@ -89,7 +89,7 @@ export function MetricChart({
           data={chartData}
           margin={{ top: 5, right: 20, bottom: 5, left: 0 }}
         >
-          <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
           <XAxis
             dataKey="date"
             tickFormatter={(d: string) => {
@@ -99,8 +99,8 @@ export function MetricChart({
                 return d;
               }
             }}
-            tick={{ fontSize: 11 }}
-            className="text-muted-foreground"
+            tick={{ fontSize: 11, fill: "var(--chart-axis-label)" }}
+            stroke="var(--chart-grid)"
           />
           {metrics.map((metric, i) => {
             const config = getMetricType(metric);
@@ -115,11 +115,16 @@ export function MetricChart({
                         value: config?.unit ?? "",
                         angle: -90,
                         position: "insideLeft",
-                        style: { fontSize: 11, textAnchor: "middle" },
+                        style: {
+                          fontSize: 11,
+                          textAnchor: "middle",
+                          fill: "var(--chart-axis-label)",
+                        },
                       }
                     : undefined
                 }
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 11, fill: "var(--chart-axis-label)" }}
+                stroke="var(--chart-grid)"
                 width={compact ? 30 : 50}
               />
             );

@@ -34,7 +34,7 @@ function DashboardSkeleton() {
         </div>
       </div>
       {/* Chart skeleton */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 2 }).map((_, i) => (
           <Skeleton key={i} className="h-[350px] rounded-lg" />
         ))}

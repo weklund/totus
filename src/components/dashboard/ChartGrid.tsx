@@ -78,7 +78,7 @@ export function ChartGrid({
   if (isLoading) {
     return (
       <div
-        className="grid gap-4 md:grid-cols-2"
+        className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
         data-testid="chart-grid-loading"
       >
         {selectedMetrics.map((m) => (
@@ -139,7 +139,10 @@ export function ChartGrid({
 
   // Single metric: show individual chart
   return (
-    <div className="grid gap-4 md:grid-cols-2" data-testid="chart-grid">
+    <div
+      className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+      data-testid="chart-grid"
+    >
       {selectedMetrics.map((metricId) => {
         const config = getMetricType(metricId);
         const metricData = metricsData[metricId];
