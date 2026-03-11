@@ -9,7 +9,13 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:prefix.dev)",
       "WebFetch(domain:www.dreamfactory.com)",
-      "WebFetch(domain:workos.com)"
+      "WebFetch(domain:workos.com)",
+      "WebFetch(domain:wearipedia.readthedocs.io)",
+      "WebFetch(domain:docs.tryterra.co)",
+      "WebFetch(domain:clig.dev)",
+      "WebFetch(domain:cli.github.com)",
+      "WebFetch(domain:www.caduh.com)",
+      "WebFetch(domain:docs.stripe.com)"
     ]
   }
 }
