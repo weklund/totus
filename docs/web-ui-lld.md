@@ -1,6 +1,6 @@
 # Totus MVP Low-Level Design: Web UI Layer
 
-### Version 1.0 — March 2026
+### Version 1.1 — March 2026
 
 ### Author: Architecture Team
 
@@ -19,8 +19,9 @@
 - Totus MVP PRD (v1.0) — `/docs/mvp-prd.md`
 - Totus Architecture Design (v1.0) — `/docs/architecture-design.md`
 - Totus API & Database LLD (v1.0) — `/docs/api-database-lld.md`
+- Totus Integrations Pipeline LLD (v1.1) — `/docs/integrations-pipeline-lld.md`
 
-**Scope.** Frontend only. This document covers the Next.js App Router pages, React components, client-side state management, data fetching hooks, styling system, tooling, testing, and accessibility. It does NOT cover API route handler implementations, database queries, encryption logic, or Oura sync — those are specified in the API & Database LLD. The API contract defined in that document is treated as a stable input.
+**Scope.** Frontend only. This document covers the Next.js App Router pages, React components, client-side state management, data fetching hooks, styling system, tooling, testing, and accessibility. It does NOT cover API route handler implementations, database queries, encryption logic, or provider sync — those are specified in the API & Database LLD and Integrations Pipeline LLD. The API contract defined in that document is treated as a stable input.
 
 **Relationship to Other Documents.**
 
@@ -85,7 +86,7 @@ These tenets guide every frontend design decision in this document. When tenets 
 | FR-UI-1  | Landing page with value proposition, feature summary, and sign-up CTA                  | PRD                   |
 | FR-UI-2  | Clerk-powered sign-in and sign-up pages with 2FA enrollment                            | Arch: Section 2       |
 | FR-UI-3  | Dashboard with interactive time-series charts for health metrics                       | PRD: Dashboard        |
-| FR-UI-4  | One-click Oura OAuth connection flow from dashboard                                    | PRD: Dashboard        |
+| FR-UI-4  | One-click provider OAuth connection flow from dashboard                                | PRD: Dashboard        |
 | FR-UI-5  | Metric selector supporting up to 3 simultaneous overlays                               | PRD: Dashboard        |
 | FR-UI-6  | Date range selector with zoom presets (1W, 1M, 3M, 6M, 1Y, 5Y, All)                    | PRD: Dashboard        |
 | FR-UI-7  | Resolution toggle (daily/weekly/monthly)                                               | API: resolution param |
@@ -243,8 +244,13 @@ src/
       MetricChart.tsx           # Client: single Recharts time-series
       ChartTooltip.tsx          # Client: custom tooltip for charts
       OverlayLegend.tsx         # Client: legend for overlaid metrics
-      ConnectionCard.tsx        # Client: Oura connection status
+      ProviderConnectionCard.tsx # Client: provider connection status (one per connected provider)
+      AddProviderDialog.tsx     # Client: dialog to connect a new data source
+      SourceBadge.tsx           # Client: small provider icon + name badge on data points
+      SourcePreferenceSelector.tsx # Client: per-metric source preference picker
       EmptyDashboard.tsx        # Client: empty state with connect CTA
+      IntradayChart.tsx         # Client: intraday series chart (glucose, heart rate)
+      PeriodTimeline.tsx        # Client: duration event timeline (sleep stages, workouts, meals)
     share/
       ShareWizard.tsx           # Client: multi-step share creation
       ShareWizardStepMetrics.tsx
@@ -263,7 +269,7 @@ src/
       ProfileForm.tsx           # Client: display name form
       ExportSection.tsx         # Client: data export trigger
       DeleteAccountDialog.tsx   # Client: account deletion with confirm
-      ConnectionsManager.tsx    # Client: manage data sources
+      ConnectionsManager.tsx    # Client: manage all provider connections + source preferences
     viewer/
       ViewerHeader.tsx          # Client: viewer-specific header
       ViewerBanner.tsx          # Client: "Shared by X" banner
@@ -298,9 +304,14 @@ src/
 
   hooks/
     useViewContext.tsx           # View context hook (role, permissions)
-    useHealthData.ts            # TanStack Query: GET /api/health-data
+    useHealthData.ts            # TanStack Query: GET /api/health-data (daily aggregates)
+    useSeriesData.ts            # TanStack Query: GET /api/health-data/series (intraday)
+    usePeriodsData.ts           # TanStack Query: GET /api/health-data/periods (events)
     useHealthDataTypes.ts       # TanStack Query: GET /api/health-data/types
     useConnections.ts           # TanStack Query: GET /api/connections
+    useSourcePreferences.ts     # TanStack Query: GET /api/metric-preferences
+    useSetSourcePreference.ts   # TanStack Query mutation: PUT /api/metric-preferences/:metricType
+    useClearSourcePreference.ts # TanStack Query mutation: DELETE /api/metric-preferences/:metricType
     useShares.ts                # TanStack Query: GET /api/shares
     useCreateShare.ts           # TanStack Query mutation: POST /api/shares
     useRevokeShare.ts           # TanStack Query mutation: PATCH /api/shares/:id
@@ -429,16 +440,22 @@ export default function SignInPage() {
 DashboardLayout (RSC) — auth gate, fetches user profile + connections
   └── DashboardShell (Client) — sidebar + content wrapper
       └── DashboardPage (RSC)
-          ├── ConnectionCard (Client) — Oura status, or connect CTA
-          │   [If no connection: EmptyDashboard with "Connect Oura" button]
+          ├── ProviderConnectionBar (Client) — row of connected provider badges + "Add Source" button
+          │   ├── ProviderConnectionCard (Client) — per-provider: icon, name, status, last sync, "Sync" / "Reconnect"
+          │   └── AddProviderDialog (Client) — pick a provider to connect via OAuth
+          │   [If no connections: EmptyDashboard with "Connect a Data Source" button + provider grid]
           │   [If connected:]
           ├── DashboardToolbar (Client)
-          │   ├── MetricSelector (Client) — chip toggles for metrics
+          │   ├── MetricSelector (Client) — chip toggles for metrics (grouped by category)
+          │   │   └── Chips show SourceBadge(s) for providers that supply each metric
           │   ├── DateRangeSelector (Client) — preset buttons + custom picker
           │   └── ResolutionToggle (Client) — daily / weekly / monthly
           ├── ChartGrid (Client) — responsive grid of charts
-          │   ├── MetricChart (Client) — one per selected metric (or overlay)
-          │   │   └── ChartTooltip (Client) — hover tooltip
+          │   ├── MetricChart (Client) — one per selected daily metric (or overlay)
+          │   │   ├── ChartTooltip (Client) — hover tooltip with source attribution
+          │   │   └── SourceToggle (Client) — when multiple sources exist: toggle all/preferred
+          │   ├── IntradayChart (Client) — intraday series (glucose, heart rate)
+          │   ├── PeriodTimeline (Client) — duration events (sleep stages, workouts, meals)
           │   └── OverlayLegend (Client) — when 2-3 metrics overlaid
           └── ActionBar (Client) — "Share Data" + "Export" buttons
 ```
@@ -490,15 +507,17 @@ export default async function DashboardLayout({
 
 **Key Interactions:**
 
-| Interaction       | UI Element                         | Effect                                                                 |
-| ----------------- | ---------------------------------- | ---------------------------------------------------------------------- |
-| Toggle metric     | MetricSelector chip                | Add/remove metric from chart display; triggers `useHealthData` refetch |
-| Change date range | DateRangeSelector preset or picker | Updates date range; triggers `useHealthData` refetch                   |
-| Change resolution | ResolutionToggle                   | Switches daily/weekly/monthly; triggers `useHealthData` refetch        |
-| Connect Oura      | ConnectionCard "Connect" button    | Calls `GET /api/connections/oura/authorize`, redirects to Oura OAuth   |
-| Manual sync       | ConnectionCard "Sync Now" button   | Calls `POST /api/connections/:id/sync`, shows progress                 |
-| Share Data        | ActionBar "Share" button           | Navigates to `/dashboard/share/new`                                    |
-| Export Data       | ActionBar "Export" button          | Triggers export flow (see Settings)                                    |
+| Interaction        | UI Element                         | Effect                                                                         |
+| ------------------ | ---------------------------------- | ------------------------------------------------------------------------------ |
+| Toggle metric      | MetricSelector chip                | Add/remove metric from chart display; triggers `useHealthData` refetch         |
+| Change date range  | DateRangeSelector preset or picker | Updates date range; triggers refetch across daily, series, and periods hooks   |
+| Change resolution  | ResolutionToggle                   | Switches daily/weekly/monthly; triggers `useHealthData` refetch                |
+| Add provider       | ProviderConnectionBar "Add Source" | Opens `AddProviderDialog` with provider grid; selecting one starts OAuth flow  |
+| Connect provider   | AddProviderDialog provider card    | Calls `GET /api/connections/{provider}/authorize`, redirects to provider OAuth |
+| Manual sync        | ProviderConnectionCard "Sync Now"  | Calls `POST /api/connections/:id/sync`, shows progress                         |
+| Toggle all sources | MetricChart SourceToggle           | Switches between preferred source and all sources for a multi-source metric    |
+| Share Data         | ActionBar "Share" button           | Navigates to `/dashboard/share/new`                                            |
+| Export Data        | ActionBar "Export" button          | Triggers export flow (see Settings)                                            |
 
 **Loading State:**
 
@@ -514,13 +533,13 @@ export default async function DashboardLayout({
 
 **Empty State (no data yet):**
 
-- No connections: Full-page `EmptyDashboard` with illustration, "Connect your Oura Ring to get started" heading, and prominent "Connect Oura" button
-- Connected but no data synced yet: "Syncing your data..." with progress animation
+- No connections: Full-page `EmptyDashboard` with illustration, "Connect a Data Source to Get Started" heading, and a grid of available providers (Oura, Dexcom, Garmin, Whoop, Withings, Cronometer) with status badges (e.g., "Self-serve", "Partner application required"). Clicking a provider opens the OAuth flow.
+- Connected but no data synced yet: "Syncing your data from [provider]..." with progress animation
 - Connected but selected metrics have no data: "No data available for [metric] in this date range"
 
-**Oura OAuth Callback Handling:**
+**Provider OAuth Callback Handling:**
 
-When the user returns from Oura OAuth, they land on `/dashboard?connected=oura` or `/dashboard?error=oura_connect_failed`. The dashboard page reads these query params:
+When the user returns from a provider's OAuth, they land on `/dashboard?connected={provider}` or `/dashboard?error={provider}_connect_failed`. The dashboard page reads these query params:
 
 ```typescript
 // src/app/dashboard/page.tsx (RSC)
@@ -533,14 +552,14 @@ export default async function DashboardPage({
 
   return (
     <DashboardContent
-      showConnectionToast={params.connected === "oura"}
-      showErrorToast={params.error ? params.error : undefined}
+      connectedProvider={params.connected ?? undefined}
+      connectionError={params.error ?? undefined}
     />
   );
 }
 ```
 
-The `DashboardContent` Client Component displays a toast on mount if `showConnectionToast` is true, then removes the query params from the URL via `router.replace("/dashboard")` to prevent the toast on page refresh.
+The `DashboardContent` Client Component displays a toast on mount (e.g., "Oura Ring connected! Syncing your data..."), then removes the query params from the URL via `router.replace("/dashboard")` to prevent the toast on page refresh. The toast text is dynamically derived from the provider's `displayName` in the provider registry.
 
 ---
 
@@ -604,8 +623,9 @@ DashboardLayout (RSC)
           └── ShareWizard (Client) — manages step state
               ├── StepIndicator — shows progress (1/4, 2/4, etc.)
               ├── [Step 1] ShareWizardStepMetrics
-              │   └── Metric chips organized by category (Sleep, Cardio, Activity, Body)
-              │       User toggles which metrics to share
+              │   └── Metric chips organized by category (Sleep, Cardio, Activity, Body, Metabolic, Recovery, Nutrition)
+              │       Includes both scalar metrics (daily) and event types (sleep stages, workouts, meals)
+              │       User toggles which data to share
               ├── [Step 2] ShareWizardStepDateRange
               │   └── DateRangePicker with preset buttons (Last 30 days, 90 days, etc.)
               │       Shows preview of data availability
@@ -763,8 +783,11 @@ DashboardLayout (RSC)
           │   ├── Display name input
           │   └── Save button
           ├── ConnectionsManager (Client)
-          │   ├── OuraConnectionCard — status, last sync, disconnect
-          │   └── "Connect Oura" button (if not connected)
+          │   ├── ProviderConnectionCard (Client) — per connected provider: status, last sync, disconnect
+          │   │   └── [One card per connected provider: Oura, Dexcom, Garmin, Whoop, Withings, Cronometer]
+          │   ├── AddProviderDialog (Client) — "Add Data Source" button opens provider selection
+          │   └── SourcePreferencesSection (Client) — per-metric source preference management
+          │       └── SourcePreferenceSelector — for each metric with multiple sources, pick preferred
           ├── ExportSection (Client)
           │   ├── "Export All Data" button
           │   └── Export status / download link
@@ -987,8 +1010,10 @@ interface DashboardShellProps {
   connections: Array<{
     id: string;
     provider: string;
-    status: "connected" | "expired" | "error";
+    status: "active" | "expired" | "error" | "paused";
+    sync_status: "idle" | "queued" | "syncing" | "error";
     last_sync_at: string | null;
+    connected_at: string;
   }>;
   children: React.ReactNode;
 }
@@ -1120,7 +1145,27 @@ export const METRIC_COLORS: Record<string, { line: string; fill: string }> = {
   total_calories: { line: "hsl(35, 75%, 50%)", fill: "hsl(35, 75%, 50%, 0.1)" },
   glucose: { line: "hsl(340, 70%, 55%)", fill: "hsl(340, 70%, 55%, 0.1)" },
   weight: { line: "hsl(190, 60%, 50%)", fill: "hsl(190, 60%, 50%, 0.1)" },
-  body_fat: { line: "hsl(310, 50%, 55%)", fill: "hsl(310, 50%, 55%, 0.1)" },
+  body_fat_pct: { line: "hsl(310, 50%, 55%)", fill: "hsl(310, 50%, 55%, 0.1)" },
+  // Body composition (Withings, Garmin)
+  bmi: { line: "hsl(185, 55%, 45%)", fill: "hsl(185, 55%, 45%, 0.1)" },
+  muscle_mass_kg: {
+    line: "hsl(160, 65%, 45%)",
+    fill: "hsl(160, 65%, 45%, 0.1)",
+  },
+  bone_mass_kg: { line: "hsl(210, 40%, 55%)", fill: "hsl(210, 40%, 55%, 0.1)" },
+  hydration_kg: { line: "hsl(195, 70%, 50%)", fill: "hsl(195, 70%, 50%, 0.1)" },
+  visceral_fat_index: {
+    line: "hsl(10, 70%, 55%)",
+    fill: "hsl(10, 70%, 55%, 0.1)",
+  },
+  // Nutrition (Cronometer)
+  calories_consumed: {
+    line: "hsl(30, 85%, 50%)",
+    fill: "hsl(30, 85%, 50%, 0.1)",
+  },
+  protein_g: { line: "hsl(0, 65%, 55%)", fill: "hsl(0, 65%, 55%, 0.1)" },
+  carbs_g: { line: "hsl(45, 80%, 50%)", fill: "hsl(45, 80%, 50%, 0.1)" },
+  fat_g: { line: "hsl(20, 75%, 55%)", fill: "hsl(20, 75%, 55%, 0.1)" },
 };
 ```
 
@@ -1299,12 +1344,13 @@ interface MetricSelectorProps {
 
 **Behavior:**
 
-- Chips grouped by category (Sleep, Cardiovascular, Activity, Body)
+- Chips grouped by category (Sleep, Cardiovascular, Activity, Body, Metabolic, Recovery, Nutrition)
 - Selected chips are filled with the metric's color; unselected are outlined
 - When `maxSelection` is reached, unselected chips become disabled with tooltip "Maximum 3 metrics selected"
 - Owner: all metrics with data are available
 - Viewer: only granted metrics are shown, all pre-selected, `maxSelection` still applies for overlay management
 - Chips show a small data count badge (e.g., "784 days") to indicate data density
+- Multi-source metrics show one or more small `SourceBadge` icons next to the chip to indicate which providers supply this metric (e.g., HRV chip shows both Oura and Whoop icons if both are connected and syncing HRV)
 
 #### DateRangeSelector
 
@@ -1445,6 +1491,277 @@ interface LoadingSkeletonProps {
   count?: number;
 }
 ```
+
+### 8.5 Multi-Provider Components
+
+These components support the multi-provider architecture introduced in `integrations-pipeline-lld.md`. They handle provider connection management, source attribution, source preference selection, intraday series visualization, and duration event timelines.
+
+#### ProviderConnectionCard
+
+Displays connection status for a single provider. Replaces the former Oura-specific `ConnectionCard`.
+
+```typescript
+interface ProviderConnectionCardProps {
+  connection: {
+    id: string;
+    provider: string; // 'oura', 'dexcom', 'garmin', 'whoop', 'withings', 'cronometer'
+    status: "active" | "expired" | "error" | "paused";
+    last_sync_at: string | null;
+    sync_status: "idle" | "queued" | "syncing" | "error";
+    sync_error: string | null;
+    connected_at: string;
+  };
+  onSync: (connectionId: string) => void;
+  onDisconnect: (connectionId: string) => void;
+}
+```
+
+**Display:**
+
+- Provider icon (from static asset map) + display name
+- Status badge: green "Active", yellow "Expired" (with "Reconnect" CTA), red "Error" (with error message tooltip)
+- Last sync time (relative, e.g., "2 hours ago"), sync-in-progress spinner
+- "Sync Now" button (disabled while syncing), "Disconnect" button (danger style, triggers confirmation dialog)
+- Compact mode: renders as a horizontal pill in the `ProviderConnectionBar` on the dashboard; full card layout in Settings
+
+**Provider icon map:**
+
+```typescript
+// src/lib/provider-config.ts
+export const PROVIDER_REGISTRY: Record<
+  string,
+  {
+    displayName: string;
+    icon: string; // path to SVG icon in /public/providers/
+    color: string; // brand color for badges and chart attribution
+    category: "wearable" | "cgm" | "smart_scale" | "nutrition";
+    accessStatus: "self-serve" | "partner-required" | "blocked";
+  }
+> = {
+  oura: {
+    displayName: "Oura Ring",
+    icon: "/providers/oura.svg",
+    color: "hsl(250, 80%, 60%)",
+    category: "wearable",
+    accessStatus: "self-serve",
+  },
+  dexcom: {
+    displayName: "Dexcom CGM",
+    icon: "/providers/dexcom.svg",
+    color: "hsl(340, 70%, 55%)",
+    category: "cgm",
+    accessStatus: "self-serve",
+  },
+  garmin: {
+    displayName: "Garmin Connect",
+    icon: "/providers/garmin.svg",
+    color: "hsl(200, 80%, 45%)",
+    category: "wearable",
+    accessStatus: "partner-required",
+  },
+  whoop: {
+    displayName: "Whoop",
+    icon: "/providers/whoop.svg",
+    color: "hsl(0, 0%, 20%)",
+    category: "wearable",
+    accessStatus: "self-serve",
+  },
+  withings: {
+    displayName: "Withings Health Mate",
+    icon: "/providers/withings.svg",
+    color: "hsl(190, 60%, 50%)",
+    category: "smart_scale",
+    accessStatus: "self-serve",
+  },
+  cronometer: {
+    displayName: "Cronometer",
+    icon: "/providers/cronometer.svg",
+    color: "hsl(30, 85%, 50%)",
+    category: "nutrition",
+    accessStatus: "blocked",
+  },
+};
+```
+
+#### AddProviderDialog
+
+Modal dialog for connecting a new data source.
+
+```typescript
+interface AddProviderDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  connectedProviders: string[]; // already connected — shown as disabled
+}
+```
+
+**Layout:**
+
+- Grid of provider cards (2 columns on mobile, 3 on desktop)
+- Each card shows: provider icon, display name, category label, access status badge
+- Already-connected providers shown as disabled with "Connected" badge
+- Providers with `accessStatus: 'blocked'` show "Coming Soon" badge and are disabled
+- Clicking an available provider calls `GET /api/connections/{provider}/authorize` and redirects to the provider's OAuth flow
+
+#### SourceBadge
+
+Small inline badge showing a provider's icon and optional name, used in chart tooltips and metric chips.
+
+```typescript
+interface SourceBadgeProps {
+  provider: string;
+  showName?: boolean; // default false — icon only
+  size?: "sm" | "md"; // sm: 16px, md: 20px
+}
+```
+
+#### SourcePreferenceSelector
+
+Lets the user choose which provider is authoritative for a metric when multiple providers supply it.
+
+```typescript
+interface SourcePreferenceSelectorProps {
+  metricType: string;
+  availableSources: Array<{
+    provider: string;
+    dataPointCount: number;
+    latestDate: string;
+  }>;
+  currentPreference: string | null; // null = auto-resolve
+  onChange: (provider: string | null) => void;
+}
+```
+
+**Display:**
+
+- Dropdown or radio group listing each available source with provider icon, name, and data density ("784 days of data")
+- "Auto (most recent)" option at top — default when no explicit preference is set
+- Changing the selection calls `PUT /api/metric-preferences/{metricType}` (or `DELETE` to revert to auto)
+- Shown in Settings > Connections > Source Preferences section, and optionally as a popover on the chart's SourceToggle
+
+#### SourceToggle
+
+Small toggle control on a chart card header that switches between showing only the preferred source or all sources overlaid.
+
+```typescript
+interface SourceToggleProps {
+  /** Whether to show all sources or just the preferred one */
+  showAllSources: boolean;
+  onChange: (showAll: boolean) => void;
+  /** Provider names that supply this metric */
+  sources: string[];
+}
+```
+
+**Behavior:**
+
+- Only rendered when a metric has data from 2+ providers
+- Default: show preferred source only (clean single-line chart)
+- Toggle on: show all sources as separate lines with distinct provider colors and a legend
+- This is the primary UX for "compare what my Oura says vs. what my Whoop says for HRV"
+
+#### IntradayChart
+
+Time-series chart for high-frequency intraday data (series metrics: glucose, heart rate, SpO2).
+
+```typescript
+interface IntradayChartProps {
+  data: {
+    metric_type: string;
+    source: string;
+    readings: Array<{ recorded_at: string; value: number }>;
+  };
+  /** Height in pixels */
+  height?: number;
+  /** Date range for x-axis */
+  dateRange: { from: string; to: string };
+}
+```
+
+**Rendering:**
+
+- Uses Recharts `AreaChart` with high-density data (e.g., 288 CGM readings/day, ~1,700 HR readings/day)
+- X-axis: hourly ticks within a single day, daily ticks across multi-day range
+- Tooltip shows exact timestamp + value + source
+- For glucose: optional horizontal reference lines at 70 mg/dL (low) and 180 mg/dL (high) — common clinical thresholds
+- Data downsampling: for ranges >7 days, downsample to 1-hour averages client-side to keep chart responsive (raw data is still available on zoom)
+- Fetched via `useSeriesData({ metric_type, from, to })` → `GET /api/health-data/series`
+
+#### PeriodTimeline
+
+Visual timeline for duration events (sleep stages, workouts, meals).
+
+```typescript
+interface PeriodTimelineProps {
+  data: {
+    event_type: string;
+    periods: Array<{
+      subtype: string;
+      started_at: string;
+      ended_at: string;
+      duration_sec: number;
+      source: string;
+      metadata?: Record<string, unknown>; // decrypted on server, passed as props
+    }>;
+  };
+  /** Timeline date range */
+  dateRange: { from: string; to: string };
+}
+```
+
+**Rendering by event type:**
+
+- **Sleep stages (`event_type: 'sleep_stage'`):** Horizontal stacked bar chart (hypnogram-style). X-axis = time (10pm–8am typical), colored segments for `rem` (purple), `deep` (navy), `light` (sky blue), `awake` (amber). One row per night in the date range. Tooltip shows stage name, duration, and source.
+
+- **Workouts (`event_type: 'workout'`):** Card list sorted by date. Each card shows: subtype icon (run, cycle, swim, strength, yoga, generic), start time, duration, and summary metrics from `metadata` (calories, distance, avg HR if present). Source badge in corner.
+
+- **Meals (`event_type: 'meal'`):** Card list grouped by date. Each date shows meals in chronological order (breakfast → lunch → dinner → snack). Each card shows: meal subtype, time, calorie total, and a macro summary bar (protein / carbs / fat proportions as a horizontal stacked bar). Expandable to show individual food items from `metadata.food_items` if present. Source badge (Cronometer).
+
+- Fetched via `usePeriodsData({ event_type, from, to })` → `GET /api/health-data/periods`
+
+### 8.6 Multi-Provider UX Patterns
+
+#### Use Case: Correlating Sleep, Nutrition, and Activity
+
+When a user has Oura (sleep + activity), Cronometer (nutrition), and Withings (body composition) connected, the dashboard naturally presents cross-domain insights:
+
+- **Daily view:** MetricSelector chips span categories. User selects `sleep_score` (Oura) + `calories_consumed` (Cronometer) + `weight` (Withings) → overlay chart with three Y-axes showing the relationship between caloric intake, sleep quality, and weight trend over time.
+
+- **Drill-down:** Clicking a date in the daily chart expands to show:
+  - Sleep stage timeline for that night (PeriodTimeline)
+  - Meals logged that day (PeriodTimeline with `event_type: 'meal'`)
+  - Activity/workouts (PeriodTimeline with `event_type: 'workout'`)
+
+#### Use Case: Glucose + Heart Rate Intraday
+
+A user with Dexcom (glucose) and Oura or Whoop (heart rate) can:
+
+- Select a single day in the date range
+- See glucose trend (IntradayChart) and heart rate trend (IntradayChart) aligned on the same time axis
+- Meal periods from Cronometer overlaid as shaded regions on the glucose chart (when connected), showing how specific foods correlate with glucose spikes
+
+#### Use Case: Comparing Wearable Sources
+
+A user wearing both Oura and Whoop sees both as data sources for HRV, RHR, and sleep duration:
+
+- Default: charts show the preferred source (per `metric_source_preferences` or auto-resolved)
+- SourceToggle: user clicks "Show all sources" → both Oura and Whoop HRV lines appear on the same chart with distinct colors (Oura in purple, Whoop in dark gray)
+- Source preferences: in Settings, user sets "HRV → Oura" and "Sleep Duration → Whoop" as their preferred sources
+
+#### Provider Connection Bar Design
+
+The `ProviderConnectionBar` at the top of the dashboard provides at-a-glance status for all connections:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  [Oura ●]  [Whoop ●]  [Withings ●]  [Dexcom ◌ syncing...]  [+ Add]   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+- Each pill shows provider icon + status dot (green=active, yellow=expired, red=error, gray=paused)
+- Clicking a pill opens a popover with last sync time, error details, and Sync/Disconnect actions
+- The bar is horizontally scrollable on mobile when many providers are connected
+- `[+ Add]` button opens `AddProviderDialog`
 
 ---
 
@@ -1735,6 +2052,18 @@ export const queryKeys = {
       resolution: string;
     }) => ["health-data", params] as const,
     types: () => ["health-data", "types"] as const,
+    series: (params: {
+      metric_type: string;
+      from: string;
+      to: string;
+      source?: string;
+    }) => ["health-data", "series", params] as const,
+    periods: (params: {
+      event_type: string;
+      from: string;
+      to: string;
+      source?: string;
+    }) => ["health-data", "periods", params] as const,
   },
   viewerData: {
     all: ["viewer-data"] as const,
@@ -1748,6 +2077,10 @@ export const queryKeys = {
   connections: {
     all: ["connections"] as const,
     list: () => ["connections", "list"] as const,
+  },
+  sourcePreferences: {
+    all: ["source-preferences"] as const,
+    list: () => ["source-preferences", "list"] as const,
   },
   shares: {
     all: ["shares"] as const,
@@ -1859,6 +2192,154 @@ export function useViewerData(params: {
     },
     enabled: params.metrics.length > 0,
     staleTime: 2 * 60 * 1000,
+  });
+}
+```
+
+#### useSeriesData
+
+Fetches intraday series data for a single metric (e.g., glucose, heart rate).
+
+```typescript
+// src/hooks/useSeriesData.ts
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+
+interface SeriesDataResponse {
+  data: {
+    metric_type: string;
+    source: string;
+    readings: Array<{ recorded_at: string; value: number }>;
+  };
+}
+
+export function useSeriesData(params: {
+  metric_type: string;
+  from: string;
+  to: string;
+  source?: string;
+}) {
+  return useQuery({
+    queryKey: queryKeys.healthData.series(params),
+    queryFn: () => {
+      const searchParams = new URLSearchParams({
+        metric_type: params.metric_type,
+        from: params.from,
+        to: params.to,
+      });
+      if (params.source) searchParams.set("source", params.source);
+      return api.get<SeriesDataResponse>(
+        `/health-data/series?${searchParams.toString()}`,
+      );
+    },
+    enabled: !!params.metric_type,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+```
+
+#### usePeriodsData
+
+Fetches duration events (sleep stages, workouts, meals).
+
+```typescript
+// src/hooks/usePeriodsData.ts
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+
+interface PeriodsDataResponse {
+  data: {
+    event_type: string;
+    periods: Array<{
+      subtype: string;
+      started_at: string;
+      ended_at: string;
+      duration_sec: number;
+      source: string;
+      metadata?: Record<string, unknown>;
+    }>;
+  };
+}
+
+export function usePeriodsData(params: {
+  event_type: string;
+  from: string;
+  to: string;
+  source?: string;
+}) {
+  return useQuery({
+    queryKey: queryKeys.healthData.periods(params),
+    queryFn: () => {
+      const searchParams = new URLSearchParams({
+        event_type: params.event_type,
+        from: params.from,
+        to: params.to,
+      });
+      if (params.source) searchParams.set("source", params.source);
+      return api.get<PeriodsDataResponse>(
+        `/health-data/periods?${searchParams.toString()}`,
+      );
+    },
+    enabled: !!params.event_type,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+```
+
+#### useSourcePreferences
+
+Fetches the user's source preferences.
+
+```typescript
+// src/hooks/useSourcePreferences.ts
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+
+interface SourcePreferencesResponse {
+  data: Array<{
+    metric_type: string;
+    provider: string;
+  }>;
+}
+
+export function useSourcePreferences() {
+  return useQuery({
+    queryKey: queryKeys.sourcePreferences.list(),
+    queryFn: () => api.get<SourcePreferencesResponse>("/metric-preferences"),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+```
+
+#### useSetSourcePreference (Mutation)
+
+```typescript
+// src/hooks/useSetSourcePreference.ts
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+
+export function useSetSourcePreference() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      metricType,
+      provider,
+    }: {
+      metricType: string;
+      provider: string;
+    }) => api.put(`/metric-preferences/${metricType}`, { provider }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.sourcePreferences.all,
+      });
+      // Also invalidate health data since source resolution may have changed
+      queryClient.invalidateQueries({ queryKey: queryKeys.healthData.all });
+    },
   });
 }
 ```
@@ -2087,16 +2568,26 @@ The `ChartGrid` component uses the View Context to choose the correct data hook:
 // Inside ChartGrid component
 const { role } = useViewContext();
 
-// Select the appropriate hook based on role
+// Select the appropriate hook based on role — daily aggregates
 const { data, isLoading, error } =
   role === "owner"
-    ? useHealthData({ metrics, start, end, resolution })
-    : useViewerData({ metrics, start, end, resolution });
+    ? useHealthData({ metrics: dailyMetrics, start, end, resolution })
+    : useViewerData({ metrics: dailyMetrics, start, end, resolution });
+
+// Series data (intraday) — fetched separately per metric
+const seriesQueries = seriesMetrics.map((metric) =>
+  useSeriesData({ metric_type: metric, from: start, to: end }),
+);
+
+// Period data (events) — fetched separately per event type
+const periodQueries = periodTypes.map((eventType) =>
+  usePeriodsData({ event_type: eventType, from: start, to: end }),
+);
 ```
 
-**Why two hooks instead of one?** The endpoints differ (`/api/health-data` vs `/api/viewer/data`), the authentication mechanisms differ (Clerk cookie vs viewer cookie), and the response includes different metadata (viewer response has a `scope` field). Keeping them separate avoids conditional logic inside the hook and makes the data flow explicit.
+**Why separate hooks per data type?** Daily aggregates, intraday series, and duration periods live in different database tables with different query patterns and response shapes. Daily data uses date-based keys; series data uses timestamp-based keys; periods have start/end ranges. Keeping them separate avoids conflating these concerns and lets each chart type consume exactly the shape it needs.
 
-However, the response's `data.metrics` shape is identical, so all chart components work without modification regardless of which hook provided the data.
+**Why separate owner/viewer hooks?** The endpoints differ (`/api/health-data` vs `/api/viewer/data`), the authentication mechanisms differ (Clerk cookie vs viewer cookie), and the response includes different metadata (viewer response has a `scope` field). However, the response's `data.metrics` shape is identical, so all chart components work without modification regardless of which hook provided the data.
 
 ---
 
@@ -2829,7 +3320,7 @@ describe("MetricSelector", () => {
 
 | #     | Scenario            | Steps                                                                                                                 | Assertions                                           |
 | ----- | ------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| E2E-1 | Oura Connection     | Sign in -> click "Connect Oura" -> complete OAuth mock -> verify connection card shows "Connected"                    | Connection status visible, toast shown               |
+| E2E-1 | Provider Connection | Sign in -> click "Add Source" -> select provider -> complete OAuth mock -> verify connection card shows "Active"      | Connection status visible, toast shown               |
 | E2E-2 | Dashboard Data View | Sign in -> navigate to dashboard -> verify charts render with data -> change date range -> verify charts update       | Charts render, date range picker works, data updates |
 | E2E-3 | Share Creation      | Sign in -> click "Share" -> complete wizard -> copy URL -> navigate to share management -> verify new share listed    | Share appears in list, URL was copyable              |
 | E2E-4 | Share Revocation    | Sign in -> navigate to shares -> click "Revoke" on active share -> confirm -> verify status changes                   | Status badge shows "Revoked", revoke button gone     |
@@ -3178,10 +3669,10 @@ const nextConfig: NextConfig = {
 │ │          │ │  Dashboard                    🌙  Wes E. ▼   │  │
 │ │  TOTUS   │ ├───────────────────────────────────────────────┤  │
 │ │          │ │                                               │  │
-│ │ Dashboard│ │  ┌─ Oura Ring ─────────────────────────────┐  │  │
-│ │ Shares   │ │  │ ● Connected  Last sync: 2 hours ago     │  │  │
-│ │ Activity │ │  │                          [Sync Now]      │  │  │
-│ │ Settings │ │  └─────────────────────────────────────────┘  │  │
+│ │ Dashboard│ │  [Oura ●] [Whoop ●] [Withings ●]  [+ Add]   │  │
+│ │ Shares   │ │                                               │  │
+│ │ Activity │ │                                               │  │
+│ │ Settings │ │                                               │  │
 │ │          │ │                                               │  │
 │ │          │ │  [Sleep Score✓] [HRV✓] [RHR✓] [Steps] ...   │  │
 │ │          │ │                                               │  │
@@ -3221,8 +3712,8 @@ const nextConfig: NextConfig = {
 │  Dashboard    🌙  ≡   │
 ├───────────────────────┤
 │                       │
-│  ● Oura Connected     │
-│  Last sync: 2h ago    │
+│  [Oura●][Whoop●][+Add]│
+│                       │
 │                       │
 │  [SleepScore✓] [HRV✓] │
 │  [RHR✓] [Steps] ...   │
@@ -3768,19 +4259,28 @@ export interface ApiError {
 
 #### Phase 2: Dashboard Core
 
-| Task                                        | Deliverable                          | Dependencies             |
-| ------------------------------------------- | ------------------------------------ | ------------------------ |
-| Build MetricSelector component              | Chip toggles with category grouping  | shadcn/ui, metric config |
-| Build DateRangeSelector component           | Preset buttons + custom range picker | shadcn/ui Calendar       |
-| Build ResolutionToggle component            | Daily/weekly/monthly tabs            | shadcn/ui Tabs           |
-| Build MetricChart component (Recharts)      | Time-series line chart with tooltip  | Recharts                 |
-| Build ChartGrid component                   | Responsive chart layout              | MetricChart              |
-| Implement `useHealthData` hook              | TanStack Query integration           | API client               |
-| Implement `useHealthDataTypes` hook         | Metric type discovery                | API client               |
-| Wire up DashboardContent (filters + charts) | Interactive dashboard with real data | All above                |
-| Build ConnectionCard component              | Oura status + connect/sync buttons   | API client               |
-| Build EmptyDashboard component              | Empty state with connect CTA         | ConnectionCard           |
-| Handle Oura OAuth callback query params     | Toast on connection success          | Dashboard                |
+| Task                                        | Deliverable                          | Dependencies                |
+| ------------------------------------------- | ------------------------------------ | --------------------------- |
+| Build MetricSelector component              | Chip toggles with category grouping  | shadcn/ui, metric config    |
+| Build DateRangeSelector component           | Preset buttons + custom range picker | shadcn/ui Calendar          |
+| Build ResolutionToggle component            | Daily/weekly/monthly tabs            | shadcn/ui Tabs              |
+| Build MetricChart component (Recharts)      | Time-series line chart with tooltip  | Recharts                    |
+| Build ChartGrid component                   | Responsive chart layout              | MetricChart                 |
+| Implement `useHealthData` hook              | TanStack Query integration           | API client                  |
+| Implement `useHealthDataTypes` hook         | Metric type discovery                | API client                  |
+| Wire up DashboardContent (filters + charts) | Interactive dashboard with real data | All above                   |
+| Build ProviderConnectionCard component      | Provider status + connect/sync       | API client, provider-config |
+| Build AddProviderDialog component           | Provider selection grid              | provider-config             |
+| Build ProviderConnectionBar                 | Dashboard provider status row        | ProviderConnectionCard      |
+| Build EmptyDashboard component              | Empty state with provider grid CTA   | AddProviderDialog           |
+| Handle OAuth callback query params          | Toast on connection success          | Dashboard, provider-config  |
+| Build IntradayChart component               | Intraday series line chart           | Recharts                    |
+| Build PeriodTimeline component              | Duration event timeline              | Recharts                    |
+| Build SourceBadge + SourceToggle components | Multi-source attribution UI          | provider-config             |
+| Implement `useSeriesData` hook              | Intraday series data fetching        | API client                  |
+| Implement `usePeriodsData` hook             | Duration event data fetching         | API client                  |
+| Implement `useSourcePreferences` hooks      | Source preference CRUD               | API client                  |
+| Build SourcePreferenceSelector              | Per-metric source picker             | useSourcePreferences        |
 
 #### Phase 3: Sharing
 

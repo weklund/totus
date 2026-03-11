@@ -18,7 +18,7 @@
 
 - Totus MVP PRD (v1.0) — `/docs/mvp-prd.md`
 - Totus Architecture Design (v1.0) — `/docs/architecture-design.md`
-- Oura API v2 documentation — https://cloud.ouraring.com/v2/docs
+- Totus Integrations Pipeline LLD — `/docs/integrations-pipeline-lld.md`
 
 **Scope.** API routes and database only. This document does NOT cover frontend components, UI layouts, deployment pipelines, or Vercel configuration. It DOES cover the Next.js API route handlers, middleware auth logic, Drizzle ORM schemas, PostgreSQL DDL, and all data access patterns.
 
@@ -77,7 +77,7 @@ These tenets guide every API and data design decision in this document. When ten
 | ID       | Requirement                                                                                             | Source                         |
 | -------- | ------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | FR-API-1 | Expose RESTful endpoints for health data queries with metric type, date range, and resolution filters   | PRD: Dashboard                 |
-| FR-API-2 | Expose endpoints for Oura OAuth initiation and callback, with encrypted token storage                   | PRD: One-click Oura connection |
+| FR-API-2 | Expose endpoints for provider OAuth initiation and callback, with encrypted token storage               | PRD: One-click Oura connection |
 | FR-API-3 | Expose endpoints for share grant CRUD: create, list, revoke, delete                                     | PRD: Secure Sharing            |
 | FR-API-4 | Expose a public endpoint for share token validation and viewer data access                              | PRD: No-account viewer         |
 | FR-API-5 | Expose a paginated, filterable audit log query endpoint                                                 | PRD: Transparency              |
@@ -87,7 +87,7 @@ These tenets guide every API and data design decision in this document. When ten
 | FR-DB-1  | Store health data with per-user envelope encryption, one row per user/metric/date/source                | Arch: Section 7                |
 | FR-DB-2  | Store share grants with hashed tokens, allowed metrics array, date boundaries, and expiration           | Arch: Section 4                |
 | FR-DB-3  | Store audit events in an append-only table with no UPDATE or DELETE capability for the application role | Arch: Section 6                |
-| FR-DB-4  | Store Oura OAuth tokens encrypted with the user's DEK                                                   | Arch: Section 7                |
+| FR-DB-4  | Store provider OAuth tokens encrypted in `provider_connections` (see integrations-pipeline-lld.md §3.1) | Arch: Section 7                |
 | FR-DB-5  | Support upsert semantics for health data (re-syncing the same date should update, not duplicate)        | Arch: UNIQUE constraint        |
 
 ### 5.2 Non-Functional Requirements
@@ -111,7 +111,7 @@ These tenets guide every API and data design decision in this document. When ten
 - Multi-region database replication
 - API versioning beyond `/api/` prefix (v2 paths deferred)
 - Webhook delivery to external systems
-- Apple Health / Google Fit / Garmin integrations (v1.1+)
+- Apple Health / Google Fit integrations (require mobile SDKs, not server-side OAuth). Multi-provider pipeline (Oura, Dexcom, Garmin, Whoop, Withings, Cronometer) is designed in `integrations-pipeline-lld.md`.
 
 ### 5.4 Success Criteria
 
@@ -151,7 +151,7 @@ This section places the API and database within the broader system context estab
 │  ┌───────────────────────────▼───────────────────────────────────┐  │
 │  │                    API Route Handlers                          │  │
 │  │                                                               │  │
-│  │  /api/connections/*     Oura OAuth, sync trigger              │  │
+│  │  /api/connections/*     Provider OAuth, sync trigger           │  │
 │  │  /api/health-data       Query health metrics                  │  │
 │  │  /api/shares/*          Share grant CRUD                      │  │
 │  │  /api/audit             Audit log query                       │  │
@@ -164,19 +164,20 @@ This section places the API and database within the broader system context estab
 │  │                    Service Layer                               │  │
 │  │                                                               │  │
 │  │  HealthDataService   ShareService   AuditService              │  │
-│  │  EncryptionService   OuraService    UserService               │  │
+│  │  EncryptionService   ProviderAdapters  UserService            │  │
 │  └──────┬──────────────────┬─────────────────────┬──────────────┘  │
 │         │                  │                     │                   │
 └─────────┼──────────────────┼─────────────────────┼──────────────────┘
           │                  │                     │
           ▼                  ▼                     ▼
 ┌──────────────┐   ┌──────────────┐      ┌──────────────────┐
-│  PostgreSQL  │   │   AWS KMS    │      │    Oura API      │
-│  Aurora v2   │   │              │      │    (External)    │
+│  PostgreSQL  │   │   AWS KMS    │      │  Provider APIs   │
+│  Aurora v2   │   │              │      │  (External)      │
 │              │   │  Per-user    │      │                  │
-│  5 tables    │   │  CMKs        │      │  OAuth2 + REST   │
-│  (see Sec 8) │   │              │      │                  │
-└──────────────┘   └──────────────┘      └──────────────────┘
+│  5 tables    │   │  CMKs        │      │  Oura, Dexcom,   │
+│  (see Sec 8) │   │              │      │  Garmin, Whoop,  │
+└──────────────┘   └──────────────┘      │  Withings, etc.  │
+                                         └──────────────────┘
 ```
 
 ### API Route Namespace Convention
@@ -184,7 +185,7 @@ This section places the API and database within the broader system context estab
 All API routes live under `/api/`. The structure follows resource-oriented REST conventions:
 
 ```
-/api/connections          Owner: Oura connection management
+/api/connections          Owner: Provider connection management
 /api/health-data          Owner: Health data queries
 /api/shares               Owner: Share grant management
 /api/audit                Owner: Audit log queries
@@ -241,10 +242,10 @@ Owner endpoints require a valid Clerk session. Viewer endpoints require a valid 
 | 403         | `SHARE_REVOKED`       | Share grant has been revoked by the owner                               |
 | 404         | `NOT_FOUND`           | Requested resource does not exist                                       |
 | 404         | `SHARE_NOT_FOUND`     | Share token does not match any grant (generic, no info leak)            |
-| 409         | `CONFLICT`            | Resource already exists (e.g., duplicate Oura connection)               |
+| 409         | `CONFLICT`            | Resource already exists (e.g., duplicate provider connection)           |
 | 429         | `RATE_LIMITED`        | Too many requests from this IP or user                                  |
 | 500         | `INTERNAL_ERROR`      | Unhandled server error (details omitted in response, logged internally) |
-| 502         | `UPSTREAM_ERROR`      | External service (Oura API, KMS) returned an error                      |
+| 502         | `UPSTREAM_ERROR`      | External service (provider API, KMS) returned an error                  |
 | 503         | `SERVICE_UNAVAILABLE` | Database connection pool exhausted or KMS unavailable                   |
 
 **Rate Limits:**
@@ -255,7 +256,7 @@ Owner endpoints require a valid Clerk session. Viewer endpoints require a valid 
 | Health data query      | 30 requests  | 1 minute | Per Clerk user ID  |
 | Share token validation | 10 requests  | 1 minute | Per IP address     |
 | Viewer data access     | 30 requests  | 1 minute | Per viewer session |
-| Oura sync trigger      | 3 requests   | 1 hour   | Per Clerk user ID  |
+| Provider sync trigger  | 3 requests   | 1 hour   | Per Clerk user ID  |
 
 Rate limit responses include headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` (Unix timestamp).
 
@@ -307,25 +308,28 @@ List the user's connected data sources.
 
 **Response Fields:**
 
-| Field          | Type             | Description                                                 |
-| -------------- | ---------------- | ----------------------------------------------------------- |
-| `id`           | `string (UUID)`  | Connection record ID                                        |
-| `provider`     | `string`         | Provider identifier. MVP: only `"oura"`                     |
-| `status`       | `string`         | One of: `connected`, `expired`, `error`                     |
-| `last_sync_at` | `string \| null` | ISO timestamp of last successful sync, null if never synced |
-| `connected_at` | `string`         | ISO timestamp when connection was established               |
+| Field          | Type             | Description                                                                                           |
+| -------------- | ---------------- | ----------------------------------------------------------------------------------------------------- |
+| `id`           | `string (UUID)`  | Connection record ID                                                                                  |
+| `provider`     | `string`         | Provider identifier (e.g., `"oura"`, `"dexcom"`, `"garmin"`, `"whoop"`, `"withings"`, `"cronometer"`) |
+| `status`       | `string`         | One of: `"active"`, `"expired"`, `"error"`, `"paused"`                                                |
+| `last_sync_at` | `string \| null` | ISO timestamp of last successful sync, null if never synced                                           |
+| `connected_at` | `string`         | ISO timestamp when connection was established                                                         |
 
-`status` derivation logic:
+`status` is a first-class column in `provider_connections` (not derived at query time):
 
-- `connected`: `token_expires_at` is in the future
-- `expired`: `token_expires_at` is in the past (needs re-auth)
-- `error`: last sync attempt failed (stored in a `sync_error` field)
+- `active`: connection is functional, sync runs normally
+- `expired`: OAuth token refresh failed; user must re-authenticate
+- `error`: non-auth error on last sync; system will retry
+- `paused`: user manually disabled syncing for this connection
 
 **Error Responses:** 401
 
 ---
 
 #### 7.2.2 GET /api/connections/oura/authorize
+
+> **SUPERSEDED.** This endpoint is replaced by the generic `GET /api/connections/{provider}/authorize` defined in `docs/integrations-pipeline-lld.md` §8.1. The Oura-specific path remains functional until the generic endpoint is deployed.
 
 Initiate Oura OAuth2 flow. Returns the authorization URL for the frontend to redirect to.
 
@@ -348,6 +352,8 @@ The `state` parameter is a signed JWT containing `{ userId, nonce, exp }` (expir
 ---
 
 #### 7.2.3 GET /api/connections/oura/callback
+
+> **SUPERSEDED.** This endpoint is replaced by the generic `GET /api/connections/{provider}/callback` defined in `docs/integrations-pipeline-lld.md` §8.1.
 
 Oura OAuth2 callback. Exchanges the authorization code for tokens, encrypts them, and stores the connection.
 
@@ -441,9 +447,9 @@ Manually trigger a data sync for a connection. Sync runs asynchronously.
 
 - If a sync is already in progress for this connection, return 409 with `SYNC_IN_PROGRESS`.
 - Otherwise, queue the sync job (Vercel Cron or BullMQ for MVP) and return immediately.
-- The sync process fetches data from the Oura API starting from `sync_cursor`, encrypts values, and upserts into `health_data`.
+- The sync dispatches an `integration/sync.manual` Inngest event. The sync process fetches data from the provider's API using the appropriate `ProviderAdapter`, encrypts values, and upserts into `health_data_daily`, `health_data_series`, and/or `health_data_periods`. See `integrations-pipeline-lld.md` §7 for Inngest job architecture.
 
-**Error Responses:** 401, 404, 409 (`SYNC_IN_PROGRESS`), 502 (if Oura connection tokens are expired)
+**Error Responses:** 401, 404, 409 (`SYNC_IN_PROGRESS`), 502 (if provider connection tokens are expired)
 
 ---
 
@@ -472,7 +478,7 @@ Query the owner's health data with filtering and optional aggregation.
 - `end`: Valid date, >= `start`.
 - Date range: Maximum span of 1,825 days (5 years).
 - `resolution`: Must be one of `daily`, `weekly`, `monthly`.
-- `sources`: Each must be one of `oura`, `apple_health`, `google_fit`.
+- `sources`: Each must be a valid provider identifier. To return all sources for comparison, pass `sources=all`. See `integrations-pipeline-lld.md` §8.4 for source resolution logic.
 
 **Response 200:**
 
@@ -492,7 +498,7 @@ Query the owner's health data with filtering and optional aggregation.
         "unit": "ms",
         "points": [
           { "date": "2026-03-01", "value": 42.5, "source": "oura" },
-          { "date": "2026-03-02", "value": 38.1, "source": "oura" },
+          { "date": "2026-03-02", "value": 38.1, "source": "whoop" },
           { "date": "2026-03-03", "value": 45.7, "source": "oura" }
         ]
       }
@@ -502,7 +508,11 @@ Query the owner's health data with filtering and optional aggregation.
       "end": "2026-03-08",
       "resolution": "daily",
       "metrics_requested": ["sleep_score", "hrv"],
-      "metrics_returned": ["sleep_score", "hrv"]
+      "metrics_returned": ["sleep_score", "hrv"],
+      "source_resolution": {
+        "sleep_score": { "source": "oura", "reason": "only_source" },
+        "hrv": { "source": "oura", "reason": "user_preference" }
+      }
     }
   }
 }
@@ -548,9 +558,8 @@ List available metric types for the current user (i.e., types that have at least
         "unit": "score",
         "category": "sleep",
         "source": "oura",
-        "earliest_date": "2024-01-15",
-        "latest_date": "2026-03-08",
-        "data_point_count": 784
+        "date_range": { "start": "2024-01-15", "end": "2026-03-08" },
+        "count": 784
       },
       {
         "metric_type": "hrv",
@@ -558,19 +567,26 @@ List available metric types for the current user (i.e., types that have at least
         "unit": "ms",
         "category": "cardiovascular",
         "source": "oura",
-        "earliest_date": "2024-01-15",
-        "latest_date": "2026-03-08",
-        "data_point_count": 784
+        "date_range": { "start": "2024-01-15", "end": "2026-03-08" },
+        "count": 784
       },
       {
-        "metric_type": "steps",
-        "label": "Steps",
-        "unit": "steps",
-        "category": "activity",
-        "source": "oura",
-        "earliest_date": "2024-01-15",
-        "latest_date": "2026-03-08",
-        "data_point_count": 784
+        "metric_type": "hrv",
+        "label": "Heart Rate Variability",
+        "unit": "ms",
+        "category": "cardiovascular",
+        "source": "whoop",
+        "date_range": { "start": "2026-01-01", "end": "2026-03-08" },
+        "count": 67
+      },
+      {
+        "metric_type": "weight",
+        "label": "Weight",
+        "unit": "kg",
+        "category": "body",
+        "source": "withings",
+        "date_range": { "start": "2025-06-15", "end": "2026-03-08" },
+        "count": 195
       }
     ]
   }
@@ -1244,6 +1260,8 @@ COMMENT ON COLUMN users.kms_key_arn IS 'ARN of the per-user AWS KMS Customer Mas
 
 #### 8.3.3 oura_connections
 
+> **SUPERSEDED.** This table is replaced by `provider_connections` defined in `docs/integrations-pipeline-lld.md` §3.1. The migration path (non-destructive rename + row migration) is specified in `integrations-pipeline-lld.md` §9.
+
 ```sql
 CREATE TABLE oura_connections (
     id                  UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1278,6 +1296,8 @@ COMMENT ON COLUMN oura_connections.sync_cursor IS 'Oura API next_token for incre
 ```
 
 #### 8.3.4 health_data
+
+> **SUPERSEDED.** This table is renamed to `health_data_daily` and supplemented by `health_data_series` and `health_data_periods`, all defined in `docs/integrations-pipeline-lld.md` §3.3–3.5. Existing rows are preserved unchanged; only the table name changes.
 
 ```sql
 CREATE TABLE health_data (
@@ -2332,20 +2352,20 @@ Drizzle Kit generates and applies SQL migration files from the Drizzle ORM schem
 
 **Production and preview environments** are managed via Vercel Environment Variables (encrypted at rest, scoped per environment).
 
-| Variable                            | Environments                     | Description                                          |
-| ----------------------------------- | -------------------------------- | ---------------------------------------------------- |
-| `DATABASE_URL`                      | Production, Preview              | Aurora PostgreSQL connection string (IAM auth)       |
-| `CLERK_SECRET_KEY`                  | Production, Preview              | Clerk backend API key                                |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Production, Preview, Development | Clerk frontend key (public, safe to expose)          |
-| `OURA_CLIENT_ID`                    | Production                       | Oura OAuth application client ID                     |
-| `OURA_CLIENT_SECRET`                | Production                       | Oura OAuth application client secret                 |
-| `VIEWER_JWT_SECRET`                 | Production                       | Active HMAC-SHA256 secret for viewer session JWTs    |
-| `VIEWER_JWT_SECRET_PREVIOUS`        | Production                       | Previous secret for graceful rotation (Section 12.1) |
-| `KMS_KEY_ARNS`                      | Production                       | Comma-separated list of 10 CMK ARNs                  |
-| `AWS_ACCESS_KEY_ID`                 | Production                       | IAM credentials for KMS and S3 access                |
-| `AWS_SECRET_ACCESS_KEY`             | Production                       | IAM credentials for KMS and S3 access                |
-| `AWS_REGION`                        | Production, Preview              | AWS region (e.g., `us-east-1`)                       |
-| `SENTRY_DSN`                        | Production, Preview              | Sentry data source name for error tracking           |
+| Variable                            | Environments                     | Description                                                                                               |
+| ----------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                      | Production, Preview              | Aurora PostgreSQL connection string (IAM auth)                                                            |
+| `CLERK_SECRET_KEY`                  | Production, Preview              | Clerk backend API key                                                                                     |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Production, Preview, Development | Clerk frontend key (public, safe to expose)                                                               |
+| `{PROVIDER}_CLIENT_ID`              | Production                       | Provider OAuth client ID (e.g., `OURA_CLIENT_ID`, `DEXCOM_CLIENT_ID`, `GARMIN_CLIENT_ID`)                 |
+| `{PROVIDER}_CLIENT_SECRET`          | Production                       | Provider OAuth client secret (e.g., `OURA_CLIENT_SECRET`, `DEXCOM_CLIENT_SECRET`, `GARMIN_CLIENT_SECRET`) |
+| `VIEWER_JWT_SECRET`                 | Production                       | Active HMAC-SHA256 secret for viewer session JWTs                                                         |
+| `VIEWER_JWT_SECRET_PREVIOUS`        | Production                       | Previous secret for graceful rotation (Section 12.1)                                                      |
+| `KMS_KEY_ARNS`                      | Production                       | Comma-separated list of 10 CMK ARNs                                                                       |
+| `AWS_ACCESS_KEY_ID`                 | Production                       | IAM credentials for KMS and S3 access                                                                     |
+| `AWS_SECRET_ACCESS_KEY`             | Production                       | IAM credentials for KMS and S3 access                                                                     |
+| `AWS_REGION`                        | Production, Preview              | AWS region (e.g., `us-east-1`)                                                                            |
+| `SENTRY_DSN`                        | Production, Preview              | Sentry data source name for error tracking                                                                |
 
 **Local development:**
 
@@ -3056,6 +3076,8 @@ Where `c` is the `created_at` ISO timestamp and `i` is the record `id` (string r
 **Why both timestamp and ID?** Timestamp alone is not unique (multiple records can have the same `created_at`). The ID breaks ties. This ensures stable, deterministic pagination even with concurrent inserts.
 
 ### 19.5 Oura API Field Mapping
+
+> **SUPERSEDED.** The complete Oura field mapping for all three data types (daily, series, periods) is now in `docs/integrations-pipeline-lld.md` §6. The table below covers daily metrics only and is preserved for reference.
 
 Mapping from Oura API v2 response fields to Totus metric types:
 

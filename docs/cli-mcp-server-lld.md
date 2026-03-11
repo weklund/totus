@@ -19,6 +19,7 @@
 - Totus MVP PRD (v1.0) — `/docs/mvp-prd.md`
 - Totus Architecture Design (v1.0) — `/docs/architecture-design.md`
 - Totus API & Database LLD (v1.0) — `/docs/api-database-lld.md`
+- Totus Integrations Pipeline LLD — `/docs/integrations-pipeline-lld.md` (multi-provider data pipeline, new tables)
 - MCP Specification — https://modelcontextprotocol.io/specification/2025-03-26
 - MCP TypeScript SDK — https://github.com/modelcontextprotocol/typescript-sdk
 
@@ -165,14 +166,24 @@ These tenets guide every design decision in this document. When tenets conflict,
                                │
               ┌────────────────┼────────────────┐
               ▼                ▼                ▼
-┌──────────────┐   ┌──────────────┐   ┌──────────────────┐
-│  PostgreSQL  │   │   AWS KMS    │   │    Oura API      │
-│  Aurora v2   │   │              │   │    (External)    │
-│              │   │  Per-user    │   │                  │
-│  6 tables    │   │  CMKs        │   │  OAuth2 + REST   │
-│  (5 + api_   │   │              │   │                  │
-│   keys)      │   │              │   │                  │
-└──────────────┘   └──────────────┘   └──────────────────┘
+┌────────────────┐   ┌──────────────┐   ┌──────────────────┐
+│  PostgreSQL    │   │   AWS KMS    │   │  Provider APIs   │
+│  Aurora v2     │   │              │   │  (External)      │
+│                │   │  Per-user    │   │                  │
+│  10 tables:    │   │  CMKs        │   │  OAuth2 + REST   │
+│  health_data_  │   │              │   │  Oura, Apple     │
+│    daily       │   │              │   │  Health, etc.    │
+│  health_data_  │   │              │   │                  │
+│    series      │   │              │   │                  │
+│  health_data_  │   │              │   │                  │
+│    periods     │   │              │   │                  │
+│  provider_     │   │              │   │                  │
+│    connections │   │              │   │                  │
+│  metric_source │   │              │   │                  │
+│    _preferences│   │              │   │                  │
+│  api_keys      │   │              │   │                  │
+│  + others      │   │              │   │                  │
+└────────────────┘   └──────────────┘   └──────────────────┘
 ```
 
 ### 6.2 MCP Server Data Flow
@@ -778,7 +789,7 @@ Metric Type        Label                       Unit    Category         Source  
 ────────────────── ─────────────────────────── ─────── ──────────────── ─────── ──────────── ─────────────────────
 sleep_score        Sleep Score                 score   sleep            oura    784          2024-01-15 → 2026-03-08
 hrv                Heart Rate Variability      ms      cardiovascular   oura    784          2024-01-15 → 2026-03-08
-rhr                Resting Heart Rate          bpm     cardiovascular   oura    784          2024-01-15 → 2026-03-08
+rhr                Resting Heart Rate          bpm     cardiovascular   apple   420          2025-06-01 → 2026-03-08
 steps              Steps                       steps   activity         oura    784          2024-01-15 → 2026-03-08
 ```
 
@@ -810,9 +821,9 @@ Date         Value  Source
 Heart Rate Variability (ms)
 Date         Value  Source
 ──────────── ────── ──────
-2026-02-01   42.5   oura
-2026-02-02   38.1   oura
-2026-02-03   45.7   oura
+2026-02-01   42.5   apple
+2026-02-02   38.1   apple
+2026-02-03   45.7   apple
 ...
 ```
 
@@ -859,7 +870,7 @@ $ totus metrics summary
 
 Health Data Summary
   Total data points:    4,720
-  Connected sources:    oura
+  Connected sources:    oura, apple_health
   Active shares:        2
   Earliest data:        2024-01-15
   Latest data:          2026-03-08
@@ -967,7 +978,7 @@ Timestamp            Actor    Event          Detail
 2026-03-09 15:00:00  viewer   data.viewed    sleep_score, hrv via "Dr. Patel"
 2026-03-09 14:23:00  viewer   share.viewed   "Dr. Patel" from 73.162.44.12
 2026-03-09 10:15:00  owner    share.created  "For Dr. Patel" (4 metrics)
-2026-03-08 08:00:00  system   data.imported  24 points from Oura
+2026-03-08 08:00:00  system   data.imported  24 points from oura
 2026-03-08 07:55:00  api_key  data.viewed    Claude Desktop: sleep_score
 ```
 
@@ -1118,7 +1129,7 @@ Tools are functions the AI model can call. Each tool maps to one or more Totus A
 
 #### 9.2.1 `get_health_data`
 
-Query health metrics for a date range.
+Query health metrics for a date range. Queries the `health_data_daily` table by default. The CLI should also support querying `health_data_series` (for intra-day time-series like heart rate samples) and `health_data_periods` (for variable-duration events like sleep stages or workouts) when the user or model requests that level of detail.
 
 **Input Schema:**
 
@@ -1298,7 +1309,7 @@ Trigger a data sync for a connected source.
 ```
 {
   connection_id: z.string().uuid()
-    .describe("The connection ID to sync. Use list_connections to find IDs.")
+    .describe("The provider_connections ID to sync. Use list_connections to find IDs.")
 }
 ```
 
@@ -1311,14 +1322,14 @@ Trigger a data sync for a connected source.
 
 #### 9.2.9 `list_connections`
 
-List connected data sources.
+List connected data sources (from the `provider_connections` table).
 
 **Input Schema:** `{}` (no parameters)
 
 **Maps to:** `GET /api/connections`
 **Required scope:** `connections:read`
 
-**Response:** List of connections with provider, status, and last sync timestamp.
+**Response:** List of connections with provider name, status, and last sync timestamp. Supports multiple providers (Oura, Apple Health, etc.).
 
 ---
 

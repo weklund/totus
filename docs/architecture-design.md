@@ -10,7 +10,7 @@
 
 ### Functional Requirements
 
-- **FR-1**: User registration and login with email/password, 2FA (TOTP), and OAuth (Oura as first provider, social login later)
+- **FR-1**: User registration and login with email/password, 2FA (TOTP), and OAuth. Health data integration via multi-provider OAuth pipeline (see `integrations-pipeline-lld.md`).
 - **FR-2**: Unified web application where owners see full dashboard with edit/admin actions and viewers see the same dashboard in read-only mode, driven by permissions
 - **FR-3**: Granular permission grants scoped by metric type, data date range, and expiration timestamp, revocable at any time
 - **FR-4**: Every data access (owner or viewer) is recorded in an immutable audit log with who, what, when, IP, and user-agent
@@ -41,7 +41,7 @@
 
 ### Evaluation Criteria
 
-The requirements demand: email/password, TOTP 2FA, OAuth (Oura as custom provider, plus standard social login later), JWT-compatible sessions, clean Next.js App Router integration, support for "anonymous" token-based viewer sessions (share links), and a permission model that is NOT managed by the auth provider but by the application.
+The requirements demand: email/password, TOTP 2FA, OAuth (multi-provider health data integration, plus standard social login later), JWT-compatible sessions, clean Next.js App Router integration, support for "anonymous" token-based viewer sessions (share links), and a permission model that is NOT managed by the auth provider but by the application.
 
 ### Comparison Matrix
 
@@ -410,7 +410,7 @@ The `enforcePermissions` function is a pure function that takes the request cont
 
 ### Metric Types (Enumeration)
 
-For MVP (Oura only), the allowed metric identifiers:
+The allowed metric identifiers (available across providers — not all providers supply every metric):
 
 ```
 sleep_score, sleep_duration, sleep_efficiency, sleep_latency,
@@ -727,7 +727,7 @@ Every path through the system that accesses health data goes through `fetchHealt
 │  │  - Dashboard pages   │  │   /api/health-data       │     │
 │  │  - Share management  │  │   /api/shares            │     │
 │  │  - Audit log viewer  │  │   /api/audit             │     │
-│  │  - Viewer pages      │  │   /api/oura/callback     │     │
+│  │  - Viewer pages      │  │   /api/connections/*/callback │     │
 │  └──────────┬───────────┘  └──────────┬───────────────┘     │
 │             │                         │                      │
 │             └────────────┬────────────┘                      │
@@ -735,6 +735,7 @@ Every path through the system that accesses health data goes through `fetchHealt
 │  ┌───────────────────────▼─────────────────────────────┐     │
 │  │              Service Layer                          │     │
 │  │  - HealthDataService (fetch, import, export)        │     │
+│  │  - ProviderAdapters (Oura, Dexcom, Garmin, ...)    │     │
 │  │  - ShareService (create, revoke, validate)          │     │
 │  │  - AuditService (emit, query)                       │     │
 │  │  - EncryptionService (KMS envelope encryption)      │     │
@@ -742,46 +743,59 @@ Every path through the system that accesses health data goes through `fetchHealt
 │                          │                                   │
 └──────────────────────────┼───────────────────────────────────┘
                            │
-              ┌────────────┼────────────┐
-              │            │            │
-              ▼            ▼            ▼
-┌──────────────┐  ┌──────────────┐  ┌──────────────────┐
-│  PostgreSQL  │  │   AWS KMS    │  │   Oura API       │
-│  (AWS RDS    │  │              │  │   (OAuth +        │
-│   Aurora     │  │  Per-user    │  │    data sync)     │
-│   Serverless)│  │  encryption  │  │                   │
-│              │  │  keys        │  │                   │
-│  Tables:     │  │              │  │                   │
-│  - users     │  └──────────────┘  └──────────────────┘
+              ┌────────────┼─────────────────────┐
+              │            │            │         │
+              ▼            ▼            ▼         ▼
+┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  ┌──────────────────┐
+│  PostgreSQL  │  │   AWS KMS    │  │  Provider APIs   │  │    Inngest       │
+│  (AWS RDS    │  │              │  │  (External)      │  │  (Job Pipeline)  │
+│   Aurora     │  │  Per-user    │  │                  │  │                  │
+│   Serverless)│  │  encryption  │  │  Oura, Dexcom,   │  │  Sync sweep,     │
+│              │  │  keys        │  │  Garmin, Whoop,  │  │  token refresh,  │
+│  Tables:     │  │              │  │  Withings        │  │  initial backfill│
+│  - users     │  └──────────────┘  └──────────────────┘  └──────────────────┘
 │  - health_   │
-│    data      │
+│    data_daily│
+│  - health_   │
+│    data_     │
+│    series    │
+│  - health_   │
+│    data_     │
+│    periods   │
+│  - provider_ │
+│    connections│
+│  - metric_   │
+│    source_   │
+│    prefs     │
 │  - share_    │
 │    grants    │
 │  - audit_    │
 │    events    │
-│  - oura_     │
-│    tokens    │
 └──────────────┘
 ```
 
 ### Database Schema Overview (Complete)
 
+> **NOTE:** `oura_connections` is superseded by `provider_connections` and `health_data` is renamed to `health_data_daily`. See `docs/integrations-pipeline-lld.md` §3 for the updated schema.
+
 ```
-┌─────────────────────┐       ┌─────────────────────────┐
-│       users          │       │     oura_connections     │
-├─────────────────────┤       ├─────────────────────────┤
-│ id (Clerk user ID)  │──┐    │ id UUID PK              │
-│ display_name        │  │    │ user_id FK ──────────┐  │
-│ kms_key_arn         │  │    │ access_token (enc)   │  │
-│ created_at          │  │    │ refresh_token (enc)  │  │
-│ updated_at          │  │    │ token_expires_at     │  │
-└─────────────────────┘  │    │ last_sync_at         │  │
-                         │    │ sync_cursor          │  │
-     ┌───────────────────┘    │ created_at           │  │
-     │                        └─────────────────────────┘
+┌─────────────────────┐       ┌──────────────────────────────┐
+│       users          │       │     provider_connections      │
+├─────────────────────┤       ├──────────────────────────────┤
+│ id (Clerk user ID)  │──┐    │ id UUID PK                   │
+│ display_name        │  │    │ user_id FK ───────────────┐  │
+│ kms_key_arn         │  │    │ provider VARCHAR(32)      │  │
+│ created_at          │  │    │ auth_enc BYTEA (enc blob) │  │
+│ updated_at          │  │    │ token_expires_at          │  │
+└─────────────────────┘  │    │ status VARCHAR(16)        │  │
+                         │    │ last_sync_at              │  │
+     ┌───────────────────┘    │ daily_cursor              │  │
+     │                        └──────────────────────────────┘
      │
      │    ┌─────────────────────────┐
-     │    │      health_data         │
+     │    │   health_data_daily      │
+     │    │   (renamed from          │
+     │    │    health_data)          │
      │    ├─────────────────────────┤
      ├───>│ id BIGSERIAL PK         │
      │    │ user_id FK              │
@@ -798,6 +812,43 @@ Every path through the system that accesses health data goes through `fetchHealt
      │    └─────────────────────────┘
      │
      │    ┌─────────────────────────┐
+     │    │   health_data_series    │
+     │    │   (new — intraday)     │
+     │    ├─────────────────────────┤
+     ├───>│ id BIGSERIAL PK         │
+     │    │ user_id FK              │
+     │    │ metric_type VARCHAR(64) │
+     │    │ recorded_at TIMESTAMPTZ │
+     │    │ value_encrypted BYTEA   │
+     │    │ source VARCHAR(32)      │
+     │    │ PARTITIONED BY RANGE    │
+     │    │   (recorded_at)         │
+     │    └─────────────────────────┘
+     │
+     │    ┌─────────────────────────┐
+     │    │   health_data_periods   │
+     │    │   (new — events)       │
+     │    ├─────────────────────────┤
+     ├───>│ id BIGSERIAL PK         │
+     │    │ user_id FK              │
+     │    │ event_type VARCHAR(64)  │
+     │    │ subtype VARCHAR(64)     │
+     │    │ started_at TIMESTAMPTZ  │
+     │    │ ended_at TIMESTAMPTZ    │
+     │    │ metadata_enc BYTEA      │
+     │    │ source VARCHAR(32)      │
+     │    └─────────────────────────┘
+     │
+     │    ┌─────────────────────────┐
+     │    │ metric_source_preferences│
+     │    ├─────────────────────────┤
+     ├───>│ user_id FK (PK)         │
+     │    │ metric_type VARCHAR(64) │
+     │    │   (PK)                  │
+     │    │ provider VARCHAR(32)    │
+     │    └─────────────────────────┘
+     │
+     │    ┌─────────────────────────┐
      ├───>│     share_grants        │
      │    │  (detailed in Sec 4)    │
      │    └─────────────────────────┘
@@ -808,15 +859,28 @@ Every path through the system that accesses health data goes through `fetchHealt
           └─────────────────────────┘
 ```
 
+### Inngest Job Pipeline
+
+The integrations data pipeline uses Inngest for durable async job orchestration. See `docs/integrations-pipeline-lld.md` §7 for full job definitions. Summary:
+
+| Job                            | Schedule       | Purpose                                                     |
+| ------------------------------ | -------------- | ----------------------------------------------------------- |
+| `integration/sync.sweep`       | Cron: every 6h | Fan out per-connection sync jobs for all active connections |
+| `integration/sync.connection`  | Event-driven   | Fetch daily, series, and period data for one connection     |
+| `integration/sync.initial`     | Event-driven   | Historical backfill after first OAuth connection            |
+| `integration/token.refresh`    | Cron: every 1h | Proactively refresh tokens expiring within 24h              |
+| `integration/sync.manual`      | Event-driven   | User-triggered sync (higher priority)                       |
+| `integration/partition.ensure` | Cron: monthly  | Pre-create `health_data_series` partitions                  |
+
 ### Data Encryption Strategy
 
 Since per-user encryption is a PRD requirement:
 
 1. A pool of 10 KMS Customer Master Keys (CMKs) is shared across all users. Each user is assigned to one CMK via `hash(user_id) % 10`, stored as `kms_key_arn` in the `users` table.
 2. Health data values are encrypted using **envelope encryption**: the application generates a Data Encryption Key (DEK) via `kms:GenerateDataKey`, encrypts the data with the DEK locally, and stores the encrypted DEK alongside the ciphertext. This avoids calling KMS on every read/write (DEKs can be cached in memory for a short TTL).
-3. The `value_encrypted` column in `health_data` stores the encrypted payload (DEK-encrypted value + KMS-encrypted DEK).
+3. The `value_encrypted` column in `health_data_daily` (and `health_data_series`, `health_data_periods`) stores the encrypted payload (DEK-encrypted value + KMS-encrypted DEK).
 4. On read, the application calls `kms:Decrypt` to unwrap the DEK (or uses a cached DEK), then decrypts locally.
-5. Oura tokens are similarly encrypted with the user's DEK before storage.
+5. Provider OAuth tokens are similarly encrypted with the user's DEK before storage (as `auth_enc` in `provider_connections`).
 
 ---
 
@@ -843,7 +907,7 @@ Since per-user encryption is a PRD requirement:
 
 - **API routes**: Return consistent error shapes `{ error: { code, message, details? } }` with appropriate HTTP status codes.
 - **Share link errors**: Expired, revoked, and invalid tokens all show user-friendly pages (not raw errors). Do NOT distinguish between "invalid token" and "revoked" to external viewers (information leakage). Show a generic "This link is no longer available" with different internal logging.
-- **Oura sync failures**: Log and retry with exponential backoff. Show sync status on dashboard.
+- **Provider sync failures**: Log and retry with exponential backoff. Show sync status on dashboard.
 
 ### Configuration Management
 
@@ -851,7 +915,8 @@ Since per-user encryption is a PRD requirement:
   - `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
   - `DATABASE_URL` (RDS connection string)
   - `KMS_KEY_REGION`
-  - `OURA_CLIENT_ID`, `OURA_CLIENT_SECRET`
+  - `<PROVIDER>_CLIENT_ID`, `<PROVIDER>_CLIENT_SECRET` (per provider: Oura, Dexcom, Garmin, etc.)
+  - `INNGEST_EVENT_KEY`, `INNGEST_SIGNING_KEY`
   - `VIEWER_JWT_SECRET` (for signing viewer session cookies)
 - **Feature flags**: Not needed for MVP. If desired later, use Vercel Edge Config or LaunchDarkly.
 
@@ -874,13 +939,13 @@ Since per-user encryption is a PRD requirement:
 
 ### Phase 2: Core Data Pipeline
 
-| Task            | Deliverable                                           | Dependencies                   |
-| --------------- | ----------------------------------------------------- | ------------------------------ |
-| Oura OAuth flow | Connect Oura account, store encrypted tokens          | Clerk auth, KMS                |
-| Oura data sync  | Scheduled sync (Vercel Cron), fetch + encrypt + store | Oura OAuth, health_data schema |
-| CSV upload      | Parse, validate, encrypt, store                       | health_data schema, KMS        |
-| Health data API | GET /api/health-data with metric/date filtering       | Middleware, enforcePermissions |
-| Dashboard UI    | Interactive charts, metric selector, date range       | Health data API                |
+| Task                | Deliverable                                                 | Dependencies                       |
+| ------------------- | ----------------------------------------------------------- | ---------------------------------- |
+| Provider OAuth flow | Connect provider accounts via multi-provider OAuth pipeline | Clerk auth, KMS                    |
+| Provider data sync  | Inngest-driven sync, fetch + encrypt + store                | Provider OAuth, health_data schema |
+| CSV upload          | Parse, validate, encrypt, store                             | health_data schema, KMS            |
+| Health data API     | GET /api/health-data with metric/date filtering             | Middleware, enforcePermissions     |
+| Dashboard UI        | Interactive charts, metric selector, date range             | Health data API                    |
 
 ### Phase 3: Sharing and Permissions
 
@@ -918,7 +983,7 @@ Since per-user encryption is a PRD requirement:
 
 ```
 Week 1-2: "I can sign up, see an empty dashboard"
-Week 2-3: "I can connect Oura and see my data on charts"
+Week 2-3: "I can connect a provider and see my data on charts"
 Week 3-4: "I can share a link and my doctor sees clean charts"
 Week 4-5: "Every view is logged and I can review who saw what"
 Week 5-6: "It's polished, fast, and ready for real users"
@@ -947,18 +1012,18 @@ Week 5-6: "It's polished, fast, and ready for real users"
 
 ### Risks and Mitigations
 
-| Risk                                                      | Impact                                | Likelihood | Mitigation                                                                             |
-| --------------------------------------------------------- | ------------------------------------- | ---------- | -------------------------------------------------------------------------------------- |
-| Oura API rate limits during initial sync of years of data | Slow onboarding                       | Medium     | Paginate sync, respect rate limits, show progress                                      |
-| Viewer JWT secret compromise                              | All active share links compromised    | Low        | Rotate secret with zero-downtime (support two active secrets during rotation)          |
-| PostgreSQL audit table grows large over time              | Slow queries on audit log             | Low (MVP)  | Partition by created_at month; at scale, move to append-only store (S3 + Athena)       |
-| Clerk outage blocks all owner logins                      | Complete owner lockout                | Low        | Clerk has 99.99% SLA; accept this risk for MVP; could add fallback later               |
-| Vercel cold starts affect dashboard load time             | Fails 2-second NFR                    | Medium     | Use Vercel's `maxDuration` config, keep functions warm with cron, optimize bundle size |
-| Envelope encryption cache invalidation                    | Stale DEK used after KMS key rotation | Low        | Set DEK cache TTL to 5 minutes; re-derive on cache miss                                |
+| Risk                                                          | Impact                                | Likelihood | Mitigation                                                                             |
+| ------------------------------------------------------------- | ------------------------------------- | ---------- | -------------------------------------------------------------------------------------- |
+| Provider API rate limits during initial sync of years of data | Slow onboarding                       | Medium     | Paginate sync, respect rate limits, show progress via Inngest job pipeline             |
+| Viewer JWT secret compromise                                  | All active share links compromised    | Low        | Rotate secret with zero-downtime (support two active secrets during rotation)          |
+| PostgreSQL audit table grows large over time                  | Slow queries on audit log             | Low (MVP)  | Partition by created_at month; at scale, move to append-only store (S3 + Athena)       |
+| Clerk outage blocks all owner logins                          | Complete owner lockout                | Low        | Clerk has 99.99% SLA; accept this risk for MVP; could add fallback later               |
+| Vercel cold starts affect dashboard load time                 | Fails 2-second NFR                    | Medium     | Use Vercel's `maxDuration` config, keep functions warm with cron, optimize bundle size |
+| Envelope encryption cache invalidation                        | Stale DEK used after KMS key rotation | Low        | Set DEK cache TTL to 5 minutes; re-derive on cache miss                                |
 
 ### Technical Debt to Accept for MVP
 
-1. **No background job system.** Oura sync and audit log writes use Vercel Cron and fire-and-forget database inserts respectively. A proper queue (SQS) can be added later if needed.
+1. **Background job system.** Provider sync and token refresh are handled by Inngest (see Inngest Job Pipeline section above). Audit log writes use fire-and-forget database inserts.
 2. **No data aggregation layer.** For 5 years of daily data (~1,825 rows per metric), raw queries are fine. If sub-daily data arrives (via Health Connect with minute-level HRV), a pre-aggregation strategy will be needed.
 3. **Single-region deployment.** Vercel serves from the Edge, but the database is in one AWS region. Acceptable for MVP with a US-based user base.
 4. **No backup/disaster recovery plan.** Aurora has automated backups, but a documented recovery procedure should be created before launch.
