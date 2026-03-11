@@ -698,4 +698,40 @@ describe("POST /api/connections/:id/sync", () => {
     expect(body.error.code).toBe("FORBIDDEN");
     expect(body.error.message).toContain("expired");
   });
+
+  it("returns 200 even when inngest.send() fails (Inngest dev server down)", async () => {
+    const { inngest: inngestMock } = await import("@/inngest/client");
+    const sendMock = vi.mocked(inngestMock.send);
+
+    // Simulate Inngest dev server being unreachable
+    sendMock.mockRejectedValueOnce(
+      new Error("fetch failed: connection refused (localhost:8288)"),
+    );
+
+    const connId = await createProviderConnection(TEST_USER_ID);
+
+    const request = createAuthRequest(
+      `http://localhost:3000/api/connections/${connId}/sync`,
+      TEST_USER_ID,
+      "POST",
+    );
+    const response = await syncPOST(request, {
+      params: Promise.resolve({ provider: connId }),
+    });
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.data.status).toBe("queued");
+    expect(body.data.message).toContain("Sync dispatched");
+
+    // sync_status should still be set to 'queued' in the database
+    const [conn] = await db
+      .select()
+      .from(providerConnections)
+      .where(eq(providerConnections.id, connId));
+    expect(conn.syncStatus).toBe("queued");
+
+    // Restore the mock for other tests
+    sendMock.mockResolvedValue({ ids: ["mock-event-id"] } as never);
+  });
 });

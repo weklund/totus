@@ -74,15 +74,21 @@ export async function POST(
       .set({ syncStatus: "queued", syncError: null, updatedAt: new Date() })
       .where(eq(providerConnections.id, id));
 
-    // Dispatch Inngest manual sync event
-    await inngest.send({
-      name: "integration/sync.manual",
-      data: {
-        connectionId: id,
-        userId: ctx.userId,
-        provider: connection.provider,
-      },
-    });
+    // Dispatch Inngest manual sync event (fire-and-forget resilience)
+    try {
+      await inngest.send({
+        name: "integration/sync.manual",
+        data: {
+          connectionId: id,
+          userId: ctx.userId,
+          provider: connection.provider,
+        },
+      });
+    } catch (err) {
+      // Log but do not propagate — sync is "queued" and will be retried
+      // when the Inngest dev server becomes available.
+      console.error("Failed to dispatch Inngest sync event:", err);
+    }
 
     // Emit audit event (fire-and-forget)
     db.insert(auditEvents)
