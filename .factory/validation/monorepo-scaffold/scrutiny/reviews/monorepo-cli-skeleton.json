@@ -1,0 +1,39 @@
+{
+  "featureId": "monorepo-cli-skeleton",
+  "reviewedAt": "2026-03-11T09:35:00.000Z",
+  "commitId": "c8cbcdb30e3b2a55ae1fa6376908e8a109578b31",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Clean, well-scoped skeleton implementation. All feature requirements met: package.json has correct name (@totus/cli), type (module), bin entry (./dist/index.ts), commander@^14 and @commander-js/extra-typings dependencies. tsconfig.json has target ES2022, module ESNext, strict mode. src/index.ts has minimal Commander.js setup with --version and --help. Test file covers 5 cases. Vitest config exists for packages/cli. Root workspace scripts (bun --filter '*' typecheck and test) pass across both workspaces. Both VAL-MONO-003 and VAL-MONO-008 are satisfied.",
+    "issues": [
+      {
+        "file": "packages/cli/src/__tests__/cli.test.ts",
+        "line": 6,
+        "severity": "non_blocking",
+        "description": "Tests re-create the Commander program in each test case rather than importing the actual program from src/index.ts. This means tests verify Commander.js API behavior but don't directly test the real program configuration. If index.ts changes (e.g., name or version), tests won't detect the regression. Justified for a skeleton since program.parse() has side effects (process exit on --help/--version), but worth refactoring when the CLI grows — e.g., export createProgram() from index.ts and test that."
+      },
+      {
+        "file": "packages/cli/src/__tests__/cli.test.ts",
+        "line": 1,
+        "severity": "non_blocking",
+        "description": "vitest.config.ts sets globals: true, but the test file explicitly imports { describe, it, expect } from 'vitest'. Either approach works, but the inconsistency could confuse future contributors. Minor style nit — no functional impact."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "Scaffold-worker skill says 'Write tests first for any testable logic' (TDD), but the worker created src/index.ts before the test file. Worker marked followedProcedure: true. The deviation is justified for scaffold work where dependencies must be installed before tests can import them, and testing a Commander.js setup doesn't lend itself well to red-green-refactor. The skill's TDD guidance could be softened for pure config/scaffold features.",
+      "evidence": "Transcript skeleton shows: Edit package.json → bun install → Create src/index.ts → mkdir __tests__ → Create cli.test.ts. Skill step 3 says 'Write tests first for any testable logic.'"
+    },
+    {
+      "area": "conventions",
+      "observation": "Worker correctly avoided committing the packageManager field that bun install re-adds to root package.json, following the documented known quirk in AGENTS.md. No convention gap — just confirming the documented quirk applies and was handled.",
+      "evidence": "git show c8cbcdb --stat shows only bun.lock, packages/cli/package.json, cli test file, and cli index.ts were committed. Root package.json (with packageManager field) was not included."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature monorepo-cli-skeleton passes review. All requirements from the feature description are met: @totus/cli package has correct package.json fields, Commander.js v14 with extra-typings installed, minimal CLI entry point with --version and --help, 5 passing vitest tests, and root workspace scripts work across both packages. Two non-blocking issues noted: tests don't import the actual program (re-create it instead), and globals:true vs explicit imports inconsistency. One skill observation: TDD step was skipped (justified for scaffold work)."
+}

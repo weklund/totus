@@ -1,0 +1,50 @@
+{
+  "featureId": "monorepo-convert",
+  "reviewedAt": "2026-03-11T09:45:00.000Z",
+  "commitId": "3b9c36f",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Clean monorepo conversion. All Next.js files correctly moved to apps/web/ with @totus/web package name. Root package.json properly configured with workspaces: ['apps/*', 'packages/*'] and husky as the only devDependency. Husky pre-commit updated to cd into apps/web for lint-staged. .env.local correctly moved to apps/web/. docker-compose.yml remains at root. CLI skeleton (packages/cli/) created with proper structure. All 642 tests pass, typecheck and lint clean. The 229 files changed are almost entirely renames (0-byte diffs) with only package.json files and a few new CLI files having actual content changes.",
+    "issues": [
+      {
+        "file": "packages/cli/tsconfig.json",
+        "line": 6,
+        "severity": "non_blocking",
+        "description": "tsconfig has both 'noEmit: true' and 'outDir: ./dist'. These are contradictory — with noEmit, the 'build: tsc' script will never produce output files in dist/. The bin entry in package.json points to ./dist/index.js which won't exist after build. Non-blocking since CLI is a skeleton and a subsequent commit (c8cbcdb) may address this."
+      },
+      {
+        "file": ".claude/settings.local.json",
+        "line": 12,
+        "severity": "non_blocking",
+        "description": "Six new WebFetch domain permissions were added (wearipedia, tryterra, clig.dev, cli.github.com, caduh.com, docs.stripe.com) that are unrelated to the monorepo conversion feature. These appear to be research domains for the CLI/MCP work and should ideally be in a separate commit. Non-blocking — no functional impact."
+      },
+      {
+        "file": ".husky/pre-commit",
+        "line": 1,
+        "severity": "non_blocking",
+        "description": "Pre-commit hook only runs lint-staged in apps/web/. As packages/cli/ grows with real code, commits touching only CLI files won't be linted. This is acceptable for now since CLI is a skeleton, but should be extended when CLI has linting configured."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The worker included unrelated .claude/settings.local.json changes (research domain whitelist) in the monorepo conversion commit. AGENTS.md doesn't mention commit hygiene guidelines (one concern per commit). Minor — no functional impact.",
+      "evidence": ".claude/settings.local.json diff in commit 3b9c36f adds 6 WebFetch domains unrelated to monorepo conversion."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker followed the scaffold-worker procedure correctly: checked existing state, implemented scaffolding, verified all tooling commands (test, typecheck, lint, dev, docker). Skill feedback suggests adding guidance about pre-existing DB state issues when running baseline tests, which is reasonable.",
+      "evidence": "Handoff verification shows 9 commands run successfully. skillFeedback.followedProcedure is true with no deviations."
+    },
+    {
+      "area": "conventions",
+      "observation": "The environment.md library file correctly documents .env.local location as 'apps/web/' and the packageManager quirk. AGENTS.md project structure section is accurate for post-monorepo layout. services.yaml was updated in the preparatory commit (34ae299) before the conversion. All shared state is consistent.",
+      "evidence": ".factory/library/environment.md header says '.env.local in apps/web/', .factory/services.yaml uses 'cd apps/web' paths, AGENTS.md shows post-monorepo structure."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The monorepo conversion is well-executed. All 229 files were properly reorganized into the apps/web/ and packages/cli/ structure. Root package.json is minimal with only workspaces config and husky. apps/web/package.json retains all dependencies with correct @totus/web naming. All verification criteria met: 642 tests pass, typecheck clean, lint clean, dev server starts on port 3000, docker compose works, husky hooks function from root. Three non-blocking issues found: CLI tsconfig noEmit/outDir contradiction, unrelated .claude/settings changes in commit, and pre-commit hook only covering apps/web. Overall: PASS."
+}
