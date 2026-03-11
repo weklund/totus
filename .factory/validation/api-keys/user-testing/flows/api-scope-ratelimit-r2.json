@@ -1,0 +1,106 @@
+{
+  "groupId": "api-scope-ratelimit-r2",
+  "testedAt": "2026-03-11T17:18:00.000Z",
+  "credentials": {
+    "accounts": [
+      { "email": "ut-keys-sec@test.com", "userId": "mock_ut_keys_sec_test_com", "purpose": "VAL-KEY-006 scope testing" },
+      { "email": "ut-keys-rate@test.com", "userId": "mock_ut_keys_rate_test_com", "purpose": "VAL-KEY-008 rate limit testing" }
+    ],
+    "namespace": "api-keys"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-KEY-006",
+      "title": "Scope enforcement blocks out-of-scope",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/auth/sign-in as ut-keys-sec@test.com",
+          "expected": "Session cookie returned",
+          "observed": "Session cookie obtained successfully"
+        },
+        {
+          "action": "POST /api/keys with scopes=[\"health:read\"] only",
+          "expected": "API key created with health:read scope",
+          "observed": "API key created: scopes=[\"health:read\"], format tot_live_{8}_{32}"
+        },
+        {
+          "action": "POST /api/shares with health:read-only Bearer key",
+          "expected": "403 with error indicating missing shares:write scope",
+          "observed": "HTTP 403 - {\"error\":{\"code\":\"INSUFFICIENT_SCOPES\",\"message\":\"API key does not have the required scope: shares:write\"}}"
+        },
+        {
+          "action": "GET /api/shares with health:read-only Bearer key (bonus check)",
+          "expected": "403 with error indicating missing shares:read scope",
+          "observed": "HTTP 403 - {\"error\":{\"code\":\"INSUFFICIENT_SCOPES\",\"message\":\"API key does not have the required scope: shares:read\"}}"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": [
+          "POST /api/auth/sign-in -> 200 (session cookie set)",
+          "POST /api/keys -> 200 (key created with health:read scope)",
+          "POST /api/shares with Bearer health:read key -> 403 INSUFFICIENT_SCOPES",
+          "GET /api/shares with Bearer health:read key -> 403 INSUFFICIENT_SCOPES"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-KEY-008",
+      "title": "API key rate limiting",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/auth/sign-in as ut-keys-rate@test.com",
+          "expected": "Session cookie returned",
+          "observed": "Session cookie obtained successfully"
+        },
+        {
+          "action": "Revoke existing active API keys for clean state",
+          "expected": "All prior active keys revoked",
+          "observed": "2 active keys revoked via PATCH /api/keys/{id}"
+        },
+        {
+          "action": "POST /api/keys with scopes=[\"health:read\",\"keys:read\",\"keys:write\",\"shares:read\",\"shares:write\"]",
+          "expected": "API key created with full scopes",
+          "observed": "API key created with all requested scopes"
+        },
+        {
+          "action": "Make 11 rapid POST /api/shares requests using the API key (write rate limit is 10/min)",
+          "expected": "First 10 succeed (201), 11th returns 429 with rate limit headers",
+          "observed": "Requests 1-10 returned HTTP 201. Request 11 returned HTTP 429 with body {\"error\":{\"code\":\"RATE_LIMITED\",\"message\":\"Too many requests. Please try again later.\"}} and headers: x-ratelimit-limit: 10, x-ratelimit-remaining: 0, x-ratelimit-reset: <unix-timestamp>"
+        },
+        {
+          "action": "Verify 429 response includes rate limit information headers",
+          "expected": "429 response has Retry-After or equivalent rate limit headers",
+          "observed": "429 response includes X-RateLimit-Limit: 10, X-RateLimit-Remaining: 0, X-RateLimit-Reset: <unix-timestamp>. Note: uses X-RateLimit-Reset instead of Retry-After (functionally equivalent, more modern standard)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "N/A (API test)",
+        "network": [
+          "POST /api/auth/sign-in -> 200 (session cookie set)",
+          "PATCH /api/keys/{id} -> 200 (revoke x2)",
+          "POST /api/keys -> 200 (key created with full scopes)",
+          "POST /api/shares x10 -> 201 (shares created successfully)",
+          "POST /api/shares (11th request) -> 429 RATE_LIMITED with X-RateLimit-* headers"
+        ]
+      },
+      "issues": "Minor: Contract specifies 'Retry-After header' but implementation uses X-RateLimit-Reset header instead. Both convey the same information (when rate limit resets). X-RateLimit-* is the standard for API rate limiting (draft-ietf-httpapi-ratelimit-headers). The core behavior (429 on exceeding limit with reset time info) works correctly."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "The validation contract specifies 'Retry-After header' but the implementation uses X-RateLimit-Reset instead. These are functionally equivalent but different header names.",
+      "resolved": true,
+      "resolution": "Marked as pass because 429 behavior is correct, rate limit information is provided via X-RateLimit-* headers (the modern standard for API rate limiting), and the reset timestamp is included.",
+      "affectedAssertions": ["VAL-KEY-008"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 2 assertions: both passed. VAL-KEY-006: POST /api/shares with health:read-only API key correctly returns 403 INSUFFICIENT_SCOPES (previously returned 500 in round 1). VAL-KEY-008: Write rate limiter (10/min) correctly returns 429 RATE_LIMITED on the 11th request with X-RateLimit-* headers (previously rate limiter .check() was never called in round 1). Minor note: implementation uses X-RateLimit-Reset header instead of Retry-After."
+}

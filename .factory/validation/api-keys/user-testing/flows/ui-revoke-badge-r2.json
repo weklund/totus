@@ -1,0 +1,51 @@
+{
+  "groupId": "ui-revoke-badge-r2",
+  "testedAt": "2026-03-11T00:00:00.000Z",
+  "credentials": {
+    "account": "ut-keys-ui@test.com",
+    "namespace": "mock_ut_keys_ui_test_com"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": [
+    {
+      "id": "VAL-MPUI-014",
+      "title": "Revoke API key flow",
+      "status": "pass",
+      "steps": [
+        { "action": "Navigate to /sign-in", "expected": "Sign-in form displayed", "observed": "Sign-in form displayed with email, password fields and Sign in button" },
+        { "action": "Sign in as ut-keys-ui@test.com", "expected": "Redirect to /dashboard", "observed": "Redirected to /dashboard after sign-in" },
+        { "action": "Navigate to /dashboard/settings", "expected": "Settings page with API Keys section", "observed": "Settings page loaded with API Keys section showing existing keys" },
+        { "action": "Scroll to API Keys section", "expected": "API Keys section visible with Create Key button", "observed": "API Keys section visible with 'Test UI Key' (already revoked from previous round) and '+ Create Key' button" },
+        { "action": "Click '+ Create Key' button", "expected": "Create API Key dialog opens", "observed": "Dialog opened with Name field, scope checkboxes, Cancel and Create Key buttons" },
+        { "action": "Fill name 'Revoke Test Key R2' and check 'Health Data (Read)' scope", "expected": "Create Key button becomes enabled", "observed": "Create Key button became enabled after filling name and selecting scope" },
+        { "action": "Click 'Create Key' to create the key", "expected": "Key created, full key shown with Copy and I've saved it buttons", "observed": "Key created successfully. Full key shown in yellow 'Save your API key now' panel with Copy and I've saved it buttons" },
+        { "action": "Click 'I've saved it' to dismiss creation dialog", "expected": "Dialog closes, key list shows new active key with Revoke action", "observed": "Dialog closed. Key list shows 'Revoke Test Key R2' as active with 'Revoke' link on the right" },
+        { "action": "Click 'Revoke' on 'Revoke Test Key R2'", "expected": "Confirmation dialog appears", "observed": "Confirmation dialog appeared with title 'Revoke API Key', warning message 'Are you sure you want to revoke Revoke Test Key R2? Any applications using this key will immediately lose access. This action cannot be undone.', Cancel and Revoke Key buttons" },
+        { "action": "Click 'Revoke Key' to confirm revocation", "expected": "Key status changes to revoked with visual 'Revoked' badge", "observed": "Dialog closed, toast notification appeared. Key now shows red 'Revoked' badge next to key name. Revoke link is no longer present." },
+        { "action": "Verify 'Revoked' badge on the revoked key", "expected": "Red 'Revoked' badge visible next to key name", "observed": "Red 'Revoked' badge clearly visible next to 'Revoke Test Key R2' key name. Both keys in the list now show 'Revoked' badges." }
+      ],
+      "evidence": {
+        "screenshots": [
+          "/tmp/ut-settings-apikeys-section.png (initial state with existing revoked key)",
+          "/tmp/ut-key-created.png (after creating new key, showing active key + save panel)",
+          "/tmp/ut-before-revoke.png (active key with Revoke link visible)",
+          "/tmp/ut-revoke-confirmation.png (revoke confirmation dialog)",
+          "/tmp/ut-after-revoke-badge.png (CRITICAL: shows red Revoked badge on newly revoked key)"
+        ],
+        "consoleErrors": "none",
+        "network": "POST /api/keys -> 200 (create key), PATCH /api/keys/{id} -> 200 (revoke key)"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Create Key button in the dialog was outside the viewport due to the long list of scope checkboxes. Standard click and find commands timed out. Required using JavaScript eval to click the button directly.",
+      "resolved": true,
+      "resolution": "Used agent-browser eval to execute document.querySelector('[data-testid=\"create-key-submit\"]').click() directly",
+      "affectedAssertions": ["VAL-MPUI-014"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 1 assertion: VAL-MPUI-014 PASSED. After revoking an API key, the UI correctly displays a red 'Revoked' badge next to the key name. The fix from the previous round (using apiKey.status === 'revoked' instead of !!apiKey.revoked_at) is confirmed working. The full flow works: clicking Revoke shows a confirmation dialog, and after confirming, the key immediately shows the Revoked badge without needing a page refresh."
+}

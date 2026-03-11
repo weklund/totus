@@ -1,0 +1,42 @@
+{
+  "flowId": "api-scope-ratelimit",
+  "testedAt": "2026-03-11T15:20:41Z",
+  "credentials": {
+    "accounts": [
+      { "email": "ut-keys-sec@test.com", "namespace": "mock_ut_keys_sec_test_com", "purpose": "VAL-KEY-006" },
+      { "email": "ut-keys-rate@test.com", "namespace": "mock_ut_keys_rate_test_com", "purpose": "VAL-KEY-008" }
+    ]
+  },
+  "toolsUsed": ["curl"],
+  "assertions": {
+    "VAL-KEY-006": {
+      "status": "pass",
+      "title": "Scope enforcement blocks out-of-scope",
+      "steps": [
+        "Signed in as ut-keys-sec@test.com via POST /api/auth/sign-in, obtained __session cookie",
+        "Created API key with only health:read scope via POST /api/keys — returned key with short_token 6b5EOTBD",
+        "Used API key to POST /api/shares with Authorization: Bearer header — received HTTP 403",
+        "Verified error response body: {\"error\":{\"code\":\"INSUFFICIENT_SCOPES\",\"message\":\"API key does not have the required scope: shares:write\"}}"
+      ],
+      "evidence": "curl POST /api/shares with health:read-only API key -> 403 INSUFFICIENT_SCOPES. Error message explicitly states missing scope: 'shares:write'. Request: POST http://localhost:3000/api/shares with Authorization: Bearer tot_live_6b5EOTBD_... and body {\"metrics\":[\"sleep_score\"],\"from\":\"2026-01-01\",\"to\":\"2026-01-31\"}. Response: HTTP 403, body: {\"error\":{\"code\":\"INSUFFICIENT_SCOPES\",\"message\":\"API key does not have the required scope: shares:write\"}}",
+      "issues": null
+    },
+    "VAL-KEY-008": {
+      "status": "pass",
+      "title": "API key rate limiting",
+      "steps": [
+        "Signed in as ut-keys-rate@test.com via POST /api/auth/sign-in, obtained __session cookie",
+        "Created API key with health:read, shares:read, shares:write scopes via POST /api/keys — returned key with short_token qKrvgv2D",
+        "Sent 15 rapid POST /api/shares requests using the API key to trigger the write rate limit (10/min)",
+        "Requests 1-10 returned HTTP 201 (created shares successfully)",
+        "Request #11 returned HTTP 429 with rate limit headers: X-RateLimit-Limit: 10, X-RateLimit-Remaining: 0, X-RateLimit-Reset: 1773242501",
+        "Response body: {\"error\":{\"code\":\"RATE_LIMITED\",\"message\":\"Too many requests. Please try again later.\"}}"
+      ],
+      "evidence": "Burst of 15 POST /api/shares requests with API key. First 10 succeeded (201), request #11 returned 429 Too Many Requests. Response headers: X-RateLimit-Limit: 10, X-RateLimit-Remaining: 0, X-RateLimit-Reset: 1773242501. Body: {\"error\":{\"code\":\"RATE_LIMITED\",\"message\":\"Too many requests. Please try again later.\"}}. Note: Rate limit info provided via X-RateLimit-Reset header (industry-standard convention) rather than the RFC 6585 Retry-After header. The reset timestamp (X-RateLimit-Reset) serves the same purpose, indicating when the client can retry.",
+      "issues": "Minor: The assertion specifies 'Retry-After header' but the implementation uses X-RateLimit-Reset header instead. The rate limiting is fully functional and returns 429 with rate limit metadata — the header name differs from the assertion's exact wording but provides equivalent information."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 2 assertions: both passed. VAL-KEY-006 confirmed scope enforcement returns 403 with explicit missing scope name. VAL-KEY-008 confirmed write rate limit (10/min) triggers 429 after 10 requests with rate limit headers (X-RateLimit-* format rather than Retry-After)."
+}

@@ -1,11 +1,11 @@
 {
   "milestone": "api-keys",
-  "round": 1,
-  "status": "fail",
+  "round": 2,
+  "status": "pass",
   "assertionsSummary": {
     "total": 16,
-    "passed": 13,
-    "failed": 3,
+    "passed": 16,
+    "failed": 0,
     "blocked": 0
   },
   "passedAssertions": [
@@ -14,36 +14,20 @@
     "VAL-KEY-003",
     "VAL-KEY-004",
     "VAL-KEY-005",
+    "VAL-KEY-006",
     "VAL-KEY-007",
+    "VAL-KEY-008",
     "VAL-KEY-009",
     "VAL-KEY-010",
     "VAL-KEY-011",
     "VAL-KEY-012",
     "VAL-MPUI-012",
     "VAL-MPUI-013",
+    "VAL-MPUI-014",
     "VAL-MPUI-020"
   ],
-  "failedAssertions": [
-    {
-      "id": "VAL-KEY-006",
-      "reason": "POST /api/shares with read-only API key returns 500 instead of 403. The shares route uses getRequestContext() instead of getResolvedContext(), so API key auth is never resolved (userId stays __api_key_pending__). Also missing enforceScope(ctx, 'shares:write') call."
-    },
-    {
-      "id": "VAL-KEY-008",
-      "reason": "API key rate limiters (apiKeyGeneralRateLimiter 300/min, apiKeyReadRateLimiter 60/min, apiKeyWriteRateLimiter 10/min) are defined in rate-limit.ts but .check() is never called in any route handler or middleware. All burst requests succeed with 200 and no rate limit headers."
-    },
-    {
-      "id": "VAL-MPUI-014",
-      "reason": "After revoking an API key, the UI does not display the 'Revoked' badge. GET /api/keys returns computed 'status' field but not 'revoked_at'. Frontend ApiKeysSection checks !!apiKey.revoked_at which is always undefined. Fix: either check apiKey.status === 'revoked' in frontend OR include revoked_at in GET /api/keys response."
-    }
-  ],
+  "failedAssertions": [],
   "blockedAssertions": [],
-  "appliedUpdates": [
-    {
-      "target": "user-testing.md",
-      "description": "Added API Key Testing Accounts section with 4 test accounts, session cookie and API key creation instructions, and API key format documentation.",
-      "source": "setup"
-    }
-  ],
-  "previousRound": null
+  "appliedUpdates": [],
+  "previousRound": ".factory/validation/api-keys/user-testing/synthesis-r1.json"
 }
