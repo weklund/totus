@@ -14,6 +14,18 @@ export const queryKeys = {
       resolution: string;
     }) => ["health-data", "list", params] as const,
     types: () => ["health-data", "types"] as const,
+    series: (params: {
+      metric_type: string;
+      from: string;
+      to: string;
+      source?: string;
+    }) => ["health-data", "series", params] as const,
+    periods: (params: {
+      event_type: string;
+      from: string;
+      to: string;
+      source?: string;
+    }) => ["health-data", "periods", params] as const,
   },
   viewerData: {
     all: ["viewer-data"] as const,

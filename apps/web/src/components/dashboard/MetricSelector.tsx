@@ -3,6 +3,8 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/cn";
 import { getMetricColor } from "@/lib/chart-utils";
+import { getMetricType } from "@/config/metrics";
+import { SourceBadge } from "./SourceBadge";
 import type { HealthDataType } from "@/hooks/useHealthDataTypes";
 import type { MetricCategory } from "@/config/metrics";
 
@@ -122,6 +124,22 @@ export function MetricSelector({
                   >
                     {metric.count}
                   </span>
+                  {(() => {
+                    const metricConfig = getMetricType(metric.metric_type);
+                    if (metricConfig && metricConfig.providers.length > 1) {
+                      return (
+                        <span
+                          className="inline-flex gap-0.5"
+                          data-testid={`source-badges-${metric.metric_type}`}
+                        >
+                          {metricConfig.providers.map((p) => (
+                            <SourceBadge key={p} provider={p} size="sm" />
+                          ))}
+                        </span>
+                      );
+                    }
+                    return null;
+                  })()}
                 </button>
               );
             })}
