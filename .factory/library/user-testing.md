@@ -99,6 +99,44 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Repo root: /Users/weseklund/Projects/totus
 - Mission dir: /Users/weseklund/.factory/missions/9ed53e1e-48b2-4ff6-bace-42b42f3993c7
 
+## Flow Validator Guidance: browser
+
+### Isolation Rules
+- Each subagent uses its own browser session (unique --session ID).
+- Each subagent uses its own test account (assigned by the parent validator).
+- Do NOT modify other users' data or navigate to other users' dashboards.
+- Each subagent writes its report to its assigned flow file only.
+
+### Authentication for Browser Testing
+- Navigate to http://localhost:3000/sign-in
+- Enter assigned email and any password (mock auth accepts any password)
+- The sign-in will redirect to /dashboard
+- For already-signed-in users, navigate directly to the target page
+
+### Boundaries
+- Do NOT start or stop services — they are managed by the parent validator.
+- Do NOT install or uninstall packages.
+- Do NOT modify source files.
+- Only interact with the web UI via agent-browser.
+
+### Environment
+- PostgreSQL running on localhost:5432 (container: totus-db)
+- Web dev server running on localhost:3000
+- Repo root: /Users/weseklund/Projects/totus
+- Mission dir: /Users/weseklund/.factory/missions/9ed53e1e-48b2-4ff6-bace-42b42f3993c7
+
+### Test Data
+- Seed user (user_test_001) has 720 daily data rows, 4080 series rows, 133 period events, 1 Oura connection
+- Test accounts created via sign-up: use ut-mpui-conn@test.com, ut-mpui-charts@test.com, ut-mpui-prefs@test.com
+- Any password works for sign-in with mock auth
+- Provider connections already set up for each test account
+
+### Browser Testing Tips
+- Use agent-browser --session "sessionId" for each subagent
+- Take screenshots as evidence for visual assertions
+- Wait for page loads and async data fetching before asserting
+- Close sessions when done: agent-browser --session "sessionId" close
+
 ## Known Quirks
 
 - Clipboard API unavailable in headless Chromium (copy button shows error toast)

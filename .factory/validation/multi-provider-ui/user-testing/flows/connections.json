@@ -1,0 +1,151 @@
+{
+  "flow": "connections",
+  "groupId": "connections",
+  "testedAt": "2026-03-11T00:00:00.000Z",
+  "credentials": {
+    "account1": "ut-mpui-conn@test.com",
+    "account2": "ut-mpui-empty@test.com",
+    "namespace": "ut-mpui"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": {
+    "VAL-MPUI-001": {
+      "id": "VAL-MPUI-001",
+      "title": "ProviderConnectionCard is generic",
+      "status": "pass",
+      "steps": [
+        { "action": "Navigate to /dashboard/settings", "expected": "Settings page with Data Sources section", "observed": "Settings page displayed with Data Sources section showing provider connection cards" },
+        { "action": "Inspect Oura Ring card", "expected": "Provider name dynamic, status badge, last sync time, Sync/Disconnect actions", "observed": "Oura Ring card shows 'Connected' badge, 'Last synced 4 minutes ago', 'Sync Now' and 'Disconnect' buttons" },
+        { "action": "Inspect Dexcom CGM card", "expected": "Provider name dynamic, status badge, last sync time, Reconnect/Disconnect actions", "observed": "Dexcom CGM card shows 'Token Expired' badge, 'Last synced about 1 month ago', 'Reconnect' and 'Disconnect' buttons" }
+      ],
+      "evidence": {
+        "screenshots": ["settings-connections.png", "settings-connections-scrolled.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-002": {
+      "id": "VAL-MPUI-002",
+      "title": "AddProviderDialog shows provider grid",
+      "status": "pass",
+      "steps": [
+        { "action": "Click 'Add Source' on dashboard", "expected": "Dialog opens with all supported providers in a grid", "observed": "Dialog 'Connect a Data Source' opens showing 7 providers in a grid layout" },
+        { "action": "Check connected providers", "expected": "Connected providers show 'Connected' badge", "observed": "Oura Ring and Dexcom CGM both show 'Connected' badge and are disabled buttons" },
+        { "action": "Check unimplemented providers", "expected": "Show 'Coming Soon' badge", "observed": "Garmin Connect, WHOOP, Withings Health Mate, Cronometer, Nutrisense all show 'Coming Soon'" }
+      ],
+      "evidence": {
+        "screenshots": ["add-provider-dialog.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-003": {
+      "id": "VAL-MPUI-003",
+      "title": "ProviderConnectionBar on dashboard",
+      "status": "pass",
+      "steps": [
+        { "action": "Navigate to /dashboard", "expected": "Horizontal bar of connected providers as compact pills, plus Add button", "observed": "Dashboard shows 'Oura Ring' pill with green dot, 'Dexcom CGM' pill with orange dot, and '+ Add Source' button in a horizontal bar" },
+        { "action": "Click '+ Add Source'", "expected": "Opens AddProviderDialog", "observed": "AddProviderDialog opened showing all 7 providers in grid" }
+      ],
+      "evidence": {
+        "screenshots": ["dashboard-connection-bar.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-004": {
+      "id": "VAL-MPUI-004",
+      "title": "Settings connections section shows all providers",
+      "status": "pass",
+      "steps": [
+        { "action": "Navigate to /dashboard/settings", "expected": "Connections section lists all providers with connect/disconnect/sync actions", "observed": "Data Sources section shows Oura Ring (Connected, Sync Now, Disconnect) and Dexcom CGM (Token Expired, Reconnect, Disconnect) plus '+ Add Source' button" },
+        { "action": "Verify per-provider actions", "expected": "Each provider has appropriate actions", "observed": "Active Oura has Sync Now + Disconnect; expired Dexcom has Reconnect + Disconnect; Add Source opens dialog for adding more providers" }
+      ],
+      "evidence": {
+        "screenshots": ["settings-connections.png", "settings-connections-scrolled.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-010": {
+      "id": "VAL-MPUI-010",
+      "title": "Empty dashboard uses AddProviderDialog",
+      "status": "pass",
+      "steps": [
+        { "action": "Sign in with empty account (ut-mpui-empty@test.com)", "expected": "Dashboard shows empty state", "observed": "Dashboard shows empty state with 'Connect a data source to get started' heading, description, and 'Connect a Data Source' CTA button" },
+        { "action": "Click 'Connect a Data Source' CTA", "expected": "AddProviderDialog opens with provider grid (not hardcoded Oura link)", "observed": "AddProviderDialog opened with 7-provider grid. Oura Ring is enabled, others show 'Coming Soon'. No hardcoded 'Connect Oura Ring' link." }
+      ],
+      "evidence": {
+        "screenshots": ["empty-dashboard.png", "empty-dashboard-dialog.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-017": {
+      "id": "VAL-MPUI-017",
+      "title": "Coming Soon provider behavior",
+      "status": "pass",
+      "steps": [
+        { "action": "Open AddProviderDialog from dashboard", "expected": "Dialog with Coming Soon providers visible", "observed": "Dialog shows Garmin Connect, WHOOP, Withings Health Mate, Cronometer, Nutrisense as 'Coming Soon'" },
+        { "action": "Click 'Garmin Connect' (Coming Soon)", "expected": "No OAuth initiated. Shows disabled state or informational message", "observed": "Toast notification 'Garmin Connect integration is coming soon!' appeared. URL remained on /dashboard. No OAuth redirect occurred." }
+      ],
+      "evidence": {
+        "screenshots": ["coming-soon-click.png"],
+        "consoleErrors": "none",
+        "network": "No OAuth redirect observed"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-018": {
+      "id": "VAL-MPUI-018",
+      "title": "Connection error state shows reconnect",
+      "status": "pass",
+      "steps": [
+        { "action": "Navigate to /dashboard/settings with account that has expired Dexcom connection", "expected": "ProviderConnectionCard shows 'Reconnect' button for expired connection", "observed": "Dexcom CGM card shows 'Token Expired' badge and a prominent 'Reconnect' button alongside 'Disconnect'" },
+        { "action": "Verify Reconnect button is present and enabled", "expected": "Reconnect button visible and clickable", "observed": "Reconnect button (ref=e12/e16) is present, not disabled, and would re-initiate OAuth" }
+      ],
+      "evidence": {
+        "screenshots": ["settings-connections.png", "settings-connections-scrolled.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-019": {
+      "id": "VAL-MPUI-019",
+      "title": "OAuth error callback shows toast",
+      "status": "pass",
+      "steps": [
+        { "action": "Navigate to /dashboard?error=access_denied", "expected": "Error toast notification appears, page not broken", "observed": "Red error toast appeared at bottom-right with 'access_denied' message. Dashboard rendered normally behind toast. Sonner toast element visible with data-type='error' and data-visible='true'." },
+        { "action": "Verify page is functional", "expected": "Normal dashboard visible, not a broken page", "observed": "Dashboard showed ProviderConnectionBar, date range controls, and all normal UI. URL was replaced to /dashboard (error param cleared) after toast display." }
+      ],
+      "evidence": {
+        "screenshots": ["oauth-error-toast-dashboard.png"],
+        "consoleErrors": "none",
+        "network": "N/A"
+      },
+      "issues": null
+    }
+  },
+  "frictions": [
+    {
+      "description": "OAuth error callback toast is handled in DashboardContent.tsx at /dashboard?error=..., not /dashboard/settings?error=... as initially suggested in the task. Testing on /dashboard/settings showed no toast.",
+      "resolved": true,
+      "resolution": "Checked source code to find the correct URL handler, tested on /dashboard?error=access_denied which correctly shows the toast.",
+      "affectedAssertions": ["VAL-MPUI-019"]
+    },
+    {
+      "description": "Toast notification disappears quickly (within ~2s), making screenshot capture timing-sensitive.",
+      "resolved": true,
+      "resolution": "Used 500ms wait and confirmed toast via Sonner DOM element with data-type='error' and data-visible='true' in accessibility tree.",
+      "affectedAssertions": ["VAL-MPUI-019"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 8 assertions: all 8 passed. ProviderConnectionCard correctly shows dynamic provider names (Oura Ring, Dexcom CGM), status badges, last sync times, and appropriate actions. AddProviderDialog shows all 7 providers in a grid with Connected/Coming Soon badges. Dashboard has a ProviderConnectionBar with provider pills and Add button. Settings connections section has per-provider actions. Empty dashboard CTA opens AddProviderDialog (no hardcoded Oura link). Coming Soon providers show informational toast without starting OAuth. Expired connections show Reconnect button. OAuth error callback shows error toast notification."
+}

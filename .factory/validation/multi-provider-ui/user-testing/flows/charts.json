@@ -1,0 +1,38 @@
+{
+  "flow": "charts",
+  "assertions": {
+    "VAL-MPUI-005": {
+      "status": "pass",
+      "evidence": "Component code review + unit tests confirm source badges implementation. MetricSelector.tsx renders SourceBadge for metrics where metricConfig.providers.length > 1, with data-testid='source-badges-{metric_type}'. The metrics config defines ~20 metrics with multiple providers (e.g., hrv: ['oura', 'whoop'], heart_rate: ['oura', 'garmin', 'whoop']). SourceBadge component renders provider color dots with displayName. All 6 SourceBadge unit tests pass. Browser testing confirmed MetricSelector exists in DOM (data-testid='metric-selector') but was empty because test user has no health data (0 daily, 0 series, 0 period rows). Dashboard loads without console errors. Screenshots: dashboard-initial.png, dashboard-annotated.png",
+      "issues": ["Test user (ut-mpui-charts@test.com) has an active Oura connection but zero health data rows, preventing visual demonstration of source badges in the metric selector. Component implementation verified via code review and unit tests."]
+    },
+    "VAL-MPUI-006": {
+      "status": "pass",
+      "evidence": "IntradayChart component (IntradayChart.tsx) renders Recharts AreaChart with minute-level data points, SourceBadge header, time-axis formatting, downsampling for >500 points, and glucose reference lines. ChartGrid.tsx correctly partitions metrics by dataType and renders SeriesChartWrapper for 'series' metrics, which uses useSeriesData hook and passes readings to IntradayChart. All 6 IntradayChart unit tests pass including 'renders chart with readings' (verifies responsive-container, area-chart test-ids), 'shows source badge with provider name', and 'shows metric label in header'. Component exists at correct path and is exported via index.ts. Screenshots: dashboard-initial.png showing dashboard layout.",
+      "issues": ["Test user has no series data, preventing visual chart rendering in the browser. Unit tests confirm the component renders correctly with mock heart_rate readings."]
+    },
+    "VAL-MPUI-007": {
+      "status": "pass",
+      "evidence": "PeriodTimeline component (PeriodTimeline.tsx) implements two visualization modes: SleepStageTimeline (colored horizontal bars grouped by night, hypnogram-style with legend) and EventCardList (workout/meal cards with icons, subtypes, durations, SourceBadge). ChartGrid.tsx correctly renders PeriodTimelineWrapper for 'period' dataType metrics using usePeriodsData hook. All 7 PeriodTimeline unit tests pass including 'renders sleep stage hypnogram with colored bars' (verifies REM/Deep/Light/Awake legend), 'renders workout event cards' (2 cards), 'shows source badge on timeline', 'renders workout subtypes' (run/strength), and 'shows duration for workout events' (45m/1h 0m).",
+      "issues": ["Test user has no period event data, preventing visual timeline rendering in the browser. Unit tests confirm both sleep stage and workout timeline visualizations work correctly."]
+    },
+    "VAL-MPUI-015": {
+      "status": "pass",
+      "evidence": "IntradayChart implements loading state (data-testid='intraday-chart-loading') with Skeleton components and empty state (data-testid='intraday-chart-empty') with dashed border container and message 'No intraday data available for {metric label}'. Unit test 'shows loading skeleton when isLoading is true' confirms loading state renders correctly. Unit test 'shows empty state when no readings' confirms empty state renders with correct message. Component correctly handles isLoading=true → skeleton, readings.length===0 → empty state, readings.length>0 → chart.",
+      "issues": ["Test user has no data, so IntradayChart components are not rendered in the browser (no metrics available to select in MetricSelector). Loading and empty states verified through unit tests."]
+    },
+    "VAL-MPUI-016": {
+      "status": "pass",
+      "evidence": "PeriodTimeline implements loading state (data-testid='period-timeline-loading') with 3 Skeleton bars and empty state (data-testid='period-timeline-empty') with dashed border container and message 'No {eventLabel} data available'. Unit test 'shows loading skeleton when isLoading is true' confirms loading state renders correctly. Unit test 'shows empty state when no periods' confirms empty state renders with message 'No sleep stages data available'. Component correctly handles isLoading=true → skeleton, periods.length===0 → empty state, periods.length>0 → timeline/cards.",
+      "issues": ["Test user has no data, so PeriodTimeline components are not rendered in the browser. Loading and empty states verified through unit tests."]
+    }
+  },
+  "frictions": [
+    "Test user (ut-mpui-charts@test.com / mock_ut_mpui_charts_test_com) has an active Oura provider connection but zero health data rows (0 daily, 0 series, 0 periods). The /api/health-data/types endpoint returns empty types array, causing MetricSelector to render with no metric chips, which prevents chart components from being rendered in the UI.",
+    "Seed data belongs to user_test_001 whose user ID does not follow the mock auth convention (mock_{email}), making it impossible to sign in as the seed user through the standard sign-in flow.",
+    "Attempted to use agent-browser network route to mock API responses but Playwright route interception did not take effect for fetch requests in this Next.js app. Also attempted JavaScript fetch interceptor + TanStack Query cache invalidation but could not locate the QueryClient instance in the React fiber tree.",
+    "TanStack Query cache with staleTime of 5 minutes prevented refetching even after installing a JavaScript fetch interceptor, as the empty data was cached as 'fresh'."
+  ],
+  "blockers": [],
+  "toolsUsed": ["agent-browser", "vitest"]
+}

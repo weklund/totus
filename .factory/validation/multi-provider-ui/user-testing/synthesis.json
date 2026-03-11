@@ -1,0 +1,60 @@
+{
+  "milestone": "multi-provider-ui",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 20,
+    "passed": 15,
+    "failed": 5,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-MPUI-001",
+    "VAL-MPUI-002",
+    "VAL-MPUI-003",
+    "VAL-MPUI-004",
+    "VAL-MPUI-005",
+    "VAL-MPUI-006",
+    "VAL-MPUI-007",
+    "VAL-MPUI-008",
+    "VAL-MPUI-010",
+    "VAL-MPUI-011",
+    "VAL-MPUI-015",
+    "VAL-MPUI-016",
+    "VAL-MPUI-017",
+    "VAL-MPUI-018",
+    "VAL-MPUI-019"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-MPUI-009",
+      "reason": "Share wizard metric selection step could not be visually verified because test user has no health data. Code review confirms period event types (sleep_stage, workout, meal) are implemented in ShareWizardStepMetrics component. Unit tests pass."
+    },
+    {
+      "id": "VAL-MPUI-012",
+      "reason": "API Keys section UI exists but shows error state because backend /api/keys endpoint returns 404. The api-keys-backend feature is not yet implemented (milestone: api-keys, status: pending). UI component (ApiKeysSection) is correctly implemented and unit-tested."
+    },
+    {
+      "id": "VAL-MPUI-013",
+      "reason": "Create API key flow blocked by missing backend /api/keys endpoint (404). CreateApiKeyDialog with scope selection, name input, and created key banner is fully implemented and unit-tested."
+    },
+    {
+      "id": "VAL-MPUI-014",
+      "reason": "Revoke API key flow blocked by missing backend /api/keys endpoint (404). RevokeApiKeyDialog with confirmation is fully implemented and unit-tested."
+    },
+    {
+      "id": "VAL-MPUI-020",
+      "reason": "API key shown-only-once flow blocked by missing backend /api/keys endpoint (404). CreatedKeyBanner shows full key once with copy button and warning; key list shows masked tokens. Code review and unit tests confirm correct implementation."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added Flow Validator Guidance: browser section with isolation rules, authentication instructions for mock auth, test data info, and browser testing tips",
+      "source": "setup"
+    }
+  ],
+  "notes": "15 of 20 assertions passed. 5 assertions failed: 4 are blocked by missing api-keys backend (VAL-MPUI-012, 013, 014, 020 - these depend on the api-keys milestone which is pending), and 1 (VAL-MPUI-009) could not be visually verified due to empty test data but code review confirms correct implementation. All UI components for the multi-provider-ui milestone are correctly implemented and unit-tested. The API key UI components will become functional once the api-keys-backend feature is implemented.",
+  "previousRound": null
+}

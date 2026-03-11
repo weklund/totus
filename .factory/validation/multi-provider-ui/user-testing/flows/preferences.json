@@ -1,0 +1,149 @@
+{
+  "flow": "preferences",
+  "groupId": "preferences",
+  "testedAt": "2026-03-11T14:00:00.000Z",
+  "credentials": {
+    "account": "ut-mpui-prefs@test.com",
+    "namespace": "mpui-prefs"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": {
+    "VAL-MPUI-008": {
+      "status": "pass",
+      "title": "Metric preferences in settings",
+      "steps": [
+        { "action": "Navigate to /dashboard/settings", "expected": "Settings page loads", "observed": "Settings page loaded with all sections" },
+        { "action": "Scroll to Metric Source Preferences section", "expected": "Section visible under Data Sources", "observed": "Section visible with heading 'Metric Source Preferences' and description about authoritative source selection" },
+        { "action": "Verify metric list with provider dropdowns", "expected": "Each multi-source metric has a dropdown with providers", "observed": "25 metrics listed (Sleep Score, Sleep Duration, Sleep Efficiency, Deep Sleep, REM Sleep, Light Sleep, Awake Time, Sleep Stage, HRV, Resting Heart Rate, Respiratory Rate, Blood Oxygen, SpO2, Heart Rate, Steps, Active Calories, Total Calories, Workout, Glucose, Body Weight, BMI, Body Fat %, Muscle Mass, Bone Mass, Readiness Score), each with a Select dropdown defaulting to 'Auto (most recent)'" },
+        { "action": "Click dropdown for Sleep Score", "expected": "Shows available providers", "observed": "Dropdown opened showing 'Auto (most recent)' (selected), 'Oura Ring', 'WHOOP'" },
+        { "action": "Close dropdown", "expected": "Dropdown closes", "observed": "Dropdown closed via Escape key" }
+      ],
+      "evidence": {
+        "screenshots": ["settings-full.png", "metric-pref-dropdown.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/metric-preferences -> 200, GET /api/connections -> 200"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-009": {
+      "status": "blocked",
+      "title": "Share wizard includes period event types",
+      "steps": [
+        { "action": "Navigate to /dashboard/share/new", "expected": "Share wizard step 1 with metric chips", "observed": "Share wizard shows 'No health data available to share. Connect your Oura Ring and sync data first.' because test user has no synced health data" },
+        { "action": "Verify code for period event types", "expected": "ShareWizardStepMetrics includes period event types", "observed": "Code review confirms: PERIOD_EVENT_TYPES constant includes sleep_stage, workout, meal. Component renders them in separate 'Event Types' section alongside scalar metrics. Period types are added even when not in available metrics." }
+      ],
+      "evidence": {
+        "screenshots": ["share-wizard-metrics.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/health-data/types -> 200 (returned 0 types for this user)",
+        "codeReview": "ShareWizardStepMetrics.tsx contains PERIOD_EVENT_TYPES = [{id:'sleep_stage',label:'Sleep Stages'},{id:'workout',label:'Workouts'},{id:'meal',label:'Meals'}] and renders them in a data-testid='period-event-types' section"
+      },
+      "issues": ["Cannot visually verify share wizard metric selection step because test user ut-mpui-prefs@test.com has no synced health data (GET /api/health-data/types returns empty). The wizard gates metrics step on available data. Code review confirms correct implementation of period event types."]
+    },
+    "VAL-MPUI-011": {
+      "status": "pass",
+      "title": "Dashboard hooks use new API shapes",
+      "steps": [
+        { "action": "Sign in and view dashboard", "expected": "Dashboard loads with connection bar", "observed": "Dashboard shows 'Oura Ring' with green active indicator and '+ Add Source' button in connection bar" },
+        { "action": "Verify GET /api/connections response", "expected": "Response includes provider field", "observed": "Response: {data:[{id:'a0c1102d-...',provider:'oura',status:'active',last_sync_at:'2026-03-11T13:43:49.235Z',sync_status:'idle',connected_at:'2026-03-11T13:43:49.235Z'}]}" },
+        { "action": "Verify GET /api/health-data response shape", "expected": "Returns data from health_data_daily table structure", "observed": "GET /api/health-data?metrics=sleep_score&start=2026-01-01&end=2026-03-11&resolution=daily returned 200 with correct shape: {data:{metrics:{},query:{start,end,resolution,metrics_requested,metrics_returned}}}" },
+        { "action": "Review useConnections hook code", "expected": "Connection type has provider field", "observed": "Connection interface has provider: ProviderId (not hardcoded 'oura'). Hook calls GET /api/connections and returns typed Connection[]." },
+        { "action": "Review useHealthData hook code", "expected": "Uses /health-data endpoint (not /oura-specific)", "observed": "Hook calls GET /api/health-data with metrics, start, end, resolution params. No Oura-specific paths." }
+      ],
+      "evidence": {
+        "screenshots": ["dashboard-overview.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/connections -> 200 with provider field, GET /api/health-data -> 200 with health_data_daily shape"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-012": {
+      "status": "fail",
+      "title": "API key management in settings",
+      "steps": [
+        { "action": "Navigate to /dashboard/settings", "expected": "Settings page with API Keys section", "observed": "API Keys section exists with heading 'API Keys', description 'Create and manage API keys for CLI and programmatic access to your data.'" },
+        { "action": "Check API Keys section content", "expected": "Create button, list of keys, revoke actions", "observed": "Section shows ErrorCard with 'Failed to load API keys' / 'An unexpected error occurred' and a Retry button. No Create Key button or key list visible because error state replaces them." },
+        { "action": "Check backend endpoint", "expected": "GET /api/keys returns 200", "observed": "GET /api/keys returns 404 - route file does not exist (no api/keys/ route directory found)" }
+      ],
+      "evidence": {
+        "screenshots": ["settings-full.png", "settings-apikeys.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/keys -> 404 (route not found)",
+        "codeReview": "ApiKeysSection.tsx correctly implements: Create Key button, key list with masked tokens, scopes, created dates, and revoke action per key. Component renders error state when fetch fails. Unit tests (ApiKeysSection.test.tsx) pass with mocked backend, confirming all UI features work."
+      },
+      "issues": ["Backend /api/keys endpoint does not exist (returns 404). The API Keys UI component (ApiKeysSection) is fully implemented and unit-tested, but cannot render key list or Create Key button because the initial GET /api/keys fetch fails. The error state replaces the entire section content."]
+    },
+    "VAL-MPUI-013": {
+      "status": "blocked",
+      "title": "Create API key flow",
+      "steps": [
+        { "action": "Navigate to settings, find Create Key button", "expected": "Create Key button visible", "observed": "Button not visible because API Keys section shows error state (backend /api/keys returns 404)" },
+        { "action": "Review CreateApiKeyDialog component", "expected": "Dialog with scope selection and label input", "observed": "Code review confirms: Dialog has name input, 10 scope checkboxes (health:read, shares:read, shares:write, audit:read, connections:read/write, preferences:read/write, profile:read, keys:write), Cancel/Create Key buttons. Unit test confirms creation flow shows full key in CreatedKeyBanner with copy button and 'Save your API key now' warning." }
+      ],
+      "evidence": {
+        "screenshots": ["settings-apikeys.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/keys -> 404",
+        "codeReview": "CreateApiKeyDialog.tsx implements scope selection with 10 scopes, name input, and POST to create key. CreatedKeyBanner shows full key once with copy button and warning. Unit test confirms full flow."
+      },
+      "issues": ["Cannot test create API key flow through UI because backend /api/keys endpoint returns 404. The Create Key button is hidden by the error state. UI component is fully implemented and unit-tested."]
+    },
+    "VAL-MPUI-014": {
+      "status": "blocked",
+      "title": "Revoke API key flow",
+      "steps": [
+        { "action": "Navigate to settings, find Revoke button on a key", "expected": "Revoke button visible per active key", "observed": "No keys visible because API Keys section shows error state (backend /api/keys returns 404)" },
+        { "action": "Review RevokeApiKeyDialog component", "expected": "Confirmation dialog with revoke action", "observed": "Code review confirms: AlertDialog with warning icon, key name display, description about losing access, Cancel/Revoke Key buttons. Uses useRevokeApiKey hook to PATCH /api/keys/{id}." }
+      ],
+      "evidence": {
+        "screenshots": ["settings-apikeys.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/keys -> 404",
+        "codeReview": "RevokeApiKeyDialog.tsx implements confirmation dialog with key name, warning about immediate access loss, and revoke action. ApiKeysSection shows revoked keys with 'Revoked' badge and reduced opacity."
+      },
+      "issues": ["Cannot test revoke API key flow through UI because backend /api/keys endpoint returns 404. No keys can be loaded or displayed. UI component is fully implemented and unit-tested."]
+    },
+    "VAL-MPUI-020": {
+      "status": "blocked",
+      "title": "API key shown only once",
+      "steps": [
+        { "action": "Create an API key and verify full key shown", "expected": "Full key displayed once with copy button and warning", "observed": "Cannot create key because backend /api/keys returns 404" },
+        { "action": "Review code for key visibility", "expected": "Full key only in creation response, not in list", "observed": "Code review confirms: (1) CreatedKeyBanner in ApiKeysSection shows full key from creation response with data-testid='created-key-value', copy button, and 'This key will not be shown again' warning. (2) ApiKeyRow only shows short_token + '••••••••' (masked). (3) useApiKeys GET /api/keys never returns full key. (4) Unit test confirms created key banner shows full key and key list shows masked tokens." }
+      ],
+      "evidence": {
+        "screenshots": ["settings-apikeys.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/keys -> 404",
+        "codeReview": "ApiKeysSection.tsx: CreatedKeyBanner shows fullKey prop with copy button. ApiKeyRow shows apiKey.short_token + '••••••••'. useApiKeys.ts: ApiKey interface has short_token but no full key field. Unit test confirms both behaviors."
+      },
+      "issues": ["Cannot test key-shown-only-once flow through UI because backend /api/keys endpoint returns 404. Code review and unit tests confirm correct implementation: full key shown only in creation banner, list shows masked tokens only."]
+    }
+  },
+  "frictions": [
+    {
+      "description": "Test user ut-mpui-prefs@test.com has no synced health data, preventing testing of share wizard metric selection step (VAL-MPUI-009). The health data types API returns 0 types.",
+      "resolved": false,
+      "resolution": null,
+      "affectedAssertions": ["VAL-MPUI-009"]
+    },
+    {
+      "description": "Backend /api/keys endpoint does not exist (returns 404), blocking all API key UI testing (VAL-MPUI-012, 013, 014, 020). The api-keys milestone backend appears incomplete.",
+      "resolved": false,
+      "resolution": null,
+      "affectedAssertions": ["VAL-MPUI-012", "VAL-MPUI-013", "VAL-MPUI-014", "VAL-MPUI-020"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Backend /api/keys route does not exist - GET /api/keys returns 404. No route file found at apps/web/src/app/api/keys/. This blocks all API key UI testing since the ApiKeysSection shows error state and hides interactive elements.",
+      "affectedAssertions": ["VAL-MPUI-012", "VAL-MPUI-013", "VAL-MPUI-014", "VAL-MPUI-020"],
+      "quickFixAttempted": "Verified endpoint returns 404 via browser eval fetch. Confirmed no route file exists via glob search. All UI components exist and are unit-tested - only the backend API route is missing."
+    },
+    {
+      "description": "Test user has no health data - GET /api/health-data/types returns 0 types. Share wizard requires available metrics to display the metric selection step.",
+      "affectedAssertions": ["VAL-MPUI-009"],
+      "quickFixAttempted": "Verified API returns empty array. The user has an active Oura connection but no synced data. Code review confirms period event types are correctly implemented in ShareWizardStepMetrics."
+    }
+  ],
+  "summary": "Tested 7 assertions: 2 passed (VAL-MPUI-008 metric preferences, VAL-MPUI-011 dashboard hooks), 1 failed (VAL-MPUI-012 API keys section shows error due to missing backend), 4 blocked (VAL-MPUI-009 no health data for share wizard, VAL-MPUI-013/014/020 missing /api/keys backend). All UI components are correctly implemented and unit-tested; blockers are due to missing backend endpoint and empty test data."
+}
