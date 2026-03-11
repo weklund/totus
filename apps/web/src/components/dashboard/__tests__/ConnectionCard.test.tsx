@@ -41,7 +41,7 @@ function renderWithProviders(ui: React.ReactElement) {
 const MOCK_CONNECTION: Connection = {
   id: "conn-1",
   provider: "oura",
-  status: "connected",
+  status: "active",
   last_sync_at: new Date(Date.now() - 3600_000).toISOString(), // 1 hour ago
   sync_status: "idle",
   connected_at: "2026-01-15T10:00:00.000Z",

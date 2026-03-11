@@ -1,32 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { Activity, Loader2 } from "lucide-react";
-import { toast } from "sonner";
+import { Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { api } from "@/lib/api-client";
+import { AddProviderDialog } from "./AddProviderDialog";
 
 /**
  * EmptyDashboard — full-page empty state when no connections exist.
  *
- * Displays an illustration, a heading asking the user to connect,
- * and a prominent "Connect Oura" button that initiates the OAuth flow.
+ * Displays an illustration, a heading asking the user to connect a data source,
+ * and a CTA that opens the AddProviderDialog to choose from all providers.
  */
 export function EmptyDashboard() {
-  const [isConnecting, setIsConnecting] = useState(false);
-
-  const handleConnect = async () => {
-    setIsConnecting(true);
-    try {
-      const res = await api.get<{ data: { authorize_url: string } }>(
-        "/connections/oura/authorize",
-      );
-      window.location.href = res.data.authorize_url;
-    } catch {
-      toast.error("Failed to start Oura connection. Please try again.");
-      setIsConnecting(false);
-    }
-  };
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
     <div
@@ -38,26 +24,24 @@ export function EmptyDashboard() {
       </div>
       <div className="max-w-sm text-center">
         <h2 className="text-xl font-semibold">
-          Connect your Oura Ring to get started
+          Connect a data source to get started
         </h2>
         <p className="text-muted-foreground mt-2 text-sm">
-          Link your Oura Ring to visualize your sleep, activity, and recovery
-          data all in one place.
+          Link your health devices to visualize your sleep, activity, and
+          recovery data all in one place.
         </p>
       </div>
-      <Button
-        size="lg"
-        onClick={handleConnect}
-        disabled={isConnecting}
-        data-testid="empty-connect-oura-button"
-      >
-        {isConnecting ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <Activity className="size-4" />
-        )}
-        {isConnecting ? "Connecting..." : "Connect Oura"}
-      </Button>
+      <AddProviderDialog
+        connections={[]}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        trigger={
+          <Button size="lg" data-testid="empty-connect-button">
+            <Activity className="size-4" />
+            Connect a Data Source
+          </Button>
+        }
+      />
     </div>
   );
 }

@@ -7,12 +7,13 @@ import { toast } from "sonner";
 import { useViewContext } from "@/lib/view-context";
 import { useHealthDataTypes } from "@/hooks/useHealthDataTypes";
 import { useConnections } from "@/hooks/useConnections";
+import { getProvider } from "@/config/providers";
 import { MetricSelector } from "./MetricSelector";
 import { DateRangeSelector } from "./DateRangeSelector";
 import { ResolutionToggle } from "./ResolutionToggle";
 import { ChartGrid } from "./ChartGrid";
 import { ActionBar } from "./ActionBar";
-import { ConnectionCard } from "./ConnectionCard";
+import { ProviderConnectionBar } from "./ProviderConnectionBar";
 import { EmptyDashboard } from "./EmptyDashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -106,17 +107,27 @@ export function DashboardContent() {
     setMetricsInitialized(true);
   }, [availableMetrics, metricsInitialized, role, permissions]);
 
-  // ─── OAuth callback toasts ──────────────────────────────────────
+  // ─── OAuth callback toasts (generic for any provider) ───────────
   useEffect(() => {
     const connected = searchParams.get("connected");
     const error = searchParams.get("error");
 
-    if (connected === "oura") {
-      toast.success("Oura Ring connected successfully!");
-      // Clean URL
+    if (connected) {
+      const providerConfig = getProvider(connected);
+      const displayName = providerConfig?.displayName ?? connected;
+      toast.success(`${displayName} connected successfully!`);
       router.replace("/dashboard", { scroll: false });
     } else if (error) {
-      toast.error(decodeURIComponent(error));
+      // Parse provider-specific errors like "oura_connect_failed"
+      const errorStr = decodeURIComponent(error);
+      const match = errorStr.match(/^(\w+)_(?:connect_failed|state_invalid)$/);
+      if (match) {
+        const providerConfig = getProvider(match[1]);
+        const displayName = providerConfig?.displayName ?? match[1];
+        toast.error(`Failed to connect ${displayName}. Please try again.`);
+      } else {
+        toast.error(errorStr);
+      }
       router.replace("/dashboard", { scroll: false });
     }
   }, [searchParams, router]);
@@ -128,11 +139,7 @@ export function DashboardContent() {
     () => connectionsData?.data ?? [],
     [connectionsData],
   );
-  const ouraConnection = useMemo(
-    () => connections.find((c) => c.provider === "oura"),
-    [connections],
-  );
-  const hasConnection = !!ouraConnection;
+  const hasConnection = connections.length > 0;
 
   // ─── Empty state: no connections at all ────────────────────────
   if (
@@ -153,9 +160,9 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-6" data-testid="dashboard-content">
-      {/* Connection status card (owner only) */}
+      {/* Connection bar (owner only) */}
       {role === "owner" && !connectionsLoading && (
-        <ConnectionCard connection={ouraConnection} />
+        <ProviderConnectionBar connections={connections} />
       )}
 
       {/* Toolbar */}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { RefreshCw, Unplug, Loader2, Wifi, WifiOff } from "lucide-react";
+import { RefreshCw, Unplug, Loader2, Wifi, WifiOff, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,9 +21,13 @@ import {
 import { useTriggerSync } from "@/hooks/useTriggerSync";
 import { useDisconnect } from "@/hooks/useDisconnect";
 import { api } from "@/lib/api-client";
+import { getProvider } from "@/config/providers";
 import type { Connection } from "@/hooks/useConnections";
+import type { ProviderId } from "@/config/providers";
 
-interface ConnectionCardProps {
+interface ProviderConnectionCardProps {
+  /** The provider ID to display */
+  providerId: ProviderId;
   /** Connection data from API. If undefined, shows "connect" state. */
   connection?: Connection;
   /** Callback after a successful disconnect */
@@ -31,28 +35,35 @@ interface ConnectionCardProps {
 }
 
 /**
- * ConnectionCard — displays Oura connection status with sync/disconnect actions.
+ * ProviderConnectionCard — generic connection card for any provider.
  *
- * If no connection prop is passed, shows the "Connect Oura Ring" button.
- * If connected, shows provider name, last sync time, sync status, and actions.
+ * Accepts a provider config prop and shows the provider name dynamically,
+ * status badge, sync/disconnect actions, and handles expired/error states
+ * with a Reconnect button.
  */
-export function ConnectionCard({
+export function ProviderConnectionCard({
+  providerId,
   connection,
   onDisconnected,
-}: ConnectionCardProps) {
+}: ProviderConnectionCardProps) {
   const [isConnecting, setIsConnecting] = useState(false);
   const triggerSync = useTriggerSync();
   const disconnect = useDisconnect();
+
+  const providerConfig = getProvider(providerId);
+  const displayName = providerConfig?.displayName ?? providerId;
 
   const handleConnect = async () => {
     setIsConnecting(true);
     try {
       const res = await api.get<{ data: { authorize_url: string } }>(
-        "/connections/oura/authorize",
+        `/connections/${providerId}/authorize`,
       );
       window.location.href = res.data.authorize_url;
     } catch {
-      toast.error("Failed to start Oura connection. Please try again.");
+      toast.error(
+        `Failed to start ${displayName} connection. Please try again.`,
+      );
       setIsConnecting(false);
     }
   };
@@ -73,7 +84,7 @@ export function ConnectionCard({
     if (!connection) return;
     disconnect.mutate(connection.id, {
       onSuccess: () => {
-        toast.success("Oura Ring disconnected.");
+        toast.success(`${displayName} disconnected.`);
         onDisconnected?.();
       },
       onError: () => {
@@ -85,14 +96,14 @@ export function ConnectionCard({
   // Disconnected state — show connect CTA
   if (!connection) {
     return (
-      <Card data-testid="connection-card-disconnected">
+      <Card data-testid={`provider-card-${providerId}-disconnected`}>
         <CardContent className="flex items-center justify-between py-4">
           <div className="flex items-center gap-3">
             <div className="bg-muted flex size-10 items-center justify-center rounded-full">
               <WifiOff className="text-muted-foreground size-5" />
             </div>
             <div>
-              <p className="text-sm font-medium">Oura Ring</p>
+              <p className="text-sm font-medium">{displayName}</p>
               <p className="text-muted-foreground text-xs">Not connected</p>
             </div>
           </div>
@@ -100,14 +111,14 @@ export function ConnectionCard({
             size="sm"
             onClick={handleConnect}
             disabled={isConnecting}
-            data-testid="connect-oura-button"
+            data-testid={`connect-${providerId}-button`}
           >
             {isConnecting ? (
               <Loader2 className="size-3.5 animate-spin" />
             ) : (
               <Wifi className="size-3.5" />
             )}
-            {isConnecting ? "Connecting..." : "Connect Oura Ring"}
+            {isConnecting ? "Connecting..." : `Connect`}
           </Button>
         </CardContent>
       </Card>
@@ -120,6 +131,9 @@ export function ConnectionCard({
         addSuffix: true,
       })
     : "Never synced";
+
+  const isExpiredOrError =
+    connection.status === "expired" || connection.status === "error";
 
   const statusBadge = () => {
     switch (connection.status) {
@@ -149,7 +163,7 @@ export function ConnectionCard({
   };
 
   return (
-    <Card data-testid="connection-card-connected">
+    <Card data-testid={`provider-card-${providerId}-connected`}>
       <CardContent className="flex items-center justify-between py-4">
         <div className="flex items-center gap-3">
           <div className="bg-primary/10 flex size-10 items-center justify-center rounded-full">
@@ -157,7 +171,7 @@ export function ConnectionCard({
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium">Oura Ring</p>
+              <p className="text-sm font-medium">{displayName}</p>
               {statusBadge()}
               {syncStatusBadge()}
             </div>
@@ -167,27 +181,43 @@ export function ConnectionCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSync}
-            disabled={triggerSync.isPending}
-            data-testid="sync-now-button"
-          >
-            {triggerSync.isPending ? (
-              <Loader2 className="size-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="size-3.5" />
-            )}
-            Sync Now
-          </Button>
+          {isExpiredOrError ? (
+            <Button
+              size="sm"
+              onClick={handleConnect}
+              disabled={isConnecting}
+              data-testid={`reconnect-${providerId}-button`}
+            >
+              {isConnecting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <LogIn className="size-3.5" />
+              )}
+              Reconnect
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSync}
+              disabled={triggerSync.isPending}
+              data-testid={`sync-${providerId}-button`}
+            >
+              {triggerSync.isPending ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="size-3.5" />
+              )}
+              Sync Now
+            </Button>
+          )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
                 disabled={disconnect.isPending}
-                data-testid="disconnect-button"
+                data-testid={`disconnect-${providerId}-button`}
               >
                 {disconnect.isPending ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -199,17 +229,18 @@ export function ConnectionCard({
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Disconnect Oura Ring?</AlertDialogTitle>
+                <AlertDialogTitle>Disconnect {displayName}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will remove the Oura connection. Your previously imported
-                  health data will be kept. You can reconnect at any time.
+                  This will remove the {displayName} connection. Your previously
+                  imported health data will be kept. You can reconnect at any
+                  time.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDisconnect}
-                  data-testid="confirm-disconnect-button"
+                  data-testid={`confirm-disconnect-${providerId}-button`}
                 >
                   Disconnect
                 </AlertDialogAction>

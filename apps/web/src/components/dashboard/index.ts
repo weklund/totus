@@ -9,3 +9,6 @@ export { ActionBar } from "./ActionBar";
 export { ErrorCard } from "./ErrorCard";
 export { ConnectionCard } from "./ConnectionCard";
 export { EmptyDashboard } from "./EmptyDashboard";
+export { ProviderConnectionCard } from "./ProviderConnectionCard";
+export { AddProviderDialog } from "./AddProviderDialog";
+export { ProviderConnectionBar } from "./ProviderConnectionBar";
