@@ -21,6 +21,7 @@ import { createPreferencesCommand } from "./commands/preferences.js";
 import { createKeysCommand } from "./commands/keys.js";
 import { createProfileCommand } from "./commands/profile.js";
 import { createExportCommand } from "./commands/export.js";
+import { createMcpServerCommand } from "./commands/mcp-server.js";
 import { checkConfigPermissions, getConfigPath } from "./config.js";
 import { EXIT_AUTH, EXIT_ERROR, EXIT_PERMISSION } from "./exit-codes.js";
 import { ApiError } from "./api-client.js";
@@ -51,6 +52,7 @@ program.addCommand(createPreferencesCommand());
 program.addCommand(createKeysCommand());
 program.addCommand(createProfileCommand());
 program.addCommand(createExportCommand());
+program.addCommand(createMcpServerCommand());
 
 // Check config file permissions on startup
 if (!checkConfigPermissions()) {
