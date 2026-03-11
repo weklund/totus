@@ -1,0 +1,47 @@
+{
+  "milestone": "multi-provider-backend",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 42,
+    "passed": 41,
+    "failed": 0,
+    "blocked": 1
+  },
+  "passedAssertions": [
+    "VAL-MPB-001", "VAL-MPB-002", "VAL-MPB-003", "VAL-MPB-004", "VAL-MPB-005",
+    "VAL-MPB-006", "VAL-MPB-007", "VAL-MPB-008", "VAL-MPB-009", "VAL-MPB-010",
+    "VAL-MPB-011", "VAL-MPB-012", "VAL-MPB-013", "VAL-MPB-015", "VAL-MPB-016",
+    "VAL-MPB-017", "VAL-MPB-018", "VAL-MPB-019", "VAL-MPB-020", "VAL-MPB-021",
+    "VAL-MPB-022", "VAL-MPB-023", "VAL-MPB-024", "VAL-MPB-025", "VAL-MPB-026",
+    "VAL-MPB-027", "VAL-MPB-028", "VAL-MPB-029", "VAL-MPB-030", "VAL-MPB-031",
+    "VAL-MPB-032", "VAL-MPB-033", "VAL-MPB-034", "VAL-MPB-035", "VAL-MPB-036",
+    "VAL-MPB-037", "VAL-MPB-038", "VAL-MPB-039", "VAL-MPB-040", "VAL-MPB-041",
+    "VAL-MPB-042"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [
+    {
+      "id": "VAL-MPB-014",
+      "blockedBy": "Inngest dev server not running on port 8288. The sync endpoint calls await inngest.send() which fails when Inngest dev server is unavailable. The endpoint logic is correct (sets sync_status to 'queued' before dispatch), and unit tests confirm the dispatch works with mocked Inngest client. This is an infrastructure dependency, not a code issue."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added 'Flow Validator Guidance: API' and 'Flow Validator Guidance: database' sections with isolation rules, auth instructions, and environment details for multi-provider-backend testing",
+      "source": "setup"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Documented Next.js App Router slug name conflict fix and Inngest dev server dependency in Known Quirks",
+      "source": "setup"
+    },
+    {
+      "target": "source code",
+      "description": "Fixed Next.js App Router routing conflict: merged [id] and [provider] dynamic segments under single [provider] slug for /api/connections/ routes. Updated route handlers, tests (connections tests + inngest tests), and architecture.md",
+      "source": "setup"
+    }
+  ],
+  "previousRound": null
+}

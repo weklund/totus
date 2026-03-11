@@ -19,7 +19,7 @@ import { createErrorResponse, ApiError } from "@/lib/api/errors";
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ provider: string }> },
 ): Promise<NextResponse> {
   try {
     const ctx = getRequestContext(request);
@@ -28,7 +28,8 @@ export async function DELETE(
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
 
-    const { id } = await params;
+    // The [provider] slug is used as a connection ID for DELETE operations
+    const { provider: id } = await params;
 
     // Find and delete the connection (only if owned by this user)
     const deleted = await db

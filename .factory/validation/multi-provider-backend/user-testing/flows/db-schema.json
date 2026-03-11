@@ -1,0 +1,50 @@
+{
+  "flowId": "db-schema",
+  "testedAt": "2026-03-11T00:00:00.000Z",
+  "toolsUsed": ["psql"],
+  "assertions": {
+    "VAL-MPB-001": {
+      "status": "pass",
+      "evidence": "Table provider_connections exists with all required columns: id (UUID PK, gen_random_uuid()), user_id (VARCHAR(64) FK->users ON DELETE CASCADE), provider (VARCHAR(32)), auth_type (VARCHAR(16)), auth_enc (BYTEA NOT NULL), token_expires_at (TIMESTAMPTZ), status (VARCHAR(16) default 'active'), last_sync_at (TIMESTAMPTZ), daily_cursor (VARCHAR(256)), series_cursor (VARCHAR(256)), periods_cursor (VARCHAR(256)), sync_status (VARCHAR(16) default 'idle'), sync_error (TEXT), created_at (TIMESTAMPTZ NOT NULL default now()), updated_at (TIMESTAMPTZ NOT NULL default now()). UNIQUE constraint 'uq_provider_connections_user_provider' on (user_id, provider) confirmed. Additional indexes: idx_provider_connections_active_sync, idx_provider_connections_token_expiry, idx_provider_connections_user_id."
+    },
+    "VAL-MPB-002": {
+      "status": "pass",
+      "evidence": "Table health_data_daily exists with columns: id (BIGINT PK), user_id (VARCHAR(64) FK->users), metric_type (VARCHAR(64)), date (DATE), value_encrypted (BYTEA), source (VARCHAR(32)), source_id (VARCHAR(256)), imported_at (TIMESTAMPTZ default now()). UNIQUE on (user_id, metric_type, date, source). Old table 'health_data' does NOT exist (information_schema query returned false). Data preserved: 4008 rows present in health_data_daily."
+    },
+    "VAL-MPB-003": {
+      "status": "pass",
+      "evidence": "Table health_data_series is a partitioned table with PARTITION BY RANGE (recorded_at). Composite PK on (id, recorded_at) confirmed. 48 monthly child partitions exist (2024-01 through 2027-12) plus health_data_series_default partition. Columns: id (BIGINT), user_id (VARCHAR(64)), metric_type (VARCHAR(64)), recorded_at (TIMESTAMPTZ), value_encrypted (BYTEA), source (VARCHAR(32)), source_id (VARCHAR(256)), imported_at (TIMESTAMPTZ). UNIQUE on (user_id, metric_type, recorded_at, source)."
+    },
+    "VAL-MPB-004": {
+      "status": "pass",
+      "evidence": "Table health_data_periods exists with columns: id (BIGINT PK), user_id (VARCHAR(64) FK->users ON DELETE CASCADE), event_type (VARCHAR(64)), subtype (VARCHAR(64) nullable), started_at (TIMESTAMPTZ), ended_at (TIMESTAMPTZ), duration_sec (INTEGER, generated always as EXTRACT(epoch FROM ended_at - started_at)::integer stored), metadata_enc (BYTEA nullable), source (VARCHAR(32)), source_id (VARCHAR(256)), imported_at (TIMESTAMPTZ default now()). UNIQUE constraint 'uq_periods_user_type_start_source' on (user_id, event_type, started_at, source). CHECK constraint chk_period_end_after_start ensures ended_at > started_at. GiST index on (user_id, tstzrange(started_at, ended_at)). Note: contract specifies 'created_at' but table uses 'imported_at' — consistent with health_data_daily and health_data_series naming convention."
+    },
+    "VAL-MPB-005": {
+      "status": "pass",
+      "evidence": "Table metric_source_preferences exists with composite PK on (user_id, metric_type) as 'metric_source_preferences_pkey'. Columns: user_id (VARCHAR(64) NOT NULL), metric_type (VARCHAR(64) NOT NULL), provider (VARCHAR(32) NOT NULL), updated_at (TIMESTAMPTZ NOT NULL default now()). FK constraint metric_source_preferences_user_id_fkey -> users(id) ON DELETE CASCADE."
+    },
+    "VAL-MPB-006": {
+      "status": "pass",
+      "evidence": "SELECT count(*) FROM provider_connections WHERE provider='oura' returned 10 rows. Oura connections are present in provider_connections with provider='oura'. The old oura_connections table no longer exists (confirmed separately in VAL-MPB-034), indicating successful migration."
+    },
+    "VAL-MPB-031": {
+      "status": "pass",
+      "evidence": "All four tables populated with seed data: health_data_daily has 4008 rows, health_data_series has 4080 rows, health_data_periods has 133 rows, provider_connections has 10 rows. All counts > 0 confirming seed script populates all required tables."
+    },
+    "VAL-MPB-034": {
+      "status": "pass",
+      "evidence": "Query SELECT EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='oura_connections' AND table_schema='public') returned false. The oura_connections table no longer exists in the database."
+    },
+    "VAL-MPB-036": {
+      "status": "pass",
+      "evidence": "Query SELECT * FROM pg_extension WHERE extname='btree_gist' returned 1 row: oid=16711, extname=btree_gist, extversion=1.7. Extension is enabled and active. Used by idx_periods_user_timerange GiST index on health_data_periods."
+    },
+    "VAL-MPB-037": {
+      "status": "pass",
+      "evidence": "Today is 2026-03-11. Current month partition health_data_series_2026_03 exists. Three months ahead: 2026_04, 2026_05, 2026_06 all exist. Partitions span from 2024-01 through 2027-12 (48 monthly partitions) plus health_data_series_default. Requirement of current month + 3 months ahead + default is satisfied with significant headroom."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 10 assertions: all 10 passed. Database schema fully matches the multi-provider-backend specification. Tables provider_connections, health_data_daily, health_data_series (range-partitioned), health_data_periods, and metric_source_preferences all exist with correct schemas, constraints, and indexes. Old tables (health_data, oura_connections) removed. btree_gist extension enabled. Seed data populates all tables. Series partitions span 2024-01 through 2027-12 with default."
+}

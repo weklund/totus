@@ -1,0 +1,34 @@
+{
+  "flowId": "provider-system",
+  "testedAt": "2026-03-11T07:24:00Z",
+  "toolsUsed": ["grep", "read", "vitest"],
+  "assertions": {
+    "VAL-MPB-007": {
+      "status": "pass",
+      "evidence": "Provider registry at src/config/providers.ts exports configs for all 7 providers: oura, dexcom, garmin, whoop, withings, cronometer, nutrisense. Each ProviderConfig has id (ProviderId), displayName (string), authType (AuthType), and sync config (with dailyMetrics, seriesMetrics, periodTypes, historicalWindowDays, defaultSyncIntervalHours, correctionWindowDays). PROVIDER_REGISTRY is a ReadonlyMap<ProviderId, ProviderConfig> with all 7 entries. Helper functions getProvider(), getAllProviders(), isValidProvider() exported. Verified via source code read of src/config/providers.ts."
+    },
+    "VAL-MPB-008": {
+      "status": "pass",
+      "evidence": "OuraAdapter at src/lib/integrations/adapters/oura.ts implements the full ProviderAdapter interface: getAuthorizationUrl (builds OAuth URL with Oura config), exchangeCodeForTokens (returns mock TokenSet), refreshTokens (returns refreshed mock TokenSet, throws if no refresh token), revokeTokens (mock no-op), fetchDailyData (generates mock data for 18 daily metrics with cursor support), fetchSeriesData (generates 5-minute interval readings for heart_rate and spo2_interval), fetchPeriods (generates sleep_stage and workout period events). All methods work in mock/dev mode. Unit tests (adapters.test.ts) pass: getAuthorizationUrl, exchangeCodeForTokens, refreshTokens, revokeTokens, fetchDailyData (3 tests), fetchSeriesData (2 tests), fetchPeriods (3 tests) — all green."
+    },
+    "VAL-MPB-009": {
+      "status": "pass",
+      "evidence": "Stub adapter at src/lib/integrations/adapters/stub.ts implements createStubAdapter() which returns a ProviderAdapter where every method throws ProviderNotImplementedError (a custom Error subclass with provider+method info). The adapter factory (adapters/index.ts) routes dexcom, garmin, whoop, withings, cronometer, nutrisense to createStubAdapter(). Unit tests verify all 7 methods (getAuthorizationUrl, exchangeCodeForTokens, refreshTokens, revokeTokens, fetchDailyData, fetchSeriesData, fetchPeriods) throw ProviderNotImplementedError for each of the 6 stub providers — 42 stub tests all pass."
+    },
+    "VAL-MPB-029": {
+      "status": "pass",
+      "evidence": "Metric type registry at src/config/metrics.ts defines 50 metric types in a ReadonlyMap (METRIC_TYPES). Categories covered: sleep (9 metrics), cardiovascular (6 metrics), activity (5 metrics), metabolic (1 metric - glucose), body (8 metrics), recovery (1 metric), nutrition (20 metrics). Each MetricType has: id, label, unit, category, subcategory, valueType (integer|float|none), dataType (daily|series|period), providers (ProviderId[]), chartColor. Data types span daily (aggregates), series (intraday), and period (bounded events). Test 'should have approximately 50 metric types' asserts count >= 48 and <= 55, passes. Categories include metabolic, recovery, nutrition as required. All 40 metric-related tests pass."
+    },
+    "VAL-MPB-030": {
+      "status": "pass",
+      "evidence": "MetricType interface in src/config/metrics.ts has fields: id, label, unit, category, subcategory, valueType, dataType, providers, chartColor — no ouraField property. grep for 'ouraField' across entire src/ tree returns hits only in the test file (config/__tests__/metrics.test.ts) which explicitly asserts 'should NOT have ouraField property' by checking ('ouraField' in metric) === false for every metric. That test passes. Field mapping is handled by provider adapters (e.g., OuraAdapter maps its own metric names internally)."
+    },
+    "VAL-MPB-032": {
+      "status": "pass",
+      "evidence": "File src/db/upsert.ts exports three upsert functions: upsertDailyData (targets healthDataDaily table with ON CONFLICT on user_id+metric_type+date+source), upsertSeriesData (targets healthDataSeries table with ON CONFLICT on user_id+metric_type+recorded_at+source), upsertPeriodData (targets healthDataPeriods table with ON CONFLICT on user_id+event_type+started_at+source). Each function accepts a NodePgDatabase and typed row arrays, returns upserted count. Functions are also referenced in src/inngest/sync-helpers.ts and src/db/seed.ts."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 6 assertions: all 6 passed. Provider registry has all 7 providers with complete configs. Oura adapter implements full interface with mock/dev data. All 6 stub adapters throw ProviderNotImplementedError. Metric registry has 50 types across 7 categories including metabolic, recovery, nutrition. ouraField is absent from MetricType interface. All 3 upsert functions exist and target correct tables. 100 unit tests pass (metrics + adapters)."
+}

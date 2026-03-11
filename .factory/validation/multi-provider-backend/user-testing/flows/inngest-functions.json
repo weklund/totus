@@ -1,0 +1,106 @@
+{
+  "flowId": "inngest-functions",
+  "testedAt": "2026-03-11T11:24:00Z",
+  "toolsUsed": ["curl", "read", "vitest"],
+  "assertions": {
+    "VAL-MPB-023": {
+      "status": "pass",
+      "evidence": "Source code confirms /api/inngest route handler (apps/web/src/app/api/inngest/route.ts) exports GET, POST, PUT via inngest serve(). All 6 functions registered: syncSweep, syncConnection, syncInitial, syncManual, tokenRefresh, partitionEnsure. Unit test '/api/inngest route handler > exports GET, POST, PUT handlers' passes. Unit test 'all 6 functions are exported from index' passes. curl GET http://localhost:3000/api/inngest returns HTTP 401 (auth middleware intercepts before Inngest handler; expected without Inngest dev server signing key). Inngest client ID is 'totus'.",
+      "steps": [
+        { "action": "curl GET /api/inngest", "expected": "Route responds", "observed": "HTTP 401 — route exists, auth middleware intercepts (expected without Inngest dev server)" },
+        { "action": "Read route.ts source", "expected": "serve() with all functions", "observed": "serve({ client: inngest, functions: [syncSweep, syncConnection, syncInitial, syncManual, tokenRefresh, partitionEnsure] })" },
+        { "action": "Run vitest 'exports GET, POST, PUT handlers'", "expected": "Pass", "observed": "Pass" },
+        { "action": "Run vitest 'all 6 functions are exported from index'", "expected": "Pass", "observed": "Pass" },
+        { "action": "Run vitest 'has correct app ID'", "expected": "Pass", "observed": "Pass — inngest.id === 'totus'" }
+      ]
+    },
+    "VAL-MPB-024": {
+      "status": "pass",
+      "evidence": "Source code (sync-sweep.ts) confirms syncSweep is registered with cron '0 */6 * * *' (every 6 hours). Function queries active connections where syncStatus != 'syncing', batches them into groups of 100, and fans out 'integration/sync.connection' events per connection. Unit test 'syncSweep is defined with cron trigger' passes.",
+      "steps": [
+        { "action": "Read sync-sweep.ts source", "expected": "Cron schedule every 6 hours, fan-out logic", "observed": "cron: '0 */6 * * *', fans out integration/sync.connection events in batches of 100" },
+        { "action": "Run vitest 'syncSweep is defined with cron trigger'", "expected": "Pass", "observed": "Pass" }
+      ]
+    },
+    "VAL-MPB-025": {
+      "status": "pass",
+      "evidence": "Source code (sync-connection.ts) confirms syncConnection fetches data via provider adapter using syncDailyData, syncSeriesData, syncPeriodData helpers and upserts into correct tables. Has concurrency limits (1 per connectionId, 3 per provider) and 3 retries. Unit tests for syncDailyData, syncSeriesData, syncPeriodData all pass — data is fetched from adapter, encrypted, and upserted into health_data_daily, health_data_series, health_data_periods respectively.",
+      "steps": [
+        { "action": "Read sync-connection.ts source", "expected": "Fetches via adapter, upserts into correct tables", "observed": "Claims connection, fetches connection details, calls syncDailyData/syncSeriesData/syncPeriodData, marks idle with updated cursors" },
+        { "action": "Run vitest 'syncDailyData > fetches and upserts daily data'", "expected": "Pass", "observed": "Pass — data inserted with source='oura'" },
+        { "action": "Run vitest 'syncSeriesData > fetches and upserts series data'", "expected": "Pass", "observed": "Pass — data inserted into partitioned table" },
+        { "action": "Run vitest 'syncPeriodData > fetches and upserts period data'", "expected": "Pass", "observed": "Pass — period data inserted with source='oura'" }
+      ]
+    },
+    "VAL-MPB-026": {
+      "status": "pass",
+      "evidence": "Source code (sync-initial.ts) confirms syncInitial is triggered by 'integration/sync.initial' event. Uses null cursors to signal adapters to start from historicalWindowDays ago. Has 5 retries (more than regular sync's 3) and onFailure handler calling markSyncError. Unit test 'syncInitial is defined' passes.",
+      "steps": [
+        { "action": "Read sync-initial.ts source", "expected": "Historical backfill with null cursors", "observed": "Event trigger 'integration/sync.initial', passes null for all cursors (dailyCursor, seriesCursor, periodsCursor), 5 retries, onFailure calls markSyncError" },
+        { "action": "Run vitest 'syncInitial is defined'", "expected": "Pass", "observed": "Pass" }
+      ]
+    },
+    "VAL-MPB-027": {
+      "status": "pass",
+      "evidence": "Source code (token-refresh.ts) confirms tokenRefresh runs hourly (cron '0 * * * *'), finds connections with tokens expiring within 24 hours, calls adapter.refreshTokens(), encrypts new tokens via encryptTokenSet(), and updates auth_enc + token_expires_at on the connection. Auth errors mark connection as 'expired'. Unit tests 'tokenRefresh is defined' and 'encryptTokenSet produces valid encrypted blob' both pass.",
+      "steps": [
+        { "action": "Read token-refresh.ts source", "expected": "Proactive token refresh for expiring tokens", "observed": "Cron '0 * * * *', queries tokens expiring within 24h, calls adapter.refreshTokens(), updates auth_enc + tokenExpiresAt, marks connection 'expired' on auth errors" },
+        { "action": "Run vitest 'tokenRefresh is defined'", "expected": "Pass", "observed": "Pass" },
+        { "action": "Run vitest 'encryptTokenSet produces valid encrypted blob'", "expected": "Pass", "observed": "Pass — encrypted blob can be decrypted back to original tokens" }
+      ]
+    },
+    "VAL-MPB-028": {
+      "status": "pass",
+      "evidence": "Source code (partition-ensure.ts) confirms partitionEnsure runs on 1st of every month (cron '0 0 1 * *'), creates partitions for current month + 3 months ahead (loop i=0..3). Uses DO $$ block with IF NOT EXISTS check. Unit tests 'partitionEnsure is defined' and 'partition check SQL does not error' both pass.",
+      "steps": [
+        { "action": "Read partition-ensure.ts source", "expected": "Creates monthly partitions at least 3 months ahead", "observed": "Cron '0 0 1 * *', loop for i=0 to 3 creates health_data_series_{year}_{month} partitions with IF NOT EXISTS guard" },
+        { "action": "Run vitest 'partitionEnsure is defined'", "expected": "Pass", "observed": "Pass" },
+        { "action": "Run vitest 'partition check SQL does not error'", "expected": "Pass", "observed": "Pass" }
+      ]
+    },
+    "VAL-MPB-039": {
+      "status": "pass",
+      "evidence": "Source code (sync-helpers.ts) markSyncError sets sync_status='error' and sync_error (truncated to 1000 chars). All sync functions (syncConnection, syncInitial, syncManual) have onFailure handlers that call markSyncError. Unit tests 'markSyncError correctly sets sync_status and sync_error' (functions.test.ts) and 'sets sync_status to error with message' + 'truncates error message to 1000 chars' (sync-helpers.test.ts) all pass.",
+      "steps": [
+        { "action": "Read sync-helpers.ts markSyncError", "expected": "Sets sync_status='error' and sync_error", "observed": "Sets syncStatus: 'error', syncError: error.slice(0, 1000)" },
+        { "action": "Read onFailure in sync-connection.ts, sync-initial.ts, sync-manual.ts", "expected": "All call markSyncError", "observed": "All three have onFailure handlers calling markSyncError(connectionId, error.message)" },
+        { "action": "Run vitest 'markSyncError correctly sets sync_status and sync_error'", "expected": "Pass", "observed": "Pass — conn.syncStatus='error', conn.syncError='Provider API returned 500 Internal Server Error'" },
+        { "action": "Run vitest 'sets sync_status to error with message'", "expected": "Pass", "observed": "Pass" },
+        { "action": "Run vitest 'truncates error message to 1000 chars'", "expected": "Pass", "observed": "Pass" }
+      ]
+    },
+    "VAL-MPB-040": {
+      "status": "pass",
+      "evidence": "Source code (token-refresh.ts) confirms tokenRefresh function updates auth_enc and token_expires_at after successful refresh: db.update(providerConnections).set({ authEnc: reencryptedAuth, tokenExpiresAt: newTokens.expiresAt }). encryptTokenSet and decryptAuth round-trip correctly. Unit tests 'encryptTokenSet produces valid encrypted blob' (functions.test.ts) and 'encrypts and can be decrypted back' (sync-helpers.test.ts) both pass.",
+      "steps": [
+        { "action": "Read token-refresh.ts update logic", "expected": "Updates auth_enc + token_expires_at", "observed": "db.update().set({ authEnc: reencryptedAuth, tokenExpiresAt: newTokens.expiresAt, updatedAt: new Date() })" },
+        { "action": "Run vitest 'encryptTokenSet produces valid encrypted blob'", "expected": "Pass", "observed": "Pass — decrypted accessToken='refreshed_access_token', refreshToken='refreshed_refresh_token'" },
+        { "action": "Run vitest 'encrypts and can be decrypted back'", "expected": "Pass", "observed": "Pass — round-trip encryption/decryption verified" }
+      ]
+    },
+    "VAL-MPB-041": {
+      "status": "pass",
+      "evidence": "Source code (partition-ensure.ts) creates partitions from current month (i=0) through 3 months ahead (i=3), totaling 4 partitions (current + 3 future). Each partition is named health_data_series_{year}_{month} and covers range [start_date, next_month_start). Uses IF NOT EXISTS guard. Unit test 'partition check SQL does not error' passes confirming partition SQL execution works against the live database.",
+      "steps": [
+        { "action": "Read partition-ensure.ts loop logic", "expected": "Creates partitions at least 3 months ahead", "observed": "for (let i = 0; i <= 3; i++) — creates current month + 3 future months = at least 3 months ahead" },
+        { "action": "Run vitest 'partition check SQL does not error'", "expected": "Pass", "observed": "Pass — partition existence check SQL runs without error" }
+      ]
+    }
+  },
+  "frictions": [
+    {
+      "description": "GET /api/inngest returns 401 Unauthorized due to auth middleware intercepting before the Inngest route handler. The Inngest dev server communicates with this endpoint using its signing key, so this is expected behavior when testing without the Inngest dev server running.",
+      "resolved": true,
+      "resolution": "Verified route handler existence and function registrations via source code review and unit tests instead of live introspection.",
+      "affectedAssertions": ["VAL-MPB-023"]
+    },
+    {
+      "description": "Two unrelated tests in functions.test.ts fail ('still returns 409 when already syncing' and 'still returns 403 when connection is expired') — these pass `{ id: connId }` as params instead of `{ provider: connId }` matching the new [provider] route segment. These test the sync route (VAL-MPB-038, VAL-MPB-042), NOT any of this flow's assigned assertions.",
+      "resolved": false,
+      "resolution": "Not in scope — these test failures affect VAL-MPB-038 and VAL-MPB-042 which are not assigned to this flow.",
+      "affectedAssertions": []
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 9 assertions (VAL-MPB-023 through VAL-MPB-028, VAL-MPB-039, VAL-MPB-040, VAL-MPB-041): all 9 passed. All Inngest functions are properly defined, registered, and tested. 28 of 30 unit tests pass (2 failures are in unrelated sync route tests outside this flow's scope). Source code review confirms cron schedules, event triggers, concurrency limits, error handling, token refresh logic, and partition creation all match the validation contract specifications."
+}

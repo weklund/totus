@@ -1,0 +1,173 @@
+{
+  "flowId": "api-endpoints",
+  "testedAt": "2026-03-11T11:29:30.000Z",
+  "credentials": {
+    "account": "apitest_mpb@example.com",
+    "namespace": "mock_apitest_mpb_example_com"
+  },
+  "toolsUsed": ["curl", "psql", "python3"],
+  "assertions": {
+    "VAL-MPB-010": {
+      "status": "pass",
+      "evidence": "GET /api/connections -> 200. Empty array returned for new user (correct). After creating oura connection via OAuth callback, returns array with object containing: id, provider='oura', status='active', last_sync_at=null, sync_status='idle', connected_at. All required fields present.",
+      "steps": [
+        { "action": "GET /api/connections (no connections)", "expected": "200 with empty data array", "observed": "200: {\"data\":[]}" },
+        { "action": "Connect oura via OAuth flow", "expected": "Connection created", "observed": "302 redirect to dashboard?connected=oura" },
+        { "action": "GET /api/connections (with connection)", "expected": "200 with provider, status, last_sync_at fields", "observed": "200: data array with one object containing id, provider='oura', status='active', last_sync_at=null, sync_status='idle', connected_at" }
+      ]
+    },
+    "VAL-MPB-011": {
+      "status": "pass",
+      "evidence": "GET /api/connections/oura/authorize -> 200 with {data:{authorize_url:'http://localhost:3000/api/connections/oura/callback?code=mock_auth_code&state=...'}}. GET /api/connections/dexcom/authorize -> 200 with {data:{authorize_url:'http://localhost:3000/api/connections/dexcom/callback?code=mock_auth_code&state=...'}}. Both return authorize_url in mock mode pointing to their respective callback URLs.",
+      "steps": [
+        { "action": "GET /api/connections/oura/authorize", "expected": "200 with authorize_url for Oura", "observed": "200: authorize_url pointing to /api/connections/oura/callback with mock_auth_code and state JWT" },
+        { "action": "GET /api/connections/dexcom/authorize", "expected": "200 with authorize_url for Dexcom", "observed": "200: authorize_url pointing to /api/connections/dexcom/callback with mock_auth_code and state JWT" }
+      ]
+    },
+    "VAL-MPB-012": {
+      "status": "pass",
+      "evidence": "GET /api/connections/oura/callback?code=mock_auth_code&state=<jwt> -> 302 redirect to /dashboard?connected=oura. DB verification: SELECT from provider_connections shows new row with provider='oura', status='active', sync_status='idle', auth_enc (encrypted BYTEA blob) populated.",
+      "steps": [
+        { "action": "GET oura authorize URL to get state JWT", "expected": "authorize_url with state JWT", "observed": "Received authorize_url" },
+        { "action": "Follow callback URL with code+state", "expected": "302 redirect to dashboard, connection created", "observed": "302 to /dashboard?connected=oura" },
+        { "action": "Verify in DB", "expected": "Row in provider_connections with provider='oura'", "observed": "Row exists: id=0ec89e74-..., provider='oura', status='active', sync_status='idle'" }
+      ]
+    },
+    "VAL-MPB-013": {
+      "status": "pass",
+      "evidence": "Created temp connection (garmin) in DB for test user. DELETE /api/connections/{id} -> 200 with {data:{id:'aaaaaaaa-...', provider:'garmin', disconnected_at:'2026-03-11T...'}}. DB verification: SELECT count(*) WHERE id=... returns 0.",
+      "steps": [
+        { "action": "INSERT temp garmin connection into provider_connections", "expected": "Row created", "observed": "INSERT 0 1" },
+        { "action": "DELETE /api/connections/{id}", "expected": "200 with disconnected confirmation", "observed": "200: {data:{id, provider:'garmin', disconnected_at}}" },
+        { "action": "Verify deletion in DB", "expected": "Row removed", "observed": "count=0" }
+      ]
+    },
+    "VAL-MPB-014": {
+      "status": "blocked",
+      "evidence": "POST /api/connections/{id}/sync -> 500 {error:{code:'INTERNAL_ERROR', message:'An unexpected error occurred'}}. The route uses `await inngest.send(...)` which fails when Inngest dev server is not running (confirmed: curl http://localhost:8288 returns connection refused). The DB sync_status was updated to 'queued' before the Inngest send failed, confirming the endpoint logic is correct up to the dispatch step.",
+      "steps": [
+        { "action": "POST /api/connections/{id}/sync", "expected": "200 with queued status", "observed": "500 INTERNAL_ERROR (Inngest not running)" },
+        { "action": "Check Inngest dev server", "expected": "Running on port 8288", "observed": "Connection refused - Inngest dev server not running" },
+        { "action": "Verify DB state", "expected": "sync_status set to queued", "observed": "sync_status='queued' (set before Inngest send failure)" }
+      ],
+      "issues": "Inngest dev server is not running on port 8288. The sync endpoint calls `await inngest.send(...)` which fails with a connection error, causing a 500 response. The endpoint logic is correct (sets sync_status to 'queued' first) but cannot complete without Inngest."
+    },
+    "VAL-MPB-015": {
+      "status": "pass",
+      "evidence": "GET /api/health-data?metrics=sleep_score,hrv&start=2026-01-01&end=2026-03-31 -> 200. Response contains decrypted data from health_data_daily. sleep_score: 70 points (unit=score), hrv: 70 points (unit=ms). Source resolution included: {sleep_score:{source:'oura',reason:'only_source'}, hrv:{source:'oura',reason:'only_source'}}. Data points have date, value (numeric), and source fields.",
+      "steps": [
+        { "action": "GET /api/health-data with metrics=sleep_score,hrv", "expected": "200 with decrypted daily data and source resolution", "observed": "200: sleep_score 70 points, hrv 70 points, source_resolution present with 'only_source' reason" }
+      ]
+    },
+    "VAL-MPB-016": {
+      "status": "pass",
+      "evidence": "GET /api/health-data/series?metric_type=heart_rate&from=2026-03-05&to=2026-03-11 -> 200. Response: {data:{metric_type:'heart_rate', unit:'bpm', from:'2026-03-05', to:'2026-03-11', readings:[2016 items]}}. Each reading has recorded_at (ISO timestamp), value (numeric), and source fields.",
+      "steps": [
+        { "action": "GET /api/health-data/series?metric_type=heart_rate&from=2026-03-05&to=2026-03-11", "expected": "200 with intraday readings array", "observed": "200: 2016 readings with recorded_at, value, source fields" }
+      ]
+    },
+    "VAL-MPB-017": {
+      "status": "pass",
+      "evidence": "GET /api/health-data/periods?event_type=sleep_stage&from=2026-03-05&to=2026-03-11 -> 200. Response: {data:{event_type:'sleep_stage', from:'2026-03-05', to:'2026-03-11', periods:[122 items]}}. Each period has started_at, ended_at, duration_sec, subtype, and source fields.",
+      "steps": [
+        { "action": "GET /api/health-data/periods?event_type=sleep_stage&from=2026-03-05&to=2026-03-11", "expected": "200 with period events array", "observed": "200: 122 periods with started_at, ended_at, duration_sec, subtype, source" }
+      ]
+    },
+    "VAL-MPB-018": {
+      "status": "pass",
+      "evidence": "GET /api/health-data/types -> 200. Returns 12 metric types across all 3 data types: 8 daily types (active_calories, deep_sleep, hrv, readiness_score, rhr, sleep_duration, sleep_score, steps), 2 series types (heart_rate, spo2_interval), 2 period types (sleep_stage, workout). Data types found: ['daily', 'period', 'series']. Each entry includes metric_type, label, unit, category, data_type, source, date_range, count.",
+      "steps": [
+        { "action": "GET /api/health-data/types", "expected": "200 with metrics spanning daily, series, and period dataTypes", "observed": "200: 12 types - daily(8), series(2), period(2). All 3 data_type values present." }
+      ]
+    },
+    "VAL-MPB-019": {
+      "status": "pass",
+      "evidence": "GET /api/metric-preferences -> 200 {data:{preferences:[]}}. Returns empty array for user with no preferences set.",
+      "steps": [
+        { "action": "GET /api/metric-preferences", "expected": "200 with preferences array", "observed": "200: {data:{preferences:[]}} (empty array, correct for new user)" }
+      ]
+    },
+    "VAL-MPB-020": {
+      "status": "pass",
+      "evidence": "PUT /api/metric-preferences/hrv with {provider:'oura'} -> 200 {data:{metric_type:'hrv', provider:'oura', updated_at:'2026-03-11T...'}}. Subsequent GET /api/metric-preferences confirms preference: [{metric_type:'hrv', provider:'oura', updated_at:'...'}].",
+      "steps": [
+        { "action": "PUT /api/metric-preferences/hrv with {provider:'oura'}", "expected": "200 with preference set", "observed": "200: {data:{metric_type:'hrv', provider:'oura', updated_at}}" },
+        { "action": "GET /api/metric-preferences to verify", "expected": "hrv preference in list", "observed": "200: preferences array contains hrv=oura entry" }
+      ]
+    },
+    "VAL-MPB-021": {
+      "status": "pass",
+      "evidence": "DELETE /api/metric-preferences/hrv -> 200 {data:{metric_type:'hrv', deleted:true}}. Subsequent GET /api/metric-preferences confirms removal: {data:{preferences:[]}}.",
+      "steps": [
+        { "action": "DELETE /api/metric-preferences/hrv", "expected": "200 with deleted confirmation", "observed": "200: {data:{metric_type:'hrv', deleted:true}}" },
+        { "action": "GET /api/metric-preferences to verify removal", "expected": "Empty preferences", "observed": "200: {data:{preferences:[]}}" }
+      ]
+    },
+    "VAL-MPB-022": {
+      "status": "pass",
+      "evidence": "Set preference hrv=oura via PUT. Then GET /api/health-data?metrics=hrv&start=2026-01-01&end=2026-01-31 returns source_resolution: {hrv:{source:'oura', reason:'user_preference'}}. All 31 data points have source='oura'. The source_resolution reason changed from 'only_source' to 'user_preference' confirming preference-based resolution.",
+      "steps": [
+        { "action": "PUT /api/metric-preferences/hrv with {provider:'oura'}", "expected": "Preference set", "observed": "200: preference set" },
+        { "action": "GET /api/health-data?metrics=hrv", "expected": "Data with source_resolution showing user_preference", "observed": "200: source_resolution={hrv:{source:'oura',reason:'user_preference'}}, 31 points all from oura" }
+      ]
+    },
+    "VAL-MPB-033": {
+      "status": "pass",
+      "evidence": "Filesystem check: ls apps/web/src/app/api/connections/oura/ -> 'No such file or directory'. The oura-specific route directory does not exist. Generic [provider] routes exist at apps/web/src/app/api/connections/[provider]/ with authorize/, callback/, sync/, route.ts. The generic routes handle oura correctly: GET /api/connections/oura/authorize returns valid authorize_url, GET /api/connections/oura/callback creates connection successfully.",
+      "steps": [
+        { "action": "ls apps/web/src/app/api/connections/oura/", "expected": "Directory does not exist", "observed": "No such file or directory" },
+        { "action": "ls apps/web/src/app/api/connections/[provider]/", "expected": "Generic route files exist", "observed": "authorize/, callback/, sync/, route.ts present" },
+        { "action": "GET /api/connections/oura/authorize via generic route", "expected": "Returns authorize_url", "observed": "200 with authorize_url (tested in VAL-MPB-011)" }
+      ]
+    },
+    "VAL-MPB-035": {
+      "status": "pass",
+      "evidence": "Created a new share for seed user via POST /api/shares. Validated share token via POST /api/viewer/validate -> 200 {valid:true, owner_display_name:'Test User', allowed_metrics:['sleep_score','hrv']}. Viewer cookie set. GET /api/viewer/data?metrics=sleep_score&start=2026-01-01&end=2026-03-11 -> 200 with sleep_score: 70 points from source 'oura'. Data returned from health_data_daily table (confirmed by source resolution and data shape).",
+      "steps": [
+        { "action": "POST /api/shares to create share for seed user", "expected": "Share created with token", "observed": "200: share created with token and share_url" },
+        { "action": "POST /api/viewer/validate with raw token", "expected": "200 valid:true, viewer cookie set", "observed": "200: valid=true, owner_display_name='Test User', viewer cookie set" },
+        { "action": "GET /api/viewer/data?metrics=sleep_score", "expected": "200 with health data from health_data_daily", "observed": "200: sleep_score 70 points, source='oura'" }
+      ]
+    },
+    "VAL-MPB-038": {
+      "status": "pass",
+      "evidence": "Set provider_connections.sync_status='syncing' via psql for test connection. POST /api/connections/{id}/sync -> 409 {error:{code:'CONFLICT', message:'A sync is already in progress for this connection'}}. Reset sync_status back to 'idle' after test.",
+      "steps": [
+        { "action": "UPDATE sync_status='syncing' via psql", "expected": "Row updated", "observed": "UPDATE 1" },
+        { "action": "POST /api/connections/{id}/sync", "expected": "409 CONFLICT", "observed": "409: {error:{code:'CONFLICT', message:'A sync is already in progress for this connection'}}" },
+        { "action": "Reset sync_status='idle'", "expected": "Row restored", "observed": "UPDATE 1" }
+      ]
+    },
+    "VAL-MPB-042": {
+      "status": "pass",
+      "evidence": "Set provider_connections.status='expired' via psql for test connection. POST /api/connections/{id}/sync -> 403 {error:{code:'FORBIDDEN', message:'Connection has expired. Please re-authenticate with the provider.'}}. Reset status back to 'active' after test.",
+      "steps": [
+        { "action": "UPDATE status='expired' via psql", "expected": "Row updated", "observed": "UPDATE 1" },
+        { "action": "POST /api/connections/{id}/sync", "expected": "403 error about expired connection", "observed": "403: {error:{code:'FORBIDDEN', message:'Connection has expired. Please re-authenticate with the provider.'}}" },
+        { "action": "Reset status='active'", "expected": "Row restored", "observed": "UPDATE 1" }
+      ]
+    }
+  },
+  "frictions": [
+    {
+      "description": "Health data values are stored encrypted (value_encrypted BYTEA), making it impossible to insert test data via raw SQL. Must use the application's encryption provider or rely on seed user data for health data endpoint tests.",
+      "resolved": true,
+      "resolution": "Created a JWT for the seed user (user_test_001) to authenticate as them for health data tests, since they have pre-seeded encrypted data.",
+      "affectedAssertions": ["VAL-MPB-015", "VAL-MPB-016", "VAL-MPB-017", "VAL-MPB-018", "VAL-MPB-022"]
+    },
+    {
+      "description": "Dexcom OAuth callback fails with redirect to ?error=dexcom_connect_failed because the Dexcom adapter is a stub that throws 'not implemented' on exchangeCodeForTokens. Only Oura adapter is fully implemented.",
+      "resolved": true,
+      "resolution": "Used Oura adapter for OAuth flow tests (VAL-MPB-012). Dexcom authorize URL generation still works (VAL-MPB-011).",
+      "affectedAssertions": ["VAL-MPB-011", "VAL-MPB-012"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Inngest dev server not running on port 8288. POST /api/connections/{id}/sync uses `await inngest.send(...)` which fails with connection error, causing 500 response.",
+      "affectedAssertions": ["VAL-MPB-014"],
+      "quickFixAttempted": "Verified DB sync_status was set to 'queued' before the Inngest send failure, confirming endpoint logic is correct. Cannot start Inngest dev server per isolation rules."
+    }
+  ],
+  "summary": "Tested 17 assertions: 16 passed, 0 failed, 1 blocked (VAL-MPB-014: Inngest dev server not running). All connection CRUD operations work correctly. Health data endpoints return decrypted data across daily, series, and period tables. Metric preferences CRUD works. Source resolution respects user preferences. Share grants work with the renamed health_data_daily table. Sync-in-progress guard (409) and expired connection guard (403) both work correctly. Old Oura-specific routes confirmed removed from filesystem, generic [provider] routes handle Oura correctly."
+}

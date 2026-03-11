@@ -40,6 +40,6 @@ Architectural decisions, patterns discovered during implementation.
 - **Concurrency guards**: `claimConnection()` uses atomic compare-and-swap to prevent duplicate syncs
 - **Error isolation**: `onFailure` handlers update `sync_status='error'` and `sync_error` in DB
 - **Token refresh**: Each connection refreshed in its own `step.run()` for fault isolation
-- POST /api/connections/[id]/sync dispatches `integration/sync.manual` event (not inline sync)
+- POST /api/connections/[provider]/sync dispatches `integration/sync.manual` event (not inline sync)
 - OAuth callback dispatches `integration/sync.initial` event for historical backfill
 - Mock Inngest client in tests: `vi.mock("@/inngest/client", ...)` to avoid needing dev server

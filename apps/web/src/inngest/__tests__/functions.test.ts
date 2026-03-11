@@ -237,10 +237,11 @@ describe("/api/inngest route handler", () => {
 // ─── Sync route dispatches Inngest event ──────────────────────
 
 describe("POST /api/connections/:id/sync dispatches Inngest event", () => {
-  let syncPOST: typeof import("@/app/api/connections/[id]/sync/route").POST;
+  let syncPOST: typeof import("@/app/api/connections/[provider]/sync/route").POST;
 
   beforeAll(async () => {
-    const syncModule = await import("@/app/api/connections/[id]/sync/route");
+    const syncModule =
+      await import("@/app/api/connections/[provider]/sync/route");
     syncPOST = syncModule.POST;
   });
 
@@ -273,7 +274,7 @@ describe("POST /api/connections/:id/sync dispatches Inngest event", () => {
         TEST_USER_ID,
       );
       const response = await syncPOST(request, {
-        params: Promise.resolve({ id: connId }),
+        params: Promise.resolve({ provider: connId }),
       });
       expect(response.status).toBe(200);
 
@@ -313,7 +314,7 @@ describe("POST /api/connections/:id/sync dispatches Inngest event", () => {
       TEST_USER_ID,
     );
     const response = await syncPOST(request, {
-      params: Promise.resolve({ id: connId }),
+      params: Promise.resolve({ provider: connId }),
     });
     expect(response.status).toBe(409);
   });
@@ -328,7 +329,7 @@ describe("POST /api/connections/:id/sync dispatches Inngest event", () => {
       TEST_USER_ID,
     );
     const response = await syncPOST(request, {
-      params: Promise.resolve({ id: connId }),
+      params: Promise.resolve({ provider: connId }),
     });
     expect(response.status).toBe(403);
   });

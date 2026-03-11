@@ -59,8 +59,8 @@ let healthDataDaily: typeof import("@/db/schema").healthDataDaily;
 let listGET: typeof import("../route").GET;
 let authorizeGET: typeof import("../[provider]/authorize/route").GET;
 let callbackGET: typeof import("../[provider]/callback/route").GET;
-let disconnectDELETE: typeof import("../[id]/route").DELETE;
-let syncPOST: typeof import("../[id]/sync/route").POST;
+let disconnectDELETE: typeof import("../[provider]/route").DELETE;
+let syncPOST: typeof import("../[provider]/sync/route").POST;
 
 // Auth helpers
 let createEncryptionProvider: typeof import("@/lib/encryption").createEncryptionProvider;
@@ -107,10 +107,10 @@ beforeAll(async () => {
   const callbackModule = await import("../[provider]/callback/route");
   callbackGET = callbackModule.GET;
 
-  const disconnectModule = await import("../[id]/route");
+  const disconnectModule = await import("../[provider]/route");
   disconnectDELETE = disconnectModule.DELETE;
 
-  const syncModule = await import("../[id]/sync/route");
+  const syncModule = await import("../[provider]/sync/route");
   syncPOST = syncModule.POST;
 });
 
@@ -515,7 +515,7 @@ describe("DELETE /api/connections/:id", () => {
       "DELETE",
     );
     const response = await disconnectDELETE(request, {
-      params: Promise.resolve({ id: "some-id" }),
+      params: Promise.resolve({ provider: "some-id" }),
     });
     expect(response.status).toBe(401);
   });
@@ -528,7 +528,7 @@ describe("DELETE /api/connections/:id", () => {
       "DELETE",
     );
     const response = await disconnectDELETE(request, {
-      params: Promise.resolve({ id: fakeId }),
+      params: Promise.resolve({ provider: fakeId }),
     });
     expect(response.status).toBe(404);
   });
@@ -542,7 +542,7 @@ describe("DELETE /api/connections/:id", () => {
       "DELETE",
     );
     const response = await disconnectDELETE(request, {
-      params: Promise.resolve({ id: connId }),
+      params: Promise.resolve({ provider: connId }),
     });
     expect(response.status).toBe(404);
   });
@@ -571,7 +571,7 @@ describe("DELETE /api/connections/:id", () => {
       "DELETE",
     );
     const response = await disconnectDELETE(request, {
-      params: Promise.resolve({ id: connId }),
+      params: Promise.resolve({ provider: connId }),
     });
     expect(response.status).toBe(200);
 
@@ -603,7 +603,7 @@ describe("POST /api/connections/:id/sync", () => {
       "POST",
     );
     const response = await syncPOST(request, {
-      params: Promise.resolve({ id: "some-id" }),
+      params: Promise.resolve({ provider: "some-id" }),
     });
     expect(response.status).toBe(401);
   });
@@ -616,7 +616,7 @@ describe("POST /api/connections/:id/sync", () => {
       "POST",
     );
     const response = await syncPOST(request, {
-      params: Promise.resolve({ id: fakeId }),
+      params: Promise.resolve({ provider: fakeId }),
     });
     expect(response.status).toBe(404);
   });
@@ -630,7 +630,7 @@ describe("POST /api/connections/:id/sync", () => {
       "POST",
     );
     const response = await syncPOST(request, {
-      params: Promise.resolve({ id: connId }),
+      params: Promise.resolve({ provider: connId }),
     });
     expect(response.status).toBe(404);
   });
@@ -644,7 +644,7 @@ describe("POST /api/connections/:id/sync", () => {
       "POST",
     );
     const response = await syncPOST(request, {
-      params: Promise.resolve({ id: connId }),
+      params: Promise.resolve({ provider: connId }),
     });
     expect(response.status).toBe(200);
 
@@ -671,7 +671,7 @@ describe("POST /api/connections/:id/sync", () => {
       "POST",
     );
     const response = await syncPOST(request, {
-      params: Promise.resolve({ id: connId }),
+      params: Promise.resolve({ provider: connId }),
     });
     expect(response.status).toBe(409);
 
@@ -690,7 +690,7 @@ describe("POST /api/connections/:id/sync", () => {
       "POST",
     );
     const response = await syncPOST(request, {
-      params: Promise.resolve({ id: connId }),
+      params: Promise.resolve({ provider: connId }),
     });
     expect(response.status).toBe(403);
 

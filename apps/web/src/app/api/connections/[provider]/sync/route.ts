@@ -20,7 +20,7 @@ import { inngest } from "@/inngest/client";
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ provider: string }> },
 ): Promise<NextResponse> {
   try {
     const ctx = getRequestContext(request);
@@ -29,7 +29,8 @@ export async function POST(
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
 
-    const { id } = await params;
+    // The [provider] slug is used as a connection ID for sync operations
+    const { provider: id } = await params;
 
     // Find the connection (only if owned by this user)
     const connections = await db
