@@ -4,7 +4,7 @@
  * Validates the state JWT (extracts userId + provider), exchanges the
  * authorization code for tokens via the provider adapter, encrypts tokens
  * into auth_enc, upserts into provider_connections, emits audit event,
- * and redirects to dashboard.
+ * dispatches Inngest initial sync event, and redirects to dashboard.
  *
  * Auth: None (callback from provider). The state JWT validates the originating user.
  *
@@ -12,12 +12,14 @@
  */
 
 import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
 import { jwtVerify } from "jose";
 import { db } from "@/db";
 import { providerConnections, auditEvents } from "@/db/schema";
 import { createEncryptionProvider } from "@/lib/encryption";
 import { getProvider, isValidProvider } from "@/config/providers";
 import { getAdapter } from "@/lib/integrations/adapters";
+import { inngest } from "@/inngest/client";
 
 /**
  * Get the OAuth state signing secret.
@@ -132,6 +134,18 @@ export async function GET(
         },
       });
 
+    // Query connection ID for the initial sync event (upsert may have updated)
+    const [conn] = await db
+      .select({ id: providerConnections.id })
+      .from(providerConnections)
+      .where(
+        and(
+          eq(providerConnections.userId, userId),
+          eq(providerConnections.provider, provider),
+        ),
+      )
+      .limit(1);
+
     // Emit audit event (fire-and-forget)
     db.insert(auditEvents)
       .values({
@@ -146,6 +160,22 @@ export async function GET(
       .catch((err) => {
         console.error("Failed to emit audit event:", err);
       });
+
+    // Dispatch initial sync via Inngest (fire-and-forget)
+    if (conn) {
+      inngest
+        .send({
+          name: "integration/sync.initial",
+          data: {
+            connectionId: conn.id,
+            userId,
+            provider,
+          },
+        })
+        .catch((err) => {
+          console.error("Failed to dispatch initial sync event:", err);
+        });
+    }
 
     return dashboardRedirect({ connected: provider });
   } catch (error) {

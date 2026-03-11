@@ -38,6 +38,15 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
+// ─── Mock Inngest client ─────────────────────────────────────────────────────
+
+vi.mock("@/inngest/client", () => ({
+  inngest: {
+    id: "totus",
+    send: vi.fn(async () => [{ ids: ["mock-event-id"] }]),
+  },
+}));
+
 // ─── Module-level variables ──────────────────────────────────────────────────
 
 let pool: PoolType;
@@ -626,7 +635,7 @@ describe("POST /api/connections/:id/sync", () => {
     expect(response.status).toBe(404);
   });
 
-  it("triggers sync and generates mock data", async () => {
+  it("dispatches Inngest sync event and returns queued status", async () => {
     const connId = await createProviderConnection(TEST_USER_ID);
 
     const request = createAuthRequest(
@@ -640,22 +649,15 @@ describe("POST /api/connections/:id/sync", () => {
     expect(response.status).toBe(200);
 
     const body = await response.json();
-    expect(body.data.status).toBeDefined();
+    expect(body.data.status).toBe("queued");
+    expect(body.data.message).toContain("Sync dispatched");
 
-    // Check that health data was generated
-    const data = await db
-      .select()
-      .from(healthDataDaily)
-      .where(eq(healthDataDaily.userId, TEST_USER_ID));
-    expect(data.length).toBeGreaterThan(0);
-
-    // Check connection sync status is back to idle
+    // Check connection sync status is set to queued
     const [conn] = await db
       .select()
       .from(providerConnections)
       .where(eq(providerConnections.id, connId));
-    expect(conn.syncStatus).toBe("idle");
-    expect(conn.lastSyncAt).toBeDefined();
+    expect(conn.syncStatus).toBe("queued");
   });
 
   it("returns 409 when already syncing (SYNC_IN_PROGRESS guard)", async () => {

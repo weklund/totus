@@ -24,6 +24,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.45.1",
+    "inngest": "3",
     "jose": "^6.2.1",
     "lucide-react": "^0.577.0",
     "next": "15.3.2",

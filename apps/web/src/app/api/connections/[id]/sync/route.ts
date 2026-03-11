@@ -1,13 +1,13 @@
 /**
  * POST /api/connections/:id/sync — Manually trigger a data sync.
  *
- * Sets sync_status to 'syncing', generates mock health data for 7 days,
- * updates sync_cursor and last_sync_at, then sets sync_status back to 'idle'.
- * Rejects if already syncing (409).
+ * Dispatches an Inngest sync.manual event for background processing.
+ * Rejects if already syncing (409) or connection expired (403).
+ * Sets sync_status to 'queued' while the event is dispatched.
  *
  * Auth: Owner (session required)
  *
- * See: /docs/api-database-lld.md Section 7.2.5
+ * See: /docs/integrations-pipeline-lld.md §7, §8.1
  */
 
 import { NextResponse } from "next/server";
@@ -16,39 +16,7 @@ import { db } from "@/db";
 import { providerConnections, auditEvents } from "@/db/schema";
 import { getRequestContext } from "@/lib/auth/request-context";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
-import { createEncryptionProvider } from "@/lib/encryption";
-import { upsertDailyData, type HealthDataRow } from "@/db/upsert";
-
-/**
- * Metric definitions for mock sync data generation.
- */
-const SYNC_METRICS = [
-  { id: "sleep_score", min: 60, max: 95, decimals: 0 },
-  { id: "hrv", min: 20, max: 80, decimals: 1 },
-  { id: "rhr", min: 50, max: 70, decimals: 0 },
-  { id: "steps", min: 3000, max: 15000, decimals: 0 },
-  { id: "readiness_score", min: 55, max: 98, decimals: 0 },
-  { id: "sleep_duration", min: 5.5, max: 9.0, decimals: 2 },
-  { id: "deep_sleep", min: 0.5, max: 2.5, decimals: 2 },
-  { id: "active_calories", min: 150, max: 800, decimals: 0 },
-] as const;
-
-const SYNC_DAYS = 7;
-
-/**
- * Generate a random value in range with given precision.
- */
-function generateValue(min: number, max: number, decimals: number): number {
-  const value = min + Math.random() * (max - min);
-  return Number(value.toFixed(decimals));
-}
-
-/**
- * Format a Date as YYYY-MM-DD.
- */
-function formatDate(d: Date): string {
-  return d.toISOString().split("T")[0]!;
-}
+import { inngest } from "@/inngest/client";
 
 export async function POST(
   request: Request,
@@ -99,105 +67,48 @@ export async function POST(
       );
     }
 
-    // Set status to syncing
+    // Set status to queued
     await db
       .update(providerConnections)
-      .set({ syncStatus: "syncing", updatedAt: new Date() })
+      .set({ syncStatus: "queued", syncError: null, updatedAt: new Date() })
       .where(eq(providerConnections.id, id));
 
-    try {
-      // Generate mock data for the last 7 days
-      const encryption = createEncryptionProvider();
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+    // Dispatch Inngest manual sync event
+    await inngest.send({
+      name: "integration/sync.manual",
+      data: {
+        connectionId: id,
+        userId: ctx.userId,
+        provider: connection.provider,
+      },
+    });
 
-      const rows: HealthDataRow[] = [];
-
-      for (const metric of SYNC_METRICS) {
-        for (let dayOffset = 0; dayOffset < SYNC_DAYS; dayOffset++) {
-          const date = new Date(today);
-          date.setDate(date.getDate() - dayOffset);
-          const dateStr = formatDate(date);
-
-          const value = generateValue(metric.min, metric.max, metric.decimals);
-
-          const encrypted = await encryption.encrypt(
-            Buffer.from(JSON.stringify(value)),
-            ctx.userId,
-          );
-
-          rows.push({
-            userId: ctx.userId,
-            metricType: metric.id,
-            date: dateStr,
-            valueEncrypted: encrypted,
-            source: connection.provider,
-            sourceId: `${connection.provider}_${metric.id}_${dateStr}`,
-          });
-        }
-      }
-
-      // Batch upsert data
-      await upsertDailyData(db, rows);
-
-      // Update connection: set sync cursor, last_sync_at, status back to idle
-      const now = new Date();
-      await db
-        .update(providerConnections)
-        .set({
-          syncStatus: "idle",
-          lastSyncAt: now,
-          dailyCursor: formatDate(today),
-          syncError: null,
-          updatedAt: now,
-        })
-        .where(eq(providerConnections.id, id));
-
-      // Emit audit event (fire-and-forget)
-      db.insert(auditEvents)
-        .values({
-          ownerId: ctx.userId,
-          actorType: "owner",
-          actorId: ctx.userId,
-          eventType: "data.synced",
-          resourceType: "connection",
-          resourceDetail: {
-            connection_id: id,
-            provider: connection.provider,
-            days_synced: SYNC_DAYS,
-            metrics_synced: SYNC_METRICS.length,
-            rows_upserted: rows.length,
-          },
-          ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
-        })
-        .catch((err) => {
-          console.error("Failed to emit audit event:", err);
-        });
-
-      return NextResponse.json({
-        data: {
-          sync_id: `sync_${Date.now()}`,
-          status: "completed",
-          message: `Synced ${rows.length} data points across ${SYNC_METRICS.length} metrics for the last ${SYNC_DAYS} days`,
-          rows_synced: rows.length,
+    // Emit audit event (fire-and-forget)
+    db.insert(auditEvents)
+      .values({
+        ownerId: ctx.userId,
+        actorType: "owner",
+        actorId: ctx.userId,
+        eventType: "data.synced",
+        resourceType: "connection",
+        resourceDetail: {
+          connection_id: id,
+          provider: connection.provider,
+          trigger: "manual",
         },
+        ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
+      })
+      .catch((err) => {
+        console.error("Failed to emit audit event:", err);
       });
-    } catch (syncError) {
-      // On error, set status back to error
-      await db
-        .update(providerConnections)
-        .set({
-          syncStatus: "error",
-          syncError:
-            syncError instanceof Error
-              ? syncError.message
-              : "Unknown sync error",
-          updatedAt: new Date(),
-        })
-        .where(eq(providerConnections.id, id));
 
-      throw syncError;
-    }
+    return NextResponse.json({
+      data: {
+        sync_id: `sync_${Date.now()}`,
+        status: "queued",
+        message: `Sync dispatched for ${connection.provider} connection`,
+      },
+    });
   } catch (error) {
     return createErrorResponse(error);
   }
