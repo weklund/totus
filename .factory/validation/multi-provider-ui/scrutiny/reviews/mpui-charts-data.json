@@ -1,0 +1,45 @@
+{
+  "featureId": "mpui-charts-data",
+  "reviewedAt": "2026-03-11T13:45:00.000Z",
+  "commitId": "4cac50d51956834045dbc62baf5e03855c06b841",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation covering all 7 feature requirements. Created useSeriesData and usePeriodsData hooks, SourceBadge component, IntradayChart (Recharts AreaChart with glucose reference lines and downsampling), PeriodTimeline (sleep stage hypnogram and workout/meal event cards), updated MetricSelector with source badges, and refactored ChartGrid to partition metrics by dataType. 25 new tests all passing, typecheck and lint clean. Two non-blocking issues identified.",
+    "issues": [
+      {
+        "file": "apps/web/src/components/dashboard/ChartGrid.tsx",
+        "line": 250,
+        "severity": "non_blocking",
+        "description": "SeriesChartWrapper and PeriodTimelineWrapper only destructure { data, isLoading } from their hooks, ignoring the `error` state. If the /api/health-data/series or /api/health-data/periods endpoints fail, the user sees the empty state ('No intraday data available') rather than an error message with retry. This makes network errors indistinguishable from genuinely empty data. Consider destructuring `error` and showing ErrorCard or a retry prompt."
+      },
+      {
+        "file": "apps/web/src/components/dashboard/PeriodTimeline.tsx",
+        "line": 102,
+        "severity": "non_blocking",
+        "description": "Sleep stage grouping uses format(started_at, 'yyyy-MM-dd') to bucket stages by night. Sleep sessions that span midnight will have stages split across two date groups (e.g., stages starting at 23:00 on Jan 1 grouped under Jan 1, but stages starting at 00:30 on Jan 2 grouped under Jan 2). This could create two separate night rows for what's actually a single sleep session. A common fix is to use the sleep session's start date for all stages, or group by a threshold like 6 AM."
+      },
+      {
+        "file": "apps/web/src/components/dashboard/MetricSelector.tsx",
+        "line": 127,
+        "severity": "non_blocking",
+        "description": "IIFE pattern `{(() => { ... })()}` inside JSX for rendering source badges reduces readability. Consider extracting into a small helper component or computing the multi-provider check in useMemo. This is a style concern only."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "Worker's skillFeedback.suggestedChanges notes that the seed user (user_test_001) is not directly accessible via mock auth since mock auth generates IDs from emails. For browser testing with seeded data, you need to either create a connection for the mock auth user or use the x-request-context header pattern. The frontend-worker skill doesn't document this, causing workers to spend time figuring out auth/data setup for interactive verification.",
+      "evidence": "Handoff skillFeedback.suggestedChanges: 'The skill could mention that the seed user (user_test_001) is not directly accessible via mock auth since mock auth generates IDs from emails.' Interactive check showed EmptyDashboard because mock auth user had no connections/data."
+    },
+    {
+      "area": "conventions",
+      "observation": "SourceBadge defines its own PROVIDER_COLORS map (7 providers with hex colors) while config/providers.ts already has a provider registry with display names. The provider color mapping could be centralized in the provider config to avoid duplication if more components need provider colors in the future.",
+      "evidence": "apps/web/src/components/dashboard/SourceBadge.tsx:63-71 defines PROVIDER_COLORS. apps/web/src/config/providers.ts:383 has getProvider() returning ProviderConfig with displayName. Colors are not in the existing config."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature mpui-charts-data passes review. All 7 requirements are fully implemented: useSeriesData/usePeriodsData hooks with TanStack Query, SourceBadge component with provider color dots, IntradayChart with Recharts AreaChart (including glucose reference lines and hourly downsampling), PeriodTimeline with sleep stage hypnogram and workout/meal event cards, MetricSelector source badges for multi-provider metrics, and ChartGrid refactored to partition by dataType. Loading skeletons and empty states are present on all new components. 25 new tests cover hooks and components thoroughly. Two non-blocking issues: series/period wrapper components don't surface API errors (showing empty state instead), and sleep stage date grouping could split midnight-spanning sessions. One skill gap noted regarding mock auth test user documentation."
+}

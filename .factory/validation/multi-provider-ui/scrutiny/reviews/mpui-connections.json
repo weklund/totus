@@ -1,0 +1,56 @@
+{
+  "featureId": "mpui-connections",
+  "reviewedAt": "2026-03-11T13:30:00.000Z",
+  "commitId": "665fcde",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation covering all 9 feature requirements. Created 3 new components (ProviderConnectionCard, AddProviderDialog, ProviderConnectionBar) and updated 6 existing files. Provider names are fully dynamic via getProvider() from the centralized config. Status badges, Coming Soon behavior, Reconnect for expired/error, OAuth error toasts, and the useConnections hook update are all correctly implemented. 46 new tests across 6 files provide good coverage. Uses existing patterns (TanStack Query, sonner, shadcn/ui, Tailwind). A few minor non-blocking issues noted below.",
+    "issues": [
+      {
+        "file": "apps/web/src/components/settings/ConnectionsManager.tsx",
+        "line": 52,
+        "severity": "non_blocking",
+        "description": "Dead code: `.slice(0, 0)` creates an intentional no-op with a comment explaining the rationale, but the entire filter/slice/map chain produces no output. It would be cleaner to remove the block entirely rather than leave code that maps over a guaranteed-empty array."
+      },
+      {
+        "file": "apps/web/src/components/dashboard/DashboardContent.tsx",
+        "line": 122,
+        "severity": "non_blocking",
+        "description": "OAuth error parsing regex `^(\\w+)_(?:connect_failed|state_invalid)$` only matches two specific error suffixes. Other possible backend errors (e.g. 'oura_token_expired', 'oura_rate_limited') would fall through to displaying the raw error string. This is a reasonable safety net but could be more resilient with a broader pattern like `^(\\w+)_(.+)$` to extract provider name from any underscore-prefixed error."
+      },
+      {
+        "file": "apps/web/src/components/dashboard/ProviderConnectionBar.tsx",
+        "line": 44,
+        "severity": "non_blocking",
+        "description": "Missing status indicator for 'paused' connections. The component renders green dot for active, yellow for expired, and red for error, but no indicator for the 'paused' status that is defined in the Connection type. A paused connection pill will render with no status dot."
+      },
+      {
+        "file": "apps/web/src/components/dashboard/AddProviderDialog.tsx",
+        "line": 131,
+        "severity": "non_blocking",
+        "description": "Coming Soon providers are styled with cursor-default and opacity-60 but are not actually disabled — they are clickable buttons that show an info toast. While functionally correct (toast fires, no OAuth started), the UX is slightly inconsistent: they look dimmed but respond to clicks. Consider adding aria-label or visual affordance to clarify they're informational-only."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "ConnectionsManager uses a `.slice(0, 0)` pattern to disable rendering of unconnected provider cards inline while keeping the code 'available' for future use. This dead-code-as-documentation pattern is not mentioned in AGENTS.md or coding conventions. Other workers encountering it may try to 'fix' or remove it without understanding the intent.",
+      "evidence": "apps/web/src/components/settings/ConnectionsManager.tsx:52-63 — `.filter(...).slice(0, 0) /* Don't show unconnected cards inline — use dialog instead */`"
+    },
+    {
+      "area": "knowledge",
+      "observation": "AddProviderDialog.tsx hardcodes `IMPLEMENTED_PROVIDERS = new Set<ProviderId>(['oura'])` to gate which providers can start OAuth. When a new provider adapter becomes fully implemented, this set must be updated. This is not documented in the library or AGENTS.md, and future workers implementing new provider adapters may not know to update the frontend gate.",
+      "evidence": "apps/web/src/components/dashboard/AddProviderDialog.tsx:27 — `const IMPLEMENTED_PROVIDERS = new Set<ProviderId>(['oura']);`"
+    },
+    {
+      "area": "skills",
+      "observation": "Worker followed the frontend-worker skill procedure faithfully: read design docs, read existing code, wrote tests, implemented, ran all verification commands (test/typecheck/lint), and performed manual verification with agent-browser. Skill feedback confirms followedProcedure=true with no deviations.",
+      "evidence": "Handoff skillFeedback.followedProcedure=true, verification.commandsRun shows all 3 verification commands passed, interactiveChecks shows 6 manual browser verifications."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature mpui-connections passes review. All 9 requirements are correctly implemented: ProviderConnectionCard is fully generic with dynamic provider names, AddProviderDialog shows a 7-provider grid with Connected/Coming Soon badges, ProviderConnectionBar renders dashboard pills with status dots, ConnectionsManager and EmptyDashboard are updated for multi-provider, Coming Soon click shows info toast without OAuth, expired/error states show Reconnect, OAuth error callback shows provider-specific toasts, and useConnections returns the new multi-provider API shape. 46 tests cover all new components and hook. Four non-blocking issues noted: dead code in ConnectionsManager (.slice(0,0) pattern), narrow OAuth error regex, missing paused status dot in connection bar, and Coming Soon buttons not visually disabled. No blocking issues."
+}

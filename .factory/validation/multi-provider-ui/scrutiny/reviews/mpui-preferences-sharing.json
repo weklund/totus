@@ -1,0 +1,39 @@
+{
+  "featureId": "mpui-preferences-sharing",
+  "reviewedAt": "2026-03-11T14:15:00.000Z",
+  "commitId": "932756e",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation covering all 6 feature requirements: source preferences UI with per-metric dropdowns, 3 source preference hooks, share wizard period event types, API key management (list/create/revoke), 3 API key hooks, and key-shown-once flow. Code follows existing patterns (TanStack Query, shadcn/ui, Tailwind, query-keys registry). 22 new tests covering hooks and components with loading/error/data states. Two non-blocking issues identified.",
+    "issues": [
+      {
+        "file": "apps/web/src/components/share/ShareWizardStepMetrics.tsx",
+        "line": 20,
+        "severity": "non_blocking",
+        "description": "PERIOD_EVENT_TYPES hardcodes plural labels ('Sleep Stages', 'Workouts', 'Meals') while the metric config registry uses singular ('Sleep Stage', 'Workout', 'Meal'). When a period metric is NOT in availableMetrics but IS in the config, the fallback path uses the hardcoded plural label, creating an inconsistency with the canonical metric registry. Should use the metric config's label for consistency: `label: metricConfig.label` instead of `pet.label`."
+      },
+      {
+        "file": "apps/web/src/app/dashboard/settings/page.tsx",
+        "line": 64,
+        "severity": "non_blocking",
+        "description": "Suspense boundary wraps ApiKeysSection, but the component uses useQuery without `suspense: true`, so it handles loading internally with skeleton states. The Suspense fallback will never actually trigger. Harmless but misleading — either enable suspense mode in the query or remove the Suspense wrapper for clarity."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "Frontend-worker skill procedure step 7 requires manual verification with agent-browser for every user-visible page/flow, and step 8 requires updating .factory/library/architecture.md. The worker skipped both — no interactiveChecks in the handoff and no library update. The worker self-reported followedProcedure: true. The skip was justified because backend routes (/api/metric-preferences, /api/keys) don't exist yet, making agent-browser verification impossible. However, the skill procedure doesn't account for this scenario (frontend built ahead of backend). The skill should document how to handle verification when backend dependencies aren't available yet.",
+      "evidence": "Handoff has no interactiveChecks field. handoff.whatWasLeftUndone notes: 'API key backend routes (/api/keys) don't exist yet'. Skill SKILL.md step 7 says 'For every user-visible page or flow: Start bun dev... Use agent-browser to navigate'. .factory/library/architecture.md was not updated."
+    },
+    {
+      "area": "conventions",
+      "observation": "The implementation hardcodes available API scopes in CreateApiKeyDialog.tsx (AVAILABLE_SCOPES constant). If the backend defines a different set of scopes, they'll drift out of sync. Consider whether scope definitions should live in a shared config (like metrics.ts or providers.ts patterns) rather than being embedded in a single dialog component.",
+      "evidence": "apps/web/src/components/settings/CreateApiKeyDialog.tsx lines 20-65 define 10 scopes inline. No corresponding shared config or backend contract file defines the canonical scope list."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature passes review. All 6 requirements are fully implemented: SourcePreferencesSection with per-metric dropdowns using useSourcePreferences/useSetSourcePreference/useClearSourcePreference hooks, share wizard StepMetrics updated with period event types (sleep_stage, workout, meal), and complete API key management UI (ApiKeysSection, CreateApiKeyDialog with scope selector, RevokeApiKeyDialog with AlertDialog confirmation, CreatedKeyBanner with copy-once flow). 22 tests added covering hooks and components. Two non-blocking issues: plural label inconsistency in period event type fallback labels, and a redundant Suspense boundary. The api.put() addition and query-keys extensions follow established patterns. Backend routes are correctly noted as not yet available (parallel api-keys milestone)."
+}

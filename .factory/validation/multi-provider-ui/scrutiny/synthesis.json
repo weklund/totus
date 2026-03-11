@@ -1,0 +1,117 @@
+{
+  "milestone": "multi-provider-ui",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "bun --filter '@totus/web' test",
+      "exitCode": 0,
+      "details": "74 test files, 912 tests passed"
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "bun --filter '*' typecheck",
+      "exitCode": 0,
+      "details": "Both @totus/web and @totus/cli pass"
+    },
+    "lint": {
+      "passed": true,
+      "command": "bun --filter '@totus/web' lint",
+      "exitCode": 0,
+      "details": "No ESLint warnings or errors"
+    }
+  },
+  "reviewsSummary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "nonBlockingIssues": [
+    {
+      "featureId": "mpui-connections",
+      "severity": "non_blocking",
+      "description": "Dead code in ConnectionsManager.tsx: .slice(0,0) pattern creates a no-op chain. Should be removed entirely."
+    },
+    {
+      "featureId": "mpui-connections",
+      "severity": "non_blocking",
+      "description": "OAuth error parsing regex is narrow — only matches _connect_failed and _state_invalid suffixes. Other error patterns would display raw strings."
+    },
+    {
+      "featureId": "mpui-connections",
+      "severity": "non_blocking",
+      "description": "Missing paused status indicator in ProviderConnectionBar. Paused connections render without a status dot."
+    },
+    {
+      "featureId": "mpui-connections",
+      "severity": "non_blocking",
+      "description": "Coming Soon buttons have opacity-60 but are still clickable (toast fires). Consider adding disabled visual affordance or aria-label."
+    },
+    {
+      "featureId": "mpui-charts-data",
+      "severity": "non_blocking",
+      "description": "SeriesChartWrapper and PeriodTimelineWrapper ignore error state from hooks. API errors show empty state instead of error message with retry."
+    },
+    {
+      "featureId": "mpui-charts-data",
+      "severity": "non_blocking",
+      "description": "Sleep stage date grouping uses format(started_at, 'yyyy-MM-dd') which splits midnight-spanning sessions across two date groups."
+    },
+    {
+      "featureId": "mpui-charts-data",
+      "severity": "non_blocking",
+      "description": "IIFE pattern in MetricSelector JSX for source badges reduces readability. Could extract into helper component."
+    },
+    {
+      "featureId": "mpui-preferences-sharing",
+      "severity": "non_blocking",
+      "description": "Period event type labels use hardcoded plurals ('Sleep Stages') while metric config registry uses singular ('Sleep Stage'). Label inconsistency in fallback path."
+    },
+    {
+      "featureId": "mpui-preferences-sharing",
+      "severity": "non_blocking",
+      "description": "Redundant Suspense boundary wraps ApiKeysSection, but the component uses useQuery without suspense: true, so the Suspense fallback never triggers."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Document that AddProviderDialog.tsx has an IMPLEMENTED_PROVIDERS set that gates which providers can start OAuth. When a new provider adapter is fully implemented, workers must update this set in addition to the backend adapter.",
+      "evidence": "Feature mpui-connections: apps/web/src/components/dashboard/AddProviderDialog.tsx:27 defines const IMPLEMENTED_PROVIDERS = new Set<ProviderId>(['oura']). This is a hidden frontend gate that's easy to miss when implementing new providers.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add guidance for frontend-worker skill: when backend routes don't exist yet (e.g. frontend built ahead of backend in parallel milestones), skip agent-browser manual verification and document it explicitly in handoff.whatWasLeftUndone.",
+      "evidence": "Feature mpui-preferences-sharing worker built API key UI ahead of api-keys-backend milestone. Could not verify with agent-browser because /api/keys routes didn't exist. Skill procedure requires manual browser verification but doesn't account for this scenario.",
+      "isSystemic": true
+    },
+    {
+      "target": "library",
+      "suggestion": "Add API scope definitions to a shared config file (e.g. src/config/scopes.ts) rather than having them hardcoded in CreateApiKeyDialog.tsx. Both the backend api-keys implementation and the frontend need to agree on the scope list.",
+      "evidence": "Feature mpui-preferences-sharing: CreateApiKeyDialog.tsx lines 20-65 hardcode 10 scopes. When api-keys-backend is implemented, scope definitions will need to match. No shared source of truth exists.",
+      "isSystemic": false
+    },
+    {
+      "target": "library",
+      "suggestion": "Consider centralizing provider color mapping in config/providers.ts alongside the provider registry, rather than having SourceBadge define its own PROVIDER_COLORS map. Multiple components may need provider colors as the UI grows.",
+      "evidence": "Feature mpui-charts-data: SourceBadge.tsx:63-71 defines PROVIDER_COLORS independently from config/providers.ts which already has the provider registry.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "ConnectionsManager uses .slice(0,0) pattern as dead-code-as-documentation. Reviewer suggested documenting this convention.",
+      "reason": "This is a one-off dead code pattern that should be removed, not documented as a convention. Adding it to AGENTS.md would legitimize keeping dead code."
+    },
+    {
+      "observation": "Skill procedure doesn't document that seed user (user_test_001) is not accessible via mock auth since IDs are generated from emails.",
+      "reason": "already-documented — .factory/library/environment.md and AGENTS.md testing section cover mock auth patterns. The seed user ID discrepancy is a known test data concern, not a skill procedure gap."
+    }
+  ],
+  "previousRound": null
+}
