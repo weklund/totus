@@ -19,6 +19,10 @@ import { apiKeys, auditEvents } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { parseApiKey, verifyLongToken } from "./api-keys";
 import type { RequestContext } from "./request-context";
+import {
+  apiKeyGeneralRateLimiter,
+  createRateLimitResponse,
+} from "@/lib/api/rate-limit";
 
 const API_KEY_HEADER = "x-api-key-token";
 
@@ -116,6 +120,10 @@ export async function resolveApiKeyAuth(
  * This is a convenience wrapper that combines getRequestContext() with
  * resolveApiKeyAuth(). Use this instead of getRequestContext() in route
  * handlers that should support API key auth.
+ *
+ * When the resolved auth method is 'api_key', the general API key rate limiter
+ * is checked. If the rate limit is exceeded, the `_rateLimited` field is set
+ * on the context so that callers can return a 429 response.
  */
 export async function getResolvedContext(
   request: Request,
@@ -133,8 +141,37 @@ export async function getResolvedContext(
         authMethod: "none",
       };
     }
+
+    // Apply the general API key rate limiter
+    const rateLimitKey = resolved.apiKeyId ?? resolved.userId ?? "unknown";
+    const rateLimitResult = apiKeyGeneralRateLimiter.check(rateLimitKey);
+    if (!rateLimitResult.allowed) {
+      resolved._rateLimited = rateLimitResult;
+    }
+
     return resolved;
   }
 
   return ctx;
+}
+
+/**
+ * Check if the resolved context was rate-limited.
+ * If rate-limited, returns a NextResponse with 429 status and rate limit headers.
+ * Otherwise returns null.
+ *
+ * Usage in route handlers:
+ * ```ts
+ * const ctx = await getResolvedContext(request);
+ * const rateLimitResponse = checkApiKeyRateLimit(ctx);
+ * if (rateLimitResponse) return rateLimitResponse;
+ * ```
+ */
+export function checkApiKeyRateLimit(
+  ctx: RequestContext,
+): ReturnType<typeof createRateLimitResponse> | null {
+  if (ctx._rateLimited) {
+    return createRateLimitResponse(ctx._rateLimited);
+  }
+  return null;
 }

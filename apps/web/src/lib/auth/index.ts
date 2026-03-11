@@ -51,7 +51,11 @@ export {
 export type { RequestedScope, EffectiveScope } from "./permissions";
 
 // API key resolution for route handlers
-export { resolveApiKeyAuth, getResolvedContext } from "./resolve-api-key";
+export {
+  resolveApiKeyAuth,
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "./resolve-api-key";
 
 // API keys
 export {

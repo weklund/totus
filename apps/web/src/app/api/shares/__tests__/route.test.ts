@@ -198,6 +198,31 @@ function createUnauthRequest(
   return new Request(url, init);
 }
 
+function createApiKeyRequest(
+  url: string,
+  userId: string,
+  scopes: string[],
+  method: string = "GET",
+  body?: unknown,
+): Request {
+  const headers = new Headers({
+    "x-request-context": JSON.stringify({
+      role: "owner",
+      userId,
+      permissions: "full",
+      authMethod: "api_key",
+      apiKeyId: "test-api-key-id",
+      scopes,
+    }),
+    "Content-Type": "application/json",
+  });
+  const init: RequestInit = { method, headers };
+  if (body) {
+    init.body = JSON.stringify(body);
+  }
+  return new Request(url, init);
+}
+
 function validShareBody(overrides: Record<string, unknown> = {}) {
   return {
     label: "For Dr. Patel - annual checkup",
@@ -1060,5 +1085,120 @@ describe("DELETE /api/shares/:id", () => {
       );
 
     expect(events.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ─── API Key Auth ────────────────────────────────────────────────────────────
+
+describe("API key scope enforcement on shares", () => {
+  it("POST /api/shares returns 403 INSUFFICIENT_SCOPES with read-only API key", async () => {
+    const request = createApiKeyRequest(
+      "http://localhost:3000/api/shares",
+      TEST_USER_ID,
+      ["health:read"],
+      "POST",
+      validShareBody(),
+    );
+    const response = await createPOST(request);
+    expect(response.status).toBe(403);
+
+    const body = await response.json();
+    expect(body.error.code).toBe("INSUFFICIENT_SCOPES");
+    expect(body.error.message).toContain("shares:write");
+  });
+
+  it("POST /api/shares succeeds with shares:write scope", async () => {
+    const request = createApiKeyRequest(
+      "http://localhost:3000/api/shares",
+      TEST_USER_ID,
+      ["health:read", "shares:write"],
+      "POST",
+      validShareBody(),
+    );
+    const response = await createPOST(request);
+    expect(response.status).toBe(201);
+
+    const body = await response.json();
+    expect(body.data.id).toBeDefined();
+    expect(body.data.token).toBeDefined();
+  });
+
+  it("GET /api/shares returns 403 INSUFFICIENT_SCOPES without shares:read scope", async () => {
+    const request = createApiKeyRequest(
+      "http://localhost:3000/api/shares",
+      TEST_USER_ID,
+      ["health:read"],
+    );
+    const response = await listGET(request);
+    expect(response.status).toBe(403);
+
+    const body = await response.json();
+    expect(body.error.code).toBe("INSUFFICIENT_SCOPES");
+    expect(body.error.message).toContain("shares:read");
+  });
+
+  it("GET /api/shares succeeds with shares:read scope", async () => {
+    // Create a share first
+    await createShareGrant(TEST_USER_ID);
+
+    const request = createApiKeyRequest(
+      "http://localhost:3000/api/shares",
+      TEST_USER_ID,
+      ["shares:read"],
+    );
+    const response = await listGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.data).toHaveLength(1);
+  });
+
+  it("PATCH /api/shares/:id returns 403 without shares:write scope", async () => {
+    const grantId = await createShareGrant(TEST_USER_ID);
+
+    const request = createApiKeyRequest(
+      `http://localhost:3000/api/shares/${grantId}`,
+      TEST_USER_ID,
+      ["shares:read"],
+      "PATCH",
+      { action: "revoke" },
+    );
+    const response = await revokePATCH(request, {
+      params: Promise.resolve({ id: grantId }),
+    });
+    expect(response.status).toBe(403);
+
+    const body = await response.json();
+    expect(body.error.code).toBe("INSUFFICIENT_SCOPES");
+  });
+
+  it("DELETE /api/shares/:id returns 403 without shares:write scope", async () => {
+    const grantId = await createShareGrant(TEST_USER_ID);
+
+    // Revoke first (as session user)
+    const revokeReq = createAuthRequest(
+      `http://localhost:3000/api/shares/${grantId}`,
+      TEST_USER_ID,
+      "PATCH",
+      { action: "revoke" },
+    );
+    await revokePATCH(revokeReq, {
+      params: Promise.resolve({ id: grantId }),
+    });
+
+    // Try to delete with read-only API key
+    const request = createApiKeyRequest(
+      `http://localhost:3000/api/shares/${grantId}`,
+      TEST_USER_ID,
+      ["shares:read"],
+      "DELETE",
+    );
+    const response = await deleteDELETE(request, {
+      params: Promise.resolve({ id: grantId }),
+    });
+    expect(response.status).toBe(403);
+
+    const body = await response.json();
+    expect(body.error.code).toBe("INSUFFICIENT_SCOPES");
   });
 });

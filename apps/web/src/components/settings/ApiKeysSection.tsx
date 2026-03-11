@@ -47,8 +47,8 @@ export function ApiKeysSection() {
   }
 
   const keys = data?.data ?? [];
-  const activeKeys = keys.filter((k) => !k.revoked_at);
-  const revokedKeys = keys.filter((k) => k.revoked_at);
+  const activeKeys = keys.filter((k) => k.status !== "revoked");
+  const revokedKeys = keys.filter((k) => k.status === "revoked");
 
   return (
     <div className="space-y-4" data-testid="api-keys-section">
@@ -135,7 +135,7 @@ interface ApiKeyRowProps {
 }
 
 function ApiKeyRow({ apiKey, onRevoke }: ApiKeyRowProps) {
-  const isRevoked = !!apiKey.revoked_at;
+  const isRevoked = apiKey.status === "revoked";
 
   return (
     <div

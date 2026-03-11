@@ -16,6 +16,7 @@ export interface ApiKey {
   name: string;
   short_token: string;
   scopes: string[];
+  status: "active" | "expired" | "revoked";
   expires_at: string | null;
   last_used_at: string | null;
   revoked_at: string | null;

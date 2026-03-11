@@ -43,6 +43,7 @@ describe("useApiKeys", () => {
           name: "CLI key",
           short_token: "tot_live",
           scopes: ["health:read"],
+          status: "active",
           expires_at: null,
           last_used_at: null,
           revoked_at: null,

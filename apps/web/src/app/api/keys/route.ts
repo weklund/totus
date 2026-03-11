@@ -14,7 +14,10 @@ import { and, eq, isNull, sql, desc } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { apiKeys, auditEvents } from "@/db/schema";
-import { getResolvedContext } from "@/lib/auth/resolve-api-key";
+import {
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "@/lib/auth/resolve-api-key";
 import { createErrorResponse, ApiError, validateRequest } from "@/lib/api";
 import {
   generateApiKey,
@@ -69,6 +72,10 @@ function computeStatus(
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const ctx = await getResolvedContext(request);
+
+    // Check general API key rate limit
+    const rateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (rateLimitResponse) return rateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
@@ -182,6 +189,10 @@ export async function POST(request: Request): Promise<NextResponse> {
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     const ctx = await getResolvedContext(request);
+
+    // Check general API key rate limit
+    const rateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (rateLimitResponse) return rateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);

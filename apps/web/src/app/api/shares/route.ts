@@ -14,13 +14,20 @@ import { and, eq, isNotNull, isNull, sql, desc } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { shareGrants, auditEvents } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
+import {
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "@/lib/auth/resolve-api-key";
+import { enforceScope } from "@/lib/auth/permissions";
 import {
   createErrorResponse,
   ApiError,
   validateRequest,
   paginateResults,
   decodeCursor,
+  apiKeyWriteRateLimiter,
+  apiKeyReadRateLimiter,
+  createRateLimitResponse,
 } from "@/lib/api";
 import { generateShareToken } from "@/lib/auth/viewer";
 import { METRIC_TYPE_IDS } from "@/config/metrics";
@@ -80,10 +87,27 @@ function computeStatus(
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+
+    // Check general API key rate limit
+    const generalRateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (generalRateLimitResponse) return generalRateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
+    }
+
+    // If authenticated via API key, require shares:write scope
+    if (ctx.authMethod === "api_key") {
+      enforceScope(ctx, "shares:write");
+
+      // Apply API key write rate limit
+      const rateLimitResult = apiKeyWriteRateLimiter.check(
+        ctx.apiKeyId ?? ctx.userId,
+      );
+      if (!rateLimitResult.allowed) {
+        return createRateLimitResponse(rateLimitResult);
+      }
     }
 
     // Parse and validate body
@@ -149,10 +173,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       .returning();
 
     // Emit audit event (fire-and-forget)
+    const actorType = ctx.authMethod === "api_key" ? "api_key" : "owner";
     db.insert(auditEvents)
       .values({
         ownerId: ctx.userId,
-        actorType: "owner",
+        actorType,
         actorId: ctx.userId,
         grantId: grant.id,
         eventType: "share.created",
@@ -197,10 +222,27 @@ export async function POST(request: Request): Promise<NextResponse> {
 
 export async function GET(request: Request): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+
+    // Check general API key rate limit
+    const generalRateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (generalRateLimitResponse) return generalRateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
+    }
+
+    // If authenticated via API key, require shares:read scope
+    if (ctx.authMethod === "api_key") {
+      enforceScope(ctx, "shares:read");
+
+      // Apply API key read rate limit
+      const rateLimitResult = apiKeyReadRateLimiter.check(
+        ctx.apiKeyId ?? ctx.userId,
+      );
+      if (!rateLimitResult.allowed) {
+        return createRateLimitResponse(rateLimitResult);
+      }
     }
 
     // Parse query parameters

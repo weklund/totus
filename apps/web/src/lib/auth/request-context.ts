@@ -33,6 +33,8 @@ export interface RequestContext {
   apiKeyId?: string;
   /** Scopes granted by the API key. Present only when authMethod='api_key' */
   scopes?: string[];
+  /** Set by getResolvedContext() when the general API key rate limit is exceeded */
+  _rateLimited?: import("@/lib/api/rate-limit").RateLimitResult;
 }
 
 /**

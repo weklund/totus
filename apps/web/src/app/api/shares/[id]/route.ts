@@ -15,8 +15,19 @@ import { and, eq, desc } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { shareGrants, auditEvents } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
-import { createErrorResponse, ApiError, validateRequest } from "@/lib/api";
+import {
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "@/lib/auth/resolve-api-key";
+import { enforceScope } from "@/lib/auth/permissions";
+import {
+  createErrorResponse,
+  ApiError,
+  validateRequest,
+  apiKeyReadRateLimiter,
+  apiKeyWriteRateLimiter,
+  createRateLimitResponse,
+} from "@/lib/api";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -62,10 +73,26 @@ export async function GET(
   context: RouteContext,
 ): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+
+    // Check general API key rate limit
+    const generalRateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (generalRateLimitResponse) return generalRateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
+    }
+
+    // If authenticated via API key, require shares:read scope
+    if (ctx.authMethod === "api_key") {
+      enforceScope(ctx, "shares:read");
+
+      const rateLimitResult = apiKeyReadRateLimiter.check(
+        ctx.apiKeyId ?? ctx.userId,
+      );
+      if (!rateLimitResult.allowed) {
+        return createRateLimitResponse(rateLimitResult);
+      }
     }
 
     const { id } = await context.params;
@@ -157,10 +184,26 @@ export async function PATCH(
   context: RouteContext,
 ): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+
+    // Check general API key rate limit
+    const patchRateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (patchRateLimitResponse) return patchRateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
+    }
+
+    // If authenticated via API key, require shares:write scope
+    if (ctx.authMethod === "api_key") {
+      enforceScope(ctx, "shares:write");
+
+      const rateLimitResult = apiKeyWriteRateLimiter.check(
+        ctx.apiKeyId ?? ctx.userId,
+      );
+      if (!rateLimitResult.allowed) {
+        return createRateLimitResponse(rateLimitResult);
+      }
     }
 
     const { id } = await context.params;
@@ -206,10 +249,11 @@ export async function PATCH(
       .returning();
 
     // Emit audit event (fire-and-forget)
+    const actorType = ctx.authMethod === "api_key" ? "api_key" : "owner";
     db.insert(auditEvents)
       .values({
         ownerId: ctx.userId,
-        actorType: "owner",
+        actorType,
         actorId: ctx.userId,
         grantId: grant.id,
         eventType: "share.revoked",
@@ -241,10 +285,26 @@ export async function DELETE(
   context: RouteContext,
 ): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+
+    // Check general API key rate limit
+    const deleteRateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (deleteRateLimitResponse) return deleteRateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
+    }
+
+    // If authenticated via API key, require shares:write scope
+    if (ctx.authMethod === "api_key") {
+      enforceScope(ctx, "shares:write");
+
+      const rateLimitResult = apiKeyWriteRateLimiter.check(
+        ctx.apiKeyId ?? ctx.userId,
+      );
+      if (!rateLimitResult.allowed) {
+        return createRateLimitResponse(rateLimitResult);
+      }
     }
 
     const { id } = await context.params;
@@ -277,10 +337,11 @@ export async function DELETE(
     await db.delete(shareGrants).where(eq(shareGrants.id, id));
 
     // Emit audit event (fire-and-forget)
+    const deleteActorType = ctx.authMethod === "api_key" ? "api_key" : "owner";
     db.insert(auditEvents)
       .values({
         ownerId: ctx.userId,
-        actorType: "owner",
+        actorType: deleteActorType,
         actorId: ctx.userId,
         grantId: grant.id,
         eventType: "share.deleted",

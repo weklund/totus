@@ -13,7 +13,10 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { apiKeys, auditEvents } from "@/db/schema";
-import { getResolvedContext } from "@/lib/auth/resolve-api-key";
+import {
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "@/lib/auth/resolve-api-key";
 import { createErrorResponse, ApiError, validateRequest } from "@/lib/api";
 import { enforceScope } from "@/lib/auth/permissions";
 
@@ -47,6 +50,10 @@ export async function PATCH(
 ): Promise<NextResponse> {
   try {
     const ctx = await getResolvedContext(request);
+
+    // Check general API key rate limit
+    const rateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (rateLimitResponse) return rateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
