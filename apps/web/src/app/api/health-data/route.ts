@@ -5,9 +5,14 @@
  * and optional resolution (daily/weekly/monthly). Enforces permissions
  * via the unified auth middleware.
  *
+ * Source resolution: when multiple providers supply the same metric,
+ * picks the preferred source (user preference > most recent > alphabetical).
+ * Pass sources=all to skip resolution and return all provider data.
+ *
  * Auth: Owner (full access) or Viewer (scoped to grant)
  *
  * See: /docs/api-database-lld.md Section 7.3.1
+ * See: /docs/integrations-pipeline-lld.md §8.4 (source resolution)
  */
 
 import { NextResponse } from "next/server";
@@ -20,11 +25,15 @@ import { enforcePermissions, PermissionError } from "@/lib/auth/permissions";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
 import { createEncryptionProvider } from "@/lib/encryption";
 import { METRIC_TYPE_IDS, getMetricType } from "@/config/metrics";
+import { PROVIDER_IDS } from "@/config/providers";
+import {
+  resolveSourcesForMetrics,
+  type SourceResolution,
+} from "@/lib/api/source-resolution";
 
 // ─── Validation Schema ──────────────────────────────────────────────────────
 
 const VALID_RESOLUTIONS = ["daily", "weekly", "monthly"] as const;
-const VALID_SOURCES = ["oura", "apple_health", "google_fit"] as const;
 
 const healthDataQuerySchema = z.object({
   metrics: z
@@ -38,7 +47,18 @@ const healthDataQuerySchema = z.object({
   start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD format"),
   end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD format"),
   resolution: z.enum(VALID_RESOLUTIONS).default("daily"),
-  sources: z.array(z.enum(VALID_SOURCES)).optional(),
+  sources: z
+    .array(
+      z
+        .string()
+        .refine(
+          (s) =>
+            s === "all" ||
+            PROVIDER_IDS.includes(s as (typeof PROVIDER_IDS)[number]),
+          { message: "Invalid source provider" },
+        ),
+    )
+    .optional(),
 });
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -213,6 +233,18 @@ export async function GET(request: Request): Promise<NextResponse> {
       throw error;
     }
 
+    // Determine if sources=all was requested (skip resolution)
+    const skipResolution = query.sources && query.sources.includes("all");
+
+    // Source resolution: determine preferred source per metric
+    let sourceResolutionMap = new Map<string, SourceResolution>();
+    if (!skipResolution && (!query.sources || query.sources.length === 0)) {
+      sourceResolutionMap = await resolveSourcesForMetrics(
+        ctx.userId,
+        effectiveMetrics,
+      );
+    }
+
     // Build database query conditions
     const conditions = [
       eq(healthDataDaily.userId, ctx.userId),
@@ -220,9 +252,12 @@ export async function GET(request: Request): Promise<NextResponse> {
       between(healthDataDaily.date, effectiveStart, effectiveEnd),
     ];
 
-    if (query.sources && query.sources.length > 0) {
+    // Apply source filtering
+    if (query.sources && query.sources.length > 0 && !skipResolution) {
+      // Explicit source filter (e.g., sources=oura,whoop)
       conditions.push(inArray(healthDataDaily.source, query.sources));
     }
+    // Note: source resolution filtering is applied per-metric in post-processing
 
     // Fetch encrypted data
     const rows = await db
@@ -241,6 +276,12 @@ export async function GET(request: Request): Promise<NextResponse> {
     const decryptedByMetric = new Map<string, DataPoint[]>();
 
     for (const row of rows) {
+      // Apply source resolution filtering per-metric
+      const resolution = sourceResolutionMap.get(row.metricType);
+      if (resolution && row.source !== resolution.source) {
+        continue; // Skip data from non-preferred source
+      }
+
       const decrypted = await encryption.decrypt(
         row.valueEncrypted,
         ctx.userId,
@@ -263,6 +304,12 @@ export async function GET(request: Request): Promise<NextResponse> {
     > = {};
     const metricsReturned: string[] = [];
 
+    // Build source_resolution info for the response
+    const sourceResolutionResponse: Record<
+      string,
+      { source: string; reason: string }
+    > = {};
+
     for (const metricId of effectiveMetrics) {
       const metricConfig = getMetricType(metricId);
       const rawPoints = decryptedByMetric.get(metricId) || [];
@@ -281,6 +328,15 @@ export async function GET(request: Request): Promise<NextResponse> {
 
       if (rawPoints.length > 0) {
         metricsReturned.push(metricId);
+      }
+
+      // Include source resolution info
+      const resolution = sourceResolutionMap.get(metricId);
+      if (resolution) {
+        sourceResolutionResponse[metricId] = {
+          source: resolution.source,
+          reason: resolution.reason,
+        };
       }
     }
 
@@ -325,6 +381,10 @@ export async function GET(request: Request): Promise<NextResponse> {
           resolution: query.resolution,
           metrics_requested: query.metrics,
           metrics_returned: metricsReturned,
+          source_resolution:
+            Object.keys(sourceResolutionResponse).length > 0
+              ? sourceResolutionResponse
+              : undefined,
         },
       },
     });
