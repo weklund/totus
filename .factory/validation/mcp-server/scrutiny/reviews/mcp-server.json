@@ -1,0 +1,44 @@
+{
+  "featureId": "mcp-server",
+  "reviewedAt": "2026-03-11T21:30:00.000Z",
+  "commitId": "6965389",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid MCP server implementation covering all 12 tools, 3 resources, and 4 prompts per the LLD spec. Auth resolution, error handling, and stdio safety are all correctly implemented. 39 comprehensive tests using in-memory transport provide good coverage. One non-blocking bug found in create_share response formatting (duplicate URL line). One minor LLD adaptation in compare_metrics prompt (z.string() instead of z.array() for metrics arg) is correct given MCP SDK prompt argument constraints.",
+    "issues": [
+      {
+        "file": "packages/cli/src/mcp-server.ts",
+        "line": 236,
+        "severity": "non_blocking",
+        "description": "Duplicate URL in create_share response: When both share.url and share.token are present, the output prints the URL twice. Lines 234-235: `if (share.url) text += URL:...` followed by `if (share.token) text += URL: ${share.url ?? ...}`. The second condition should be `else if (share.token)` to avoid the duplicate, and should only print the token fallback text (not `URL:` prefix again)."
+      },
+      {
+        "file": "packages/cli/src/mcp-server.ts",
+        "line": 693,
+        "severity": "non_blocking",
+        "description": "compare_metrics prompt uses z.string() for the `metrics` argument instead of z.array(z.string()).min(2) as specified in LLD Section 9.4.2. This is actually correct — MCP prompt arguments are string key-value pairs, not typed objects, so an array type would not work. The description instructs the user to provide comma-separated values. However, the LLD should be updated to reflect this SDK constraint."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "Worker noted that backend-worker skill's 'write tests FIRST (red phase)' instruction is impractical for MCP server work because the MCP server structure needs to exist before in-memory transport tests can connect to it. The deviation (implementing and testing in parallel) was justified and efficient. The skill could add a note that test-first is flexible for MCP/integration-heavy features.",
+      "evidence": "handoff.skillFeedback.suggestedChanges: 'The backend-worker skill mentions writing tests FIRST (red phase) before implementation. For MCP server work, this is less practical because the MCP server structure needs to exist before in-memory transport tests can connect to it.'"
+    },
+    {
+      "area": "conventions",
+      "observation": "The MCP server testing pattern (using InMemoryTransport.createLinkedPair() from @modelcontextprotocol/sdk/inMemory.js with a Client instance) is a useful pattern that could be documented in architecture.md for future MCP-related work or extensions.",
+      "evidence": "packages/cli/src/__tests__/mcp-server.test.ts uses InMemoryTransport.createLinkedPair() to connect a test Client to the McpServer without stdio, enabling fast unit tests. This pattern is not documented anywhere in .factory/library/."
+    },
+    {
+      "area": "conventions",
+      "observation": "The worker correctly used process.stderr.write() instead of console.log() for MCP server diagnostics, consistent with the AGENTS.md convention about stdio corruption. This pattern is documented in AGENTS.md but the architecture.md 'CLI Patterns' section could reinforce it.",
+      "evidence": "mcp-server.ts line 2: 'CRITICAL: Never use console.log() — it corrupts the stdio JSON-RPC channel.' Zero console.log calls found via grep."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The MCP server implementation passes review. All 12 tools, 3 resources, and 4 prompts are correctly registered with appropriate Zod schemas, text-formatted responses, and error handling. Auth correctly resolves TOTUS_API_KEY env > config file with helpful isError setup instructions. Scope-aware error messages extract missing scope from API error text. No console.log usage (stdio safe). 39 tests cover tools, resources, prompts, auth errors, and edge cases. One non-blocking bug: create_share may output duplicate URL lines when both share.url and share.token are present. One LLD adaptation in compare_metrics prompt (string vs array for metrics arg) is correct given SDK constraints."
+}

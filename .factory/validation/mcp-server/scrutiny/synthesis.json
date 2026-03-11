@@ -1,0 +1,50 @@
+{
+  "milestone": "mcp-server",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": { "passed": true, "command": "bun --filter '@totus/web' test && bun --filter '@totus/cli' test", "exitCode": 0 },
+    "typecheck": { "passed": true, "command": "bun --filter '*' typecheck", "exitCode": 0 },
+    "lint": { "passed": true, "command": "bun --filter '@totus/web' lint", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Fixed architecture.md: changed 'requireScope()' to 'enforceScope()' to match the actual function name exported from permissions.ts",
+      "sourceFeature": "cross-area-integration"
+    },
+    {
+      "target": "library",
+      "description": "Added 'MCP Server Patterns' section to architecture.md documenting InMemoryTransport testing pattern, stdio safety, auth resolution, and prompt argument constraints",
+      "sourceFeature": "mcp-server"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add convention: All routes using getResolvedContext() must also call enforceScope(ctx, 'required:scope') after auth resolution. Currently /api/health-data is missing enforceScope(ctx, 'health:read') while sibling /series and /periods routes enforce it, creating an inconsistent scope enforcement surface.",
+      "evidence": "apps/web/src/app/api/health-data/route.ts has no enforceScope call; apps/web/src/app/api/health-data/series/route.ts and periods/route.ts both call enforceScope(ctx, 'health:read'). An API key without health:read scope can still access daily health data at the main endpoint.",
+      "isSystemic": true
+    },
+    {
+      "target": "skills",
+      "suggestion": "backend-worker skill: Add note that test-first (red phase) is flexible for MCP/integration-heavy features where the server structure must exist before transport tests can connect. Worker deviated correctly by implementing and testing in parallel.",
+      "evidence": "mcp-server worker noted in skillFeedback that test-first is impractical for MCP server work because InMemoryTransport tests need the McpServer instance to exist. Parallel implementation+testing was the pragmatic approach.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "stdio convention reinforcement (from mcp-server review): architecture.md CLI Patterns section could reinforce the no-console.log rule",
+      "reason": "Already documented in AGENTS.md coding conventions ('Never use console.log() in MCP server code') and now also in the new MCP Server Patterns section of architecture.md. No additional reinforcement needed."
+    }
+  ],
+  "previousRound": null
+}

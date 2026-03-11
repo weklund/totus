@@ -1,0 +1,57 @@
+{
+  "featureId": "cross-area-integration",
+  "reviewedAt": "2026-03-11T21:45:00.000Z",
+  "commitId": "470ca9d",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The implementation correctly fixes 6 cross-area integration gaps: 4 route handlers switched from getRequestContext to getResolvedContext for API key auth support, actorType fixed to record 'api_key' for API key access, and 'api_key' added to VALID_ACTOR_TYPES in the audit route. 16 well-structured integration tests added. All tests pass, typecheck and lint clean. Two non-blocking inconsistencies found: (1) /api/health-data is missing enforceScope(ctx, 'health:read') while the sibling series and periods routes enforce it, creating an inconsistent scope enforcement surface; (2) the CLI config test uses real filesystem manipulation (renaming config files) instead of mocking, which is fragile.",
+    "issues": [
+      {
+        "file": "apps/web/src/app/api/health-data/route.ts",
+        "line": 132,
+        "severity": "non_blocking",
+        "description": "Missing enforceScope(ctx, 'health:read') call. The /api/health-data/series and /api/health-data/periods routes both call enforceScope(ctx, 'health:read') after auth checks, but the main /api/health-data route does not. An API key with only 'audit:read' scope (no 'health:read') can still access aggregated daily health data at this endpoint. This is inconsistent with the sibling endpoints and undermines the scope enforcement model. A corresponding negative test (API key without health:read gets 403 on /api/health-data) is also missing from the test suite."
+      },
+      {
+        "file": "apps/web/src/app/api/__tests__/cross-area-integration.test.ts",
+        "line": 198,
+        "severity": "non_blocking",
+        "description": "Missing negative scope enforcement test for /api/health-data. Tests cover 'API key without health:read gets 403' for /series and /periods, but not for the main /api/health-data endpoint. This test gap corresponds to the missing enforceScope call in the route handler."
+      },
+      {
+        "file": "packages/cli/src/__tests__/config.test.ts",
+        "line": 152,
+        "severity": "non_blocking",
+        "description": "The test manipulates the real user config file (renames ~/.config/totus/config.json to a backup and restores it). If the test process crashes between rename and restore, the user's config file remains renamed. A mock-based approach (vi.mock for fs.existsSync/readFileSync) would be safer and more idiomatic for vitest tests."
+      },
+      {
+        "file": "apps/web/src/app/api/audit/route.ts",
+        "line": 7,
+        "severity": "non_blocking",
+        "description": "JSDoc header still says 'Auth: Owner (session required)' but the route now supports API key auth via getResolvedContext. Should be updated to 'Auth: Owner (session or API key)' for accuracy."
+      },
+      {
+        "file": "apps/web/src/app/api/connections/[provider]/route.ts",
+        "line": 8,
+        "severity": "non_blocking",
+        "description": "JSDoc header still says 'Auth: Owner (session required)' but the route now supports API key auth. Should be updated to 'Auth: Owner (session or API key)'."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "architecture.md references scope enforcement function as 'requireScope()' but the actual function is named 'enforceScope()'. This could mislead future workers looking for the scope enforcement API.",
+      "evidence": ".factory/library/architecture.md:40 says 'Scope enforcement via requireScope() in permissions system' but apps/web/src/lib/auth/permissions.ts exports 'enforceScope()'"
+    },
+    {
+      "area": "conventions",
+      "observation": "No documented convention requiring all health-data endpoints to enforce API key scopes consistently. The main /api/health-data route is missing enforceScope while its sibling routes /series and /periods have it. A convention note about 'all routes using getResolvedContext must also call enforceScope' would prevent this pattern.",
+      "evidence": "apps/web/src/app/api/health-data/route.ts has no enforceScope call; apps/web/src/app/api/health-data/series/route.ts:75 and periods/route.ts:75 both call enforceScope(ctx, 'health:read')"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature passes review. The worker correctly identified and fixed 6 cross-area integration gaps (4 routes missing API key auth, actorType recording, and actor_type filter validation). 16 integration tests comprehensively cover API key auth, scope enforcement, actor_type audit recording, and multi-surface audit trails. Two non-blocking issues found: (1) /api/health-data is inconsistently missing enforceScope(ctx, 'health:read') while sibling routes enforce it — an API key without health:read scope can still access daily health data; (2) CLI config test uses fragile real-filesystem manipulation. All verification commands passed (typecheck, tests, lint)."
+}

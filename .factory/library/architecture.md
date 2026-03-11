@@ -37,7 +37,7 @@ Architectural decisions, patterns discovered during implementation.
 - Routes supporting API key auth must import `getResolvedContext` from `resolve-api-key.ts` (not `getRequestContext` from `request-context.ts`)
 - `getResolvedContext()` checks for `__api_key_pending__` sentinel and performs DB validation (hash check, revocation, expiry)
 - API key format: `tot_live_{8 base62}_{32 base62}` — short_token (first 8) stored plaintext, long token SHA-256 hashed
-- Scope enforcement via `requireScope()` in permissions system
+- Scope enforcement via `enforceScope()` in permissions system
 - CSRF exempted for API key requests (`authMethod === 'api_key'`)
 - Droid Shield may flag BASE62_ALPHABET constants and test tokens as secrets — split commits if needed
 
@@ -65,3 +65,11 @@ Architectural decisions, patterns discovered during implementation.
 - **Exit codes**: 0=success, 1=error, 2=auth, 3=permission
 - **Note**: `--verbose` global flag conflicts with Commander.js internals; `metrics summary` uses `--detailed` instead of `--verbose` as a workaround
 - **No lint config** for CLI package yet — only `typecheck` and `test` scripts exist
+
+## MCP Server Patterns
+
+- **Entry point**: `packages/cli/src/mcp-server.ts` — McpServer from `@modelcontextprotocol/sdk` v1.x with StdioServerTransport
+- **Never use console.log()** in MCP server code — it corrupts the stdio JSON-RPC channel. Use `process.stderr.write()` for diagnostics.
+- **Testing**: Use `InMemoryTransport.createLinkedPair()` from `@modelcontextprotocol/sdk/inMemory.js` with a `Client` instance from `@modelcontextprotocol/sdk/client/index.js`. This allows fast unit tests without stdio.
+- **Auth**: Resolves API key from `TOTUS_API_KEY` env > config file. Returns `isError: true` with setup instructions if no key.
+- **Prompt arguments**: MCP prompt arguments are string key-value pairs (not typed objects). Use `z.string()` for all prompt argument schemas, even when the LLD specifies arrays. Instruct users to provide comma-separated values in the description.
