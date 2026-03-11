@@ -71,12 +71,12 @@ export function createMetricsCommand(): Command {
       const query: Record<string, string | number | boolean | undefined> = {};
       if (opts.category) query.category = opts.category;
 
-      const response = await client.get<MetricType[]>(
+      const response = await client.get<MetricType[] | { types: MetricType[] }>(
         "/api/health-data/types",
         query,
       );
 
-      const metricTypes = response.data;
+      const metricTypes = (response.data as { types?: MetricType[] }).types ?? (response.data as MetricType[]);
 
       if (opts.allSources) {
         // Expand: one row per (metric_type, source)
@@ -242,10 +242,10 @@ export function createMetricsCommand(): Command {
       const { client, opts: resolved } = getClient(cmd);
 
       // Fetch metric types to compute summary
-      const typesResponse = await client.get<MetricType[]>(
+      const typesResponse = await client.get<MetricType[] | { types: MetricType[] }>(
         "/api/health-data/types",
       );
-      const metricTypes = typesResponse.data;
+      const metricTypes = (typesResponse.data as { types?: MetricType[] }).types ?? (typesResponse.data as MetricType[]);
 
       // Also fetch shares count
       let activeShares = 0;

@@ -19,7 +19,10 @@ import {
   providerConnections,
   auditEvents,
 } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
+import {
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "@/lib/auth/resolve-api-key";
 import { createErrorResponse, ApiError } from "@/lib/api";
 import { createEncryptionProvider } from "@/lib/encryption";
 
@@ -27,7 +30,9 @@ import { createEncryptionProvider } from "@/lib/encryption";
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+    const rateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (rateLimitResponse) return rateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);

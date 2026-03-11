@@ -10,7 +10,10 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { metricSourcePreferences } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
+import {
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "@/lib/auth/resolve-api-key";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
 import { isValidMetricType } from "@/config/metrics";
 import { PROVIDER_IDS } from "@/config/providers";
@@ -32,7 +35,9 @@ export async function PUT(
   { params }: { params: Promise<{ metricType: string }> },
 ): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+    const rateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (rateLimitResponse) return rateLimitResponse;
 
     // Auth check: must be owner
     if (ctx.role !== "owner" || !ctx.userId) {
@@ -115,7 +120,9 @@ export async function DELETE(
   { params }: { params: Promise<{ metricType: string }> },
 ): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+    const rateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (rateLimitResponse) return rateLimitResponse;
 
     // Auth check: must be owner
     if (ctx.role !== "owner" || !ctx.userId) {

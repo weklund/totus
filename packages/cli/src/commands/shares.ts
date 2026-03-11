@@ -141,9 +141,9 @@ export function createSharesCommand(): Command {
 
       const body = {
         label: opts.label,
-        metrics: opts.metrics.split(",").map((m) => m.trim()),
-        start_date: opts.start,
-        end_date: opts.end,
+        allowed_metrics: opts.metrics.split(",").map((m) => m.trim()),
+        data_start: opts.start,
+        data_end: opts.end,
         expires_in_days: parseInt(opts.expires, 10),
         note: opts.note,
       };

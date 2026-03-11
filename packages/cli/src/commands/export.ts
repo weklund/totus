@@ -20,7 +20,7 @@ export function createExportCommand(): Command {
     .action(async (opts, cmd) => {
       const { client, opts: resolved } = getClient(cmd);
 
-      const response = await client.get<unknown>("/api/user/export");
+      const response = await client.post<unknown>("/api/user/export", {});
       const data = response.data;
 
       if (resolved.outputFormat === "json" && !opts.file) {

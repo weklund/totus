@@ -543,9 +543,9 @@ describe("shares commands", () => {
 
     expect(mockPost).toHaveBeenCalledWith("/api/shares", {
       label: "For Coach",
-      metrics: ["sleep_score", "hrv"],
-      start_date: "2025-06-01",
-      end_date: "2026-03-08",
+      allowed_metrics: ["sleep_score", "hrv"],
+      data_start: "2025-06-01",
+      data_end: "2026-03-08",
       expires_in_days: 30,
       note: undefined,
     });
@@ -943,6 +943,7 @@ describe("export command", () => {
     stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     mockGet.mockReset();
+    mockPost.mockReset();
     mockResolveApiKey.mockReturnValue({
       key: "test-api-key-placeholder-for-unit-tests",
       source: "config file",
@@ -956,7 +957,7 @@ describe("export command", () => {
 
   it("exports data to file", async () => {
     const fs = await import("node:fs");
-    mockGet.mockResolvedValue({
+    mockPost.mockResolvedValue({
       data: { health_data: [{ date: "2026-01-01", metric: "sleep_score", value: 85 }] },
     });
 
@@ -974,7 +975,7 @@ describe("export command", () => {
   });
 
   it("outputs json to stdout with --output json", async () => {
-    mockGet.mockResolvedValue({ data: { health_data: [] } });
+    mockPost.mockResolvedValue({ data: { health_data: [] } });
 
     const program = createTestProgram();
     program.addCommand(createExportCommand());
