@@ -1,0 +1,24 @@
+{
+  "flowId": "round2-mpb014-sync-resilience",
+  "assertions": ["VAL-MPB-014"],
+  "surface": "API",
+  "tool": "curl",
+  "results": [
+    {
+      "assertionId": "VAL-MPB-014",
+      "status": "pass",
+      "evidence": "POST /api/connections/4c260e95-0aa9-46e2-9e59-d4fc7472f120/sync returned HTTP 200 with {data: {sync_id: 'sync_1773229285680', status: 'queued', message: 'Sync dispatched for oura connection'}}. DB shows sync_status='queued' after call. Inngest dev server was NOT running (confirmed via failed healthcheck on port 8288), proving the fire-and-forget resilience fix works. inngest.send() failure is caught and logged without propagating to the caller.",
+      "steps": [
+        "Signed in as test@totus.dev via POST /api/auth/sign-in, obtained __session cookie",
+        "Verified Inngest dev server NOT running (curl http://localhost:8288/v0/health failed)",
+        "Reset connection sync_status to 'idle' via direct DB update",
+        "POST /api/connections/{id}/sync with session cookie -> HTTP 200, status: queued",
+        "Verified DB sync_status='queued' via psql query",
+        "Regression check: set sync_status='syncing', POST sync -> HTTP 409 CONFLICT (guard still works)"
+      ]
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["curl", "docker exec psql"]
+}
