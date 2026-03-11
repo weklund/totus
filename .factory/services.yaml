@@ -4,6 +4,7 @@ commands:
   build: bun --filter '*' build
   test: bun --filter '@totus/web' test
   test-all: bun --filter '*' test
+  test-cli: bun --filter '@totus/cli' test
   lint: bun --filter '@totus/web' lint
   db-push: cd apps/web && bun run db:push
   db-seed: cd apps/web && bun run db:seed
