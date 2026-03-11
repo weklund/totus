@@ -680,7 +680,7 @@ describe("connections commands", () => {
     program.addCommand(createConnectionsCommand());
     await program.parseAsync(["--output", "table", "connections", "sync", "--all"], { from: "user" });
 
-    expect(mockPost).toHaveBeenCalledWith("/api/connections/oura/sync");
+    expect(mockPost).toHaveBeenCalledWith("/api/connections/conn-1/sync");
     const output = stdoutSpy.mock.calls.map((c: unknown[]) => c[0]).join("");
     expect(output).toContain("Sync triggered");
     expect(output).toContain("garmin");
@@ -730,9 +730,11 @@ describe("preferences commands", () => {
 
   it("preferences list shows preferences", async () => {
     mockGet.mockResolvedValue({
-      data: [
-        { metric_type: "hrv", provider: "whoop", updated_at: "2026-03-01T14:22:00Z" },
-      ],
+      data: {
+        preferences: [
+          { metric_type: "hrv", provider: "whoop", updated_at: "2026-03-01T14:22:00Z" },
+        ],
+      },
     });
 
     const program = createTestProgram();
@@ -745,7 +747,7 @@ describe("preferences commands", () => {
   });
 
   it("preferences list shows empty message when no prefs", async () => {
-    mockGet.mockResolvedValue({ data: [] });
+    mockGet.mockResolvedValue({ data: { preferences: [] } });
 
     const program = createTestProgram();
     program.addCommand(createPreferencesCommand());

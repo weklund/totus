@@ -1,0 +1,128 @@
+{
+  "flowId": "round3-cli-retest",
+  "testedAt": "2026-03-11T20:43:00.000Z",
+  "credentials": {
+    "account": "mock_test_totus_dev",
+    "apiKey": "tot_live_Oxcn5bC8_...B6nPC",
+    "namespace": "mock_test_totus_dev"
+  },
+  "toolsUsed": ["bun", "CLI", "curl"],
+  "assertions": {
+    "VAL-CLI-007": {
+      "status": "pass",
+      "evidence": "Command `totus metrics get sleep_score --from 2026-01-01 --to 2026-01-31` returned 31 daily data points (Jan 1-31, 2026) with values from Oura source. Exit code 0. Output includes date, value (scores 61-95), and source='oura' for each day.",
+      "details": "Previous failure (ENCRYPTION_KEY mismatch) is resolved. Data decryption works correctly after re-seeding.",
+      "steps": [
+        {
+          "action": "Run `TOTUS_API_KEY=... bun run packages/cli/src/index.ts metrics get sleep_score --from 2026-01-01 --to 2026-01-31 --server-url http://localhost:3000/api`",
+          "expected": "Time-series data returned with date/value/source for each day in January 2026",
+          "observed": "31 data points returned in JSON format. Each has date (2026-01-01 through 2026-01-31), value (integer scores), source='oura'. Query metadata includes source_resolution showing 'only_source' for sleep_score."
+        }
+      ]
+    },
+    "VAL-CLI-013": {
+      "status": "fail",
+      "evidence": "CLI `connections list` works (returns connection with id=4c260e95-..., provider=oura, status=active). However, `connections sync <id>` fails with 'API error (500): An unexpected error occurred'. Direct curl to `POST /api/connections/<uuid>/sync` returns 200 OK. Root cause: CLI sync command constructs URL as `/api/connections/${conn.provider}/sync` (using provider name 'oura') instead of `/api/connections/${conn.id}/sync` (using UUID). The API route expects a UUID in the [provider] slug for sync operations.",
+      "details": "The previous failure (getRequestContext vs getResolvedContext) IS fixed — the API route now uses getResolvedContext() and works correctly with API key auth when called directly via curl with the UUID. The new failure is a CLI-side bug in packages/cli/src/commands/connections.ts where `conn.provider` is used instead of `conn.id` in the sync URL construction (line: `/api/connections/${conn.provider}/sync`). Both single-ID and --all modes are affected.",
+      "steps": [
+        {
+          "action": "Run `connections list`",
+          "expected": "Lists connections with IDs",
+          "observed": "Returns 1 connection: id=4c260e95-0aa9-46e2-9e59-d4fc7472f120, provider=oura, status=active"
+        },
+        {
+          "action": "Run `connections sync 4c260e95-0aa9-46e2-9e59-d4fc7472f120`",
+          "expected": "Sync triggered for oura connection",
+          "observed": "Error: API error (500): An unexpected error occurred"
+        },
+        {
+          "action": "Run `connections sync --all`",
+          "expected": "Sync triggered for all active connections",
+          "observed": "oura sync failed with 'API error (500): An unexpected error occurred'"
+        },
+        {
+          "action": "Verify with direct curl: POST /api/connections/<uuid>/sync",
+          "expected": "200 OK",
+          "observed": "200 OK with {data: {sync_id, status: 'queued', message: 'Sync dispatched for oura connection'}}"
+        },
+        {
+          "action": "Verify with direct curl: POST /api/connections/oura/sync (what CLI sends)",
+          "expected": "Should fail because 'oura' is not a UUID",
+          "observed": "500 Internal Server Error — confirms the CLI sends the wrong slug"
+        }
+      ],
+      "issues": "CLI bug: packages/cli/src/commands/connections.ts uses `conn.provider` instead of `conn.id` when constructing sync URL. Fix: change `/api/connections/${conn.provider}/sync` to `/api/connections/${conn.id}/sync` in both the single-ID and --all code paths."
+    },
+    "VAL-CLI-014": {
+      "status": "fail",
+      "evidence": "`preferences set hrv oura` succeeds (returns {metric_type: 'hrv', provider: 'oura', updated_at}). `preferences delete hrv` succeeds (returns {metric_type: 'hrv', preference: 'cleared'}). However, `preferences list` always returns empty {preferences: []} even when preferences exist in DB (verified via direct curl to GET /api/metric-preferences which returns the preference correctly).",
+      "details": "The previous failure (getRequestContext) IS fixed — the API route now uses getResolvedContext() and returns data correctly with API key auth. The new failure is a CLI-side response parsing bug. The API returns `{data: {preferences: [...]}}`, so `response.data` is `{preferences: [...]}` (an object). The CLI checks `Array.isArray(response.data)` which is false, so it defaults to empty array. Fix: change `Array.isArray(response.data) ? response.data : []` to `Array.isArray(response.data?.preferences) ? response.data.preferences : Array.isArray(response.data) ? response.data : []` in preferences.ts.",
+      "steps": [
+        {
+          "action": "Run `preferences list`",
+          "expected": "Shows empty preferences (none set yet)",
+          "observed": "{preferences: []} — correct since no preferences set yet"
+        },
+        {
+          "action": "Run `preferences set hrv oura`",
+          "expected": "Sets HRV preference to Oura",
+          "observed": "Returns {metric_type: 'hrv', provider: 'oura', updated_at: '2026-03-11T20:41:44.220Z'} — exit 0"
+        },
+        {
+          "action": "Run `preferences list` again",
+          "expected": "Shows hrv → oura preference",
+          "observed": "{preferences: []} — BUG: still shows empty despite preference existing"
+        },
+        {
+          "action": "Verify via curl GET /api/metric-preferences",
+          "expected": "Shows hrv preference",
+          "observed": "{data: {preferences: [{metric_type: 'hrv', provider: 'oura', updated_at}]}} — API returns data correctly"
+        },
+        {
+          "action": "Run `preferences delete hrv`",
+          "expected": "Removes HRV preference",
+          "observed": "Returns {metric_type: 'hrv', preference: 'cleared'} — exit 0"
+        },
+        {
+          "action": "Verify via curl GET /api/metric-preferences",
+          "expected": "Empty preferences",
+          "observed": "{data: {preferences: []}} — confirmed deleted"
+        }
+      ],
+      "issues": "CLI bug: packages/cli/src/commands/preferences.ts `list` action checks `Array.isArray(response.data)` but response.data is `{preferences: [...]}` (an object with nested array), not a direct array. Set and delete work correctly."
+    },
+    "VAL-CLI-017": {
+      "status": "pass",
+      "evidence": "Command `totus export` returns full JSON data export including profile, connections (1 oura), health_data (720 daily points), shares, and audit events. With --file flag, writes 178KB JSON file. Exit code 0.",
+      "details": "Previous failure (500 due to decryption failure) is resolved. Data has been re-seeded with current ENCRYPTION_KEY and decryption works correctly.",
+      "steps": [
+        {
+          "action": "Run `totus export --server-url http://localhost:3000/api`",
+          "expected": "JSON data export output",
+          "observed": "Full JSON export with profile (mock_test_totus_dev), 1 oura connection, health_data array with daily data points, shares, and audit_events. Exit code 0."
+        },
+        {
+          "action": "Run `totus export --file /tmp/totus-export-test.json --server-url http://localhost:3000/api`",
+          "expected": "File created with export data",
+          "observed": "File created at /tmp/totus-export-test.json (182,284 bytes / 178.0 KB). CLI output: '✓ Data exported to /tmp/totus-export-test.json'. File contains valid JSON with full export structure."
+        }
+      ]
+    }
+  },
+  "frictions": [
+    {
+      "description": "CLI connections sync command uses provider name ('oura') instead of connection UUID in the sync URL, causing 500 errors. The API route expects UUID in the [provider] slug for sync operations.",
+      "resolved": false,
+      "resolution": null,
+      "affectedAssertions": ["VAL-CLI-013"]
+    },
+    {
+      "description": "CLI preferences list command doesn't properly unwrap API response. API returns {data: {preferences: [...]}} but CLI checks Array.isArray(response.data) which is false for the object wrapper.",
+      "resolved": false,
+      "resolution": null,
+      "affectedAssertions": ["VAL-CLI-014"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 4 assertions: 2 passed (VAL-CLI-007, VAL-CLI-017), 2 failed (VAL-CLI-013: CLI sync uses provider name instead of UUID in URL; VAL-CLI-014: preferences list doesn't unwrap nested response). The previously reported issues (ENCRYPTION_KEY mismatch, getRequestContext) are all fixed. The 2 new failures are CLI-side bugs in response handling/URL construction, not API-side issues."
+}

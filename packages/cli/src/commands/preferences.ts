@@ -26,10 +26,14 @@ export function createPreferencesCommand(): Command {
     .action(async (_opts, cmd) => {
       const { client, opts: resolved } = getClient(cmd);
 
-      const response = await client.get<MetricPreference[]>(
-        "/api/metric-preferences",
-      );
-      const prefs = Array.isArray(response.data) ? response.data : [];
+      const response = await client.get<
+        MetricPreference[] | { preferences: MetricPreference[] }
+      >("/api/metric-preferences");
+      const prefs = Array.isArray(response.data)
+        ? response.data
+        : Array.isArray((response.data as { preferences: MetricPreference[] })?.preferences)
+          ? (response.data as { preferences: MetricPreference[] }).preferences
+          : [];
 
       if (prefs.length === 0) {
         if (resolved.outputFormat === "json") {

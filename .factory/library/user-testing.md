@@ -213,15 +213,15 @@ TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts <command> --server-url htt
 - ~~`shares create` sends wrong field names~~ — Fixed: now sends `allowed_metrics`, `data_start`, `data_end`
 - ~~`export` sends GET instead of POST~~ — Fixed: now sends POST
 
-**Remaining issues (round 2):**
-- `GET /api/health-data/types` still uses `getRequestContext()` — metrics list/summary return empty data with API key auth
-- `GET /api/connections` still uses `getRequestContext()` — connections list returns empty with API key auth, breaking `sync --all`
-- `GET /api/metric-preferences` still uses `getRequestContext()` — preferences list returns empty with API key auth
-- `POST /api/user/export` returns 500 Internal Server Error — decryption failure in export pipeline (affects both API key and session auth)
-- ENCRYPTION_KEY mismatch with seed data prevents health data decryption (affects `metrics get` and `export`)
-- `connections list` returns empty for API-key-authenticated requests (same root cause: route uses `getRequestContext()` not `getResolvedContext()`)
-- `metrics get` query param mismatch: CLI sends `start`/`end` but API health-data endpoint expects `start`/`end` (this actually works)
-- By default, non-TTY output (piped) outputs JSON format
+**All issues resolved (round 3):**
+- ~~`GET /api/health-data/types` still uses `getRequestContext()`~~ — Fixed in commit 8f16c26
+- ~~`GET /api/connections` still uses `getRequestContext()`~~ — Fixed in commit 8f16c26
+- ~~`GET /api/metric-preferences` still uses `getRequestContext()`~~ — Fixed in commit 8f16c26
+- ~~`POST /api/user/export` returns 500~~ — Fixed by re-seeding data with current ENCRYPTION_KEY
+- ~~ENCRYPTION_KEY mismatch~~ — Fixed by re-seeding mock_test_totus_dev data
+- ~~CLI connections sync uses provider name instead of UUID~~ — Fixed: uses conn.id now
+- ~~CLI preferences list doesn't unwrap nested response~~ — Fixed: unwraps response.data.preferences
+- Non-TTY output (piped) defaults to JSON format (by design)
 
 ## Known Quirks
 

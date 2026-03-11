@@ -116,7 +116,7 @@ export function createConnectionsCommand(): Command {
 
         for (const conn of activeConns) {
           try {
-            await client.post(`/api/connections/${conn.provider}/sync`);
+            await client.post(`/api/connections/${conn.id}/sync`);
             results.push({
               provider: conn.provider,
               status: "queued",
@@ -176,7 +176,7 @@ export function createConnectionsCommand(): Command {
 
         if (conn) {
           const response = await client.post<SyncResult>(
-            `/api/connections/${conn.provider}/sync`,
+            `/api/connections/${conn.id}/sync`,
           );
 
           if (resolved.outputFormat === "json") {

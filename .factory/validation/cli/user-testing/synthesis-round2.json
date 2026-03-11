@@ -1,0 +1,81 @@
+{
+  "milestone": "cli",
+  "round": 2,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 30,
+    "passed": 26,
+    "failed": 3,
+    "blocked": 1
+  },
+  "passedAssertions": [
+    "VAL-CLI-001",
+    "VAL-CLI-002",
+    "VAL-CLI-003",
+    "VAL-CLI-004",
+    "VAL-CLI-005",
+    "VAL-CLI-006",
+    "VAL-CLI-008",
+    "VAL-CLI-009",
+    "VAL-CLI-010",
+    "VAL-CLI-011",
+    "VAL-CLI-012",
+    "VAL-CLI-015",
+    "VAL-CLI-016",
+    "VAL-CLI-018",
+    "VAL-CLI-019",
+    "VAL-CLI-020",
+    "VAL-CLI-021",
+    "VAL-CLI-022",
+    "VAL-CLI-023",
+    "VAL-CLI-024",
+    "VAL-CLI-025",
+    "VAL-CLI-026",
+    "VAL-CLI-027",
+    "VAL-CLI-028",
+    "VAL-CLI-029",
+    "VAL-CLI-030"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-CLI-013",
+      "reason": "GET /api/connections still uses getRequestContext() instead of getResolvedContext(). Connections list returns empty for API key auth, breaking 'sync --all'. Direct sync by UUID works (sync route was fixed)."
+    },
+    {
+      "id": "VAL-CLI-014",
+      "reason": "GET /api/metric-preferences still uses getRequestContext(). Preferences set/delete work (routes fixed), but preferences list returns empty for API key auth."
+    },
+    {
+      "id": "VAL-CLI-017",
+      "reason": "POST /api/user/export returns 500 Internal Server Error. Both API key and session cookie auth fail with same error. RC-4 fix (POST method) and getResolvedContext() fix are applied, but server-side decryption/serialization error in export pipeline. Possibly ENCRYPTION_KEY mismatch with seed data."
+    }
+  ],
+  "blockedAssertions": [
+    {
+      "id": "VAL-CLI-007",
+      "blockedBy": "ENCRYPTION_KEY mismatch: health data decryption fails with 'Unsupported state or unable to authenticate data'. Affects all users (API key and session auth). The RC-1 code fix (getResolvedContext) IS correctly applied in health-data route. Re-seeding the database would fix this."
+    }
+  ],
+  "rootCauses": [
+    {
+      "id": "RC-1-INCOMPLETE",
+      "description": "RC-1 fix from round 1 was incomplete. Two GET list routes were NOT changed from getRequestContext() to getResolvedContext(): (1) GET /api/connections (apps/web/src/app/api/connections/route.ts), (2) GET /api/metric-preferences (apps/web/src/app/api/metric-preferences/route.ts). Additionally, GET /api/health-data/types (apps/web/src/app/api/health-data/types/route.ts) was also missed.",
+      "affectedAssertions": ["VAL-CLI-013", "VAL-CLI-014"],
+      "suggestedFix": "Change getRequestContext(request) to await getResolvedContext(request) in these 3 route files."
+    },
+    {
+      "id": "RC-5",
+      "description": "ENCRYPTION_KEY mismatch between the current .env.local and the key used when seed data was encrypted. All health data decryption fails. This affects metrics get, export, and any other route that decrypts health_data_daily/series/periods values.",
+      "affectedAssertions": ["VAL-CLI-007", "VAL-CLI-017"],
+      "suggestedFix": "Re-run db:seed from apps/web to re-seed data with current ENCRYPTION_KEY. Or restore the original ENCRYPTION_KEY that was used during seeding."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Updated Known CLI Issues section: marked fixed issues from commit 6ab327e and documented remaining issues (3 list routes still using getRequestContext, export 500, ENCRYPTION_KEY mismatch).",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": ".factory/validation/cli/user-testing/synthesis-round1.json"
+}

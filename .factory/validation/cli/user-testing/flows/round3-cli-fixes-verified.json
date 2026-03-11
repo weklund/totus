@@ -1,0 +1,35 @@
+{
+  "flowId": "round3-cli-fixes-verified",
+  "testedAt": "2026-03-11T20:46:00.000Z",
+  "credentials": {
+    "account": "mock_test_totus_dev",
+    "apiKey": "tot_live_Oxcn5bC8_...B6nPC",
+    "namespace": "mock_test_totus_dev"
+  },
+  "toolsUsed": ["bun", "CLI", "curl"],
+  "assertions": {
+    "VAL-CLI-007": {
+      "status": "pass",
+      "evidence": "Command `totus metrics get sleep_score --from 2026-01-01 --to 2026-01-31` returned 31 daily data points with values 60-92 from oura source. ENCRYPTION_KEY mismatch resolved by re-seeding data for mock_test_totus_dev.",
+      "details": "Re-seeded 720 daily data points, 4032 series points, 56 period events for mock_test_totus_dev with current ENCRYPTION_KEY. Health data endpoint returns data successfully via API key auth."
+    },
+    "VAL-CLI-013": {
+      "status": "pass",
+      "evidence": "Fixed CLI bug: changed `/api/connections/${conn.provider}/sync` to `/api/connections/${conn.id}/sync` in both --all and single-ID code paths. `connections sync --all` now returns '✓ Sync triggered for 1 connections' with oura → queued. `connections sync <uuid>` also works. Verified fix with both table and JSON output formats.",
+      "details": "Root cause was CLI using provider name ('oura') instead of connection UUID in sync URL. Fix applied in packages/cli/src/commands/connections.ts. Unit test updated from /api/connections/oura/sync to /api/connections/conn-1/sync. All 143 CLI tests pass."
+    },
+    "VAL-CLI-014": {
+      "status": "pass",
+      "evidence": "Fixed CLI bug: preferences list now unwraps `response.data.preferences` when API returns `{data: {preferences: [...]}}` format. Full flow verified: `preferences set hrv oura` → success, `preferences list` → shows table with hrv → oura row, `preferences delete hrv` → cleared, `preferences list` → 'No source preferences set'.",
+      "details": "Root cause was `Array.isArray(response.data)` returning false for `{preferences: [...]}` object. Fixed in packages/cli/src/commands/preferences.ts to check both array and nested object formats. Unit tests updated to mock API response shape correctly (data.preferences array)."
+    },
+    "VAL-CLI-017": {
+      "status": "pass",
+      "evidence": "Export endpoint returns 200 with full JSON including profile, connections (1 oura), health_data (720 daily points), shares, and audit events. File export writes 178KB JSON. ENCRYPTION_KEY mismatch resolved by re-seeding.",
+      "details": "Previously failed because health data encrypted with different ENCRYPTION_KEY couldn't be decrypted. After re-seeding with current key, export works for both direct API calls and CLI command."
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "All 4 previously failed assertions now pass. Two were fixed by re-seeding data with current ENCRYPTION_KEY (VAL-CLI-007, VAL-CLI-017). Two were fixed by correcting CLI-side bugs: connections sync URL now uses conn.id instead of conn.provider (VAL-CLI-013), and preferences list now unwraps nested response format (VAL-CLI-014). All 143 CLI unit tests pass."
+}
