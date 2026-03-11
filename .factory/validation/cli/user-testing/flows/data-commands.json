@@ -1,159 +1,197 @@
 {
-  "flowId": "data-commands",
-  "testedAt": "2026-03-11T00:00:00.000Z",
+  "groupId": "data-commands",
+  "testedAt": "2026-03-11T20:13:30.000Z",
   "credentials": {
     "account": "mock_test_totus_dev",
-    "namespace": "mock_test_totus_dev"
+    "namespace": "mock_test_totus_dev",
+    "secondaryAccount": "mock_ut_cli_1_test_com"
   },
   "toolsUsed": ["bun CLI", "curl", "psql"],
-  "assertions": {
-    "VAL-CLI-005": {
-      "status": "fail",
-      "title": "totus metrics list shows table",
-      "steps": [
-        {
-          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts metrics list --server-url http://localhost:3000/api",
-          "expected": "Table output with columns: type, label, category, unit, sources",
-          "observed": "Crash with error: metricTypes.map is not a function"
-        }
-      ],
-      "evidence": {
-        "terminalOutput": "✗ Error: metricTypes.map is not a function. (In 'metricTypes.map((m) => ({...}))', 'metricTypes.map' is undefined)",
-        "exitCode": 1
-      },
-      "issues": "Known bug: API endpoint /api/health-data/types returns {data: {types: []}} (object with types property) but CLI code tries to call .map() directly on the response data, expecting it to be an array. The CLI does `const metricTypes = response.data;` then `metricTypes.map(...)` but response.data is {types: []} not an array."
-    },
-    "VAL-CLI-006": {
-      "status": "fail",
-      "title": "totus metrics list --output json",
-      "steps": [
-        {
-          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts metrics list --output json --server-url http://localhost:3000/api",
-          "expected": "Valid JSON array of metric types",
-          "observed": "Crash with same metricTypes.map error as VAL-CLI-005"
-        }
-      ],
-      "evidence": {
-        "terminalOutput": "✗ Error: metricTypes.map is not a function. (In 'metricTypes.map((m) => ({...}))', 'metricTypes.map' is undefined)",
-        "exitCode": 1
-      },
-      "issues": "Same root cause as VAL-CLI-005 — the .map() call happens before any output format branching, so both table and JSON output paths crash."
-    },
-    "VAL-CLI-007": {
-      "status": "fail",
+  "assertions": [
+    {
+      "id": "VAL-CLI-007",
       "title": "totus metrics get returns data",
+      "status": "blocked",
       "steps": [
         {
-          "action": "Verify test user has data: SELECT COUNT(*) FROM health_data_daily WHERE user_id='mock_test_totus_dev' AND metric_type='sleep_score'",
-          "expected": "Data rows exist",
-          "observed": "90 rows exist, date range 2025-12-10 to 2026-03-09"
+          "action": "Run: TOTUS_API_KEY=... bun run packages/cli/src/index.ts metrics get sleep_score --from 2026-01-01 --to 2026-01-31 --server-url http://localhost:3000/api",
+          "expected": "Time-series data in table format",
+          "observed": "API error (500): An unexpected error occurred"
         },
         {
-          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts metrics get sleep_score --from 2026-01-01 --to 2026-01-31 --server-url http://localhost:3000/api",
-          "expected": "Table with time-series sleep_score data points",
-          "observed": "Command exits 0 but returns empty data: {metrics: {sleep_score: {unit: 'score', points: []}}, query: {metrics_returned: []}}"
+          "action": "Retry with date range matching actual data (2026-03-01 to 2026-03-09)",
+          "expected": "Time-series data in table format",
+          "observed": "Same 500 error"
         },
         {
-          "action": "Verify via direct API call: curl with Bearer auth to /api/health-data?metrics=sleep_score&start=2026-01-01&end=2026-01-31",
-          "expected": "Data returned from API",
-          "observed": "Same empty response — API returns {data: {metrics: {sleep_score: {points: []}}}}"
+          "action": "Checked server logs for error details",
+          "expected": "N/A",
+          "observed": "Error: Unsupported state or unable to authenticate data at LocalEncryptionProvider.decryptDek — ENCRYPTION_KEY mismatch with seed data"
         },
         {
-          "action": "Check API route auth: grep for getRequestContext in health-data route",
-          "expected": "Route uses getResolvedContext() for API key resolution",
-          "observed": "Route uses getRequestContext() — with API key auth, userId is '__api_key_pending__' so no data is found"
+          "action": "Verified via session-based auth (cookie) to isolate: curl with __session cookie also returns 500",
+          "expected": "Session auth should work if issue is API-key-specific",
+          "observed": "Same 500 error via session auth — confirms encryption key mismatch is infrastructure-wide, not auth-related"
+        },
+        {
+          "action": "Verified code fix: health-data/route.ts uses getResolvedContext() (RC-1 fix applied)",
+          "expected": "Route handler uses getResolvedContext",
+          "observed": "Confirmed: line 135 calls await getResolvedContext(request)"
+        },
+        {
+          "action": "Verified data exists: SELECT from health_data_daily WHERE user_id='mock_test_totus_dev' AND metric_type='sleep_score'",
+          "expected": "90 rows",
+          "observed": "90 rows (dates 2025-12-10 to 2026-03-09)"
         }
       ],
       "evidence": {
-        "terminalOutput": "{\"metrics\":{\"sleep_score\":{\"unit\":\"score\",\"points\":[]}},\"query\":{\"start\":\"2026-01-01\",\"end\":\"2026-01-31\",\"resolution\":\"daily\",\"metrics_requested\":[\"sleep_score\"],\"metrics_returned\":[]}}",
-        "exitCode": 0,
-        "dbVerification": "90 sleep_score rows exist for mock_test_totus_dev (2025-12-10 to 2026-03-09)",
-        "rootCause": "apps/web/src/app/api/health-data/route.ts uses getRequestContext() instead of getResolvedContext(), so API key auth resolves userId as '__api_key_pending__' and no data is found"
+        "terminal": [
+          "CLI output: ✗ Error: API error (500): An unexpected error occurred",
+          "Server log: Error: Unsupported state or unable to authenticate data at LocalEncryptionProvider.decryptDek (src/lib/encryption/index.ts:214:67)",
+          "DB verification: 90 sleep_score rows for mock_test_totus_dev, date range 2025-12-10 to 2026-03-09",
+          "Code verification: health-data/route.ts line 135 uses getResolvedContext(request)"
+        ]
       },
-      "issues": "Health data API route uses getRequestContext() instead of getResolvedContext(). API key auth sets userId to '__api_key_pending__' initially; only getResolvedContext() resolves the API key to the real user. Command exits 0 but returns empty data — no error is raised for zero results."
-    },
-    "VAL-CLI-016": {
-      "status": "fail",
-      "title": "totus profile",
-      "steps": [
-        {
-          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts profile --server-url http://localhost:3000/api",
-          "expected": "Display user display name and health data summary",
-          "observed": "Crash with error: Not found: User not found"
-        }
-      ],
-      "evidence": {
-        "terminalOutput": "✗ Error: Not found: User not found",
-        "exitCode": 1,
-        "rootCause": "Profile API route uses getRequestContext() instead of getResolvedContext(), so userId is '__api_key_pending__' and user lookup returns 404"
-      },
-      "issues": "Known bug: profile route uses getRequestContext() instead of getResolvedContext(). With API key auth, userId is '__api_key_pending__' which doesn't match any user in the database."
-    },
-    "VAL-CLI-017": {
-      "status": "fail",
-      "title": "totus export",
-      "steps": [
-        {
-          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts export --server-url http://localhost:3000/api",
-          "expected": "JSON data export downloaded",
-          "observed": "Crash with error: null is not an object (evaluating 'errorBody.error')"
-        },
-        {
-          "action": "Verify via curl GET to /api/user/export",
-          "expected": "GET returns export data",
-          "observed": "HTTP 405 Method Not Allowed — export route only supports POST"
-        },
-        {
-          "action": "Verify via curl POST to /api/user/export with Bearer auth",
-          "expected": "Export data returned",
-          "observed": "HTTP 404: {error: {code: 'NOT_FOUND', message: 'User not found'}} — same getRequestContext() bug"
-        }
-      ],
-      "evidence": {
-        "terminalOutput": "✗ Error: null is not an object (evaluating 'errorBody.error')",
-        "exitCode": 1,
-        "rootCause": "Two bugs: (1) CLI uses client.get('/api/user/export') but API only exposes POST handler, causing 405 with HTML response that CLI cannot parse as JSON. (2) Even if fixed to POST, export route uses getRequestContext() so API key auth would return 'User not found'."
-      },
-      "issues": "Two bugs: (1) HTTP method mismatch — CLI sends GET but export route only handles POST. The 405 returns HTML which crashes the CLI JSON error parser. (2) Export route uses getRequestContext() instead of getResolvedContext(), same as profile/health-data routes."
-    },
-    "VAL-CLI-025": {
-      "status": "fail",
-      "title": "totus metrics summary",
-      "steps": [
-        {
-          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts metrics summary --server-url http://localhost:3000/api",
-          "expected": "Display data points, connected sources, active shares, date range, metric counts",
-          "observed": "Crash with error: undefined is not a function (near '...m of metricTypes...')"
-        }
-      ],
-      "evidence": {
-        "terminalOutput": "✗ Error: undefined is not a function (near '...m of metricTypes...')",
-        "exitCode": 1,
-        "rootCause": "Same root cause as VAL-CLI-005/006: API returns {data: {types: []}} but CLI code iterates metricTypes with for...of expecting an array"
-      },
-      "issues": "Same metricTypes bug as VAL-CLI-005/006. The metrics summary command fetches /api/health-data/types and tries to iterate the response data, but the response wraps metrics in a {types: []} object rather than returning a plain array."
-    }
-  },
-  "frictions": [
-    {
-      "description": "The health-data, profile, and export API routes all use getRequestContext() instead of getResolvedContext(), making them incompatible with API key authentication. With API key auth, userId is set to '__api_key_pending__' which doesn't match any real user. This affects VAL-CLI-007, VAL-CLI-016, VAL-CLI-017.",
-      "resolved": false,
-      "resolution": null,
-      "affectedAssertions": ["VAL-CLI-007", "VAL-CLI-016", "VAL-CLI-017"]
+      "issues": "ENCRYPTION_KEY in .env.local does not match the key used to encrypt the seed data in health_data_daily. This is an infrastructure issue affecting ALL data decryption (both API key and session auth). The RC-1 code fix (getResolvedContext) IS correctly applied in the health-data route. Re-seeding the database with `bun run db:seed` from apps/web should fix this, but that would modify shared data."
     },
     {
-      "description": "The /api/health-data/types endpoint returns {data: {types: [...]}} but CLI code expects the metric types to be directly in response.data as an array. This shape mismatch crashes metrics list, metrics list --output json, and metrics summary.",
-      "resolved": false,
-      "resolution": null,
-      "affectedAssertions": ["VAL-CLI-005", "VAL-CLI-006", "VAL-CLI-025"]
+      "id": "VAL-CLI-009",
+      "title": "totus shares create",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run: bun run packages/cli/src/index.ts shares create --help",
+          "expected": "Help showing available flags",
+          "observed": "Help shows --label, --metrics, --start, --end, --expires, --note flags"
+        },
+        {
+          "action": "Run: TOTUS_API_KEY=tot_live_Nbt1Dqpq_... bun run packages/cli/src/index.ts shares create --label 'CLI test share' --metrics sleep_score,hrv --start 2026-01-01 --end 2026-01-31 --expires 7 --note 'Test share from CLI' --server-url http://localhost:3000/api",
+          "expected": "Share created with correct field names (allowed_metrics, data_start, data_end) and share URL output",
+          "observed": "Share created successfully. Response includes id, token, share_url, allowed_metrics: [sleep_score, hrv], data_start: 2026-01-01, data_end: 2026-01-31, grant_expires, note, created_at"
+        }
+      ],
+      "evidence": {
+        "terminal": [
+          "CLI output: {\"id\":\"e41349f1-39c9-46f7-b401-30e30c0c47f9\",\"token\":\"...\",\"share_url\":\"http://localhost:3000/v/tc3guVXnEux87XQ7TKIQVnPLImRwQ3rxH3Ro2WIPIyo\",\"label\":\"CLI test share\",\"allowed_metrics\":[\"sleep_score\",\"hrv\"],\"data_start\":\"2026-01-01\",\"data_end\":\"2026-01-31\",\"grant_expires\":\"2026-03-18T20:11:27.097Z\",\"note\":\"Test share from CLI\",\"created_at\":\"2026-03-11T20:11:27.098Z\"}"
+        ]
+      },
+      "issues": null
     },
     {
-      "description": "CLI export command sends GET request to /api/user/export but the API route only defines a POST handler, resulting in 405 Method Not Allowed.",
-      "resolved": false,
-      "resolution": null,
-      "affectedAssertions": ["VAL-CLI-017"]
+      "id": "VAL-CLI-013",
+      "title": "totus connections sync",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run: totus connections list (to check prerequisite)",
+          "expected": "List showing 1 Oura connection (active)",
+          "observed": "{\"connections\": []} — empty list"
+        },
+        {
+          "action": "Verified DB: SELECT from provider_connections WHERE user_id='mock_test_totus_dev'",
+          "expected": "1 Oura connection",
+          "observed": "1 row: id=4c260e95-..., provider=oura, status=active — connection exists"
+        },
+        {
+          "action": "Checked connections list route: GET /api/connections (route.ts)",
+          "expected": "Route uses getResolvedContext()",
+          "observed": "Route still uses getRequestContext() — NOT fixed by RC-1"
+        },
+        {
+          "action": "Run: totus connections sync --all",
+          "expected": "Sync triggered for Oura connection",
+          "observed": "No active connections to sync. (because list returns empty)"
+        },
+        {
+          "action": "Run: totus connections sync 4c260e95-0aa9-46e2-9e59-d4fc7472f120 (direct UUID)",
+          "expected": "Sync triggered",
+          "observed": "Sync succeeded: {\"sync_id\":\"sync_1773259940821\",\"status\":\"queued\",\"message\":\"Sync dispatched for oura connection\"} — works because CLI falls back to using UUID as route param, and sync route uses getResolvedContext()"
+        }
+      ],
+      "evidence": {
+        "terminal": [
+          "connections list output: {\"connections\": []}",
+          "sync --all output: No active connections to sync.",
+          "sync <uuid> output: {\"sync_id\":\"sync_1773259940821\",\"status\":\"queued\",\"message\":\"Sync dispatched for oura connection\"}",
+          "DB: provider_connections has 1 active Oura connection for mock_test_totus_dev",
+          "Code: apps/web/src/app/api/connections/route.ts line 17 imports getRequestContext, line 22 calls getRequestContext(request)"
+        ]
+      },
+      "issues": "GET /api/connections (route.ts) still uses getRequestContext() instead of getResolvedContext(). This causes connections list to return empty for API key auth (userId resolves to __api_key_pending__). The sync route ([provider]/sync/route.ts) was correctly fixed to use getResolvedContext(), but the list route was missed. This breaks 'sync --all' which depends on the list endpoint. Direct sync by UUID works as a workaround but is not the normal user flow."
+    },
+    {
+      "id": "VAL-CLI-014",
+      "title": "totus preferences list/set/delete",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run: totus preferences list",
+          "expected": "List of preferences (may be empty initially)",
+          "observed": "{\"preferences\": []} — empty, which is expected initially"
+        },
+        {
+          "action": "Run: totus preferences set hrv oura",
+          "expected": "Preference set successfully",
+          "observed": "{\"metric_type\":\"hrv\",\"provider\":\"oura\",\"updated_at\":\"2026-03-11T20:13:01.336Z\"} — success"
+        },
+        {
+          "action": "Verify in DB: SELECT from metric_source_preferences WHERE user_id='mock_test_totus_dev'",
+          "expected": "1 row: hrv -> oura",
+          "observed": "1 row: user_id=mock_test_totus_dev, metric_type=hrv, provider=oura — correctly stored"
+        },
+        {
+          "action": "Run: totus preferences list (after set)",
+          "expected": "List showing hrv -> oura preference",
+          "observed": "{\"preferences\": []} — STILL EMPTY despite preference existing in DB"
+        },
+        {
+          "action": "Checked list route: GET /api/metric-preferences (route.ts)",
+          "expected": "Route uses getResolvedContext()",
+          "observed": "Route still uses getRequestContext() — NOT fixed by RC-1"
+        },
+        {
+          "action": "Run: totus preferences delete hrv",
+          "expected": "Preference removed",
+          "observed": "{\"metric_type\":\"hrv\",\"preference\":\"cleared\"} — success"
+        },
+        {
+          "action": "Verify in DB: SELECT from metric_source_preferences WHERE user_id='mock_test_totus_dev'",
+          "expected": "0 rows",
+          "observed": "0 rows — correctly deleted"
+        }
+      ],
+      "evidence": {
+        "terminal": [
+          "preferences list output: {\"preferences\": []}",
+          "preferences set output: {\"metric_type\":\"hrv\",\"provider\":\"oura\",\"updated_at\":\"2026-03-11T20:13:01.336Z\"}",
+          "preferences list (after set) output: {\"preferences\": []} — still empty",
+          "preferences delete output: {\"metric_type\":\"hrv\",\"preference\":\"cleared\"}",
+          "DB verification confirms set stored data correctly and delete removed it",
+          "Code: apps/web/src/app/api/metric-preferences/route.ts line 14 imports getRequestContext, line 19 calls getRequestContext(request)"
+        ]
+      },
+      "issues": "GET /api/metric-preferences (route.ts) still uses getRequestContext() instead of getResolvedContext(). This causes preferences list to return empty for API key auth. The PUT and DELETE routes ([metricType]/route.ts) were correctly fixed to use getResolvedContext(), but the GET list route was missed. Set and delete operations work correctly, but list always returns empty."
     }
   ],
-  "blockers": [],
-  "summary": "Tested 6 assertions: 0 passed, 6 failed. Three root causes: (1) metricTypes shape mismatch — API returns {types:[]} wrapper but CLI expects plain array (affects VAL-CLI-005, VAL-CLI-006, VAL-CLI-025). (2) API routes use getRequestContext() instead of getResolvedContext(), breaking API key auth for health-data, profile, and export endpoints (affects VAL-CLI-007, VAL-CLI-016, VAL-CLI-017). (3) Export CLI sends GET but API only handles POST (affects VAL-CLI-017)."
+  "frictions": [
+    {
+      "description": "CLI output is JSON format because terminal is non-TTY (piped). This means table format assertions can't be verified through this testing method.",
+      "resolved": true,
+      "resolution": "Accepted JSON output as equivalent evidence since the data content is correct",
+      "affectedAssertions": ["VAL-CLI-007", "VAL-CLI-009", "VAL-CLI-013", "VAL-CLI-014"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "ENCRYPTION_KEY mismatch: the current ENCRYPTION_KEY in .env.local does not match the key used to encrypt seed data in health_data_daily. All decrypt operations fail with 'Unsupported state or unable to authenticate data' at LocalEncryptionProvider.decryptDek. This affects ALL users (session and API key auth) and ALL routes that decrypt health data.",
+      "affectedAssertions": ["VAL-CLI-007"],
+      "quickFixAttempted": "Retried with different date ranges, verified with session-based auth (same failure). Confirmed data exists in DB (720 rows for mock_test_totus_dev). Re-seeding would fix but would modify shared data."
+    },
+    {
+      "description": "RC-1 fix incomplete: getRequestContext() was NOT changed to getResolvedContext() in two list routes: GET /api/connections (apps/web/src/app/api/connections/route.ts) and GET /api/metric-preferences (apps/web/src/app/api/metric-preferences/route.ts). These routes still resolve API key auth to userId='__api_key_pending__' instead of the real user ID.",
+      "affectedAssertions": ["VAL-CLI-013", "VAL-CLI-014"],
+      "quickFixAttempted": "Verified the routes' source code. The fix was applied to sync and set/delete routes but the list routes were missed."
+    }
+  ],
+  "summary": "Tested 4 assertions: 1 passed (VAL-CLI-009), 2 failed (VAL-CLI-013, VAL-CLI-014), 1 blocked (VAL-CLI-007). VAL-CLI-009 passes — RC-3 fix confirmed, shares create sends correct field names. VAL-CLI-013 and VAL-CLI-014 fail because the RC-1 fix was incomplete: GET /api/connections and GET /api/metric-preferences still use getRequestContext() instead of getResolvedContext(), causing list operations to return empty for API key auth. VAL-CLI-007 is blocked by an infrastructure issue: ENCRYPTION_KEY mismatch prevents health data decryption (the RC-1 code fix IS correctly applied in the health-data route)."
 }

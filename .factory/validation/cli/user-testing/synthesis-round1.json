@@ -1,0 +1,31 @@
+{
+  "milestone": "cli",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 30,
+    "passed": 19,
+    "failed": 11,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-CLI-001", "VAL-CLI-003", "VAL-CLI-004", "VAL-CLI-008", "VAL-CLI-010",
+    "VAL-CLI-011", "VAL-CLI-012", "VAL-CLI-015", "VAL-CLI-018", "VAL-CLI-019",
+    "VAL-CLI-020", "VAL-CLI-021", "VAL-CLI-022", "VAL-CLI-023", "VAL-CLI-026",
+    "VAL-CLI-027", "VAL-CLI-028", "VAL-CLI-029", "VAL-CLI-030"
+  ],
+  "failedAssertions": [
+    {"id": "VAL-CLI-002", "reason": "auth login validates key against /api/user/profile which returns 404 for API key auth"},
+    {"id": "VAL-CLI-005", "reason": "metrics list crashes with metricTypes.map is not a function"},
+    {"id": "VAL-CLI-006", "reason": "metrics list --output json same crash"},
+    {"id": "VAL-CLI-007", "reason": "metrics get returns empty data due to getRequestContext"},
+    {"id": "VAL-CLI-009", "reason": "shares create sends wrong field names"},
+    {"id": "VAL-CLI-013", "reason": "connections sync returns 500 due to getRequestContext"},
+    {"id": "VAL-CLI-014", "reason": "preferences set returns 500 due to getRequestContext"},
+    {"id": "VAL-CLI-016", "reason": "profile returns 404 due to getRequestContext"},
+    {"id": "VAL-CLI-017", "reason": "export sends GET instead of POST and getRequestContext"},
+    {"id": "VAL-CLI-024", "reason": "metrics list --output csv same crash as CLI-005"},
+    {"id": "VAL-CLI-025", "reason": "metrics summary same crash as CLI-005"}
+  ],
+  "previousRound": null
+}

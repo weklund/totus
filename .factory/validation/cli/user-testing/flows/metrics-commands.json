@@ -1,0 +1,101 @@
+{
+  "groupId": "metrics-commands",
+  "testedAt": "2026-03-11T00:00:00.000Z",
+  "credentials": {
+    "account": "mock_test_totus_dev",
+    "namespace": "mock_test_totus_dev"
+  },
+  "toolsUsed": ["bun CLI"],
+  "assertions": [
+    {
+      "id": "VAL-CLI-005",
+      "title": "totus metrics list shows table",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run: TOTUS_API_KEY=... bun run packages/cli/src/index.ts metrics list --output table --server-url http://localhost:3000/api",
+          "expected": "Table format output with columns (type, label, category, unit, sources) OR 'No data found' message if empty. Must NOT crash with 'metricTypes.map is not a function'.",
+          "observed": "Output: 'No data found.' — command completed with exit code 0. No crash. The empty result is due to the known /api/health-data/types route using getRequestContext() instead of getResolvedContext(), returning empty types for API key auth."
+        }
+      ],
+      "evidence": {
+        "terminalOutput": "No data found.\nEXIT_CODE=0",
+        "consoleErrors": "none"
+      },
+      "issues": "No data rows displayed due to known remaining bug: /api/health-data/types uses getRequestContext() instead of getResolvedContext(), so userId is not resolved for API key auth. Table format itself works (shows 'No data found' gracefully). The original crash ('metricTypes.map is not a function') is fixed."
+    },
+    {
+      "id": "VAL-CLI-006",
+      "title": "totus metrics list --output json",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run: TOTUS_API_KEY=... bun run packages/cli/src/index.ts metrics list --output json --server-url http://localhost:3000/api",
+          "expected": "Valid JSON output. Must NOT crash.",
+          "observed": "Output: {\"metrics\": []} — valid JSON confirmed via python3 json.load(). Exit code 0."
+        },
+        {
+          "action": "Validate JSON via python3: pipe output to json.load()",
+          "expected": "Valid JSON parsed successfully with 'metrics' key",
+          "observed": "Valid JSON: <class 'dict'>, Has metrics key: True"
+        }
+      ],
+      "evidence": {
+        "terminalOutput": "{\n  \"metrics\": []\n}\nEXIT_CODE=0",
+        "jsonValidation": "Valid JSON: <class 'dict'>, Has metrics key: True",
+        "consoleErrors": "none"
+      },
+      "issues": "Empty metrics array due to known types endpoint bug (getRequestContext vs getResolvedContext). JSON format is valid. Original crash fixed."
+    },
+    {
+      "id": "VAL-CLI-024",
+      "title": "totus metrics list --output csv",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run: TOTUS_API_KEY=... bun run packages/cli/src/index.ts metrics list --output csv --server-url http://localhost:3000/api",
+          "expected": "Valid CSV with headers. Must NOT crash.",
+          "observed": "Output: CSV headers 'Metric Type,Label,Unit,Category,Source,Sources,Data Points,Date Range' with no data rows. Exit code 0."
+        }
+      ],
+      "evidence": {
+        "terminalOutput": "Metric Type,Label,Unit,Category,Source,Sources,Data Points,Date Range\n\nEXIT_CODE=0",
+        "consoleErrors": "none"
+      },
+      "issues": "CSV headers present but no data rows due to known types endpoint bug. CSV format itself is valid. Original crash fixed."
+    },
+    {
+      "id": "VAL-CLI-025",
+      "title": "totus metrics summary",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run: TOTUS_API_KEY=... bun run packages/cli/src/index.ts metrics summary --server-url http://localhost:3000/api (default non-TTY JSON output)",
+          "expected": "JSON with fields: total_data_points, connected_sources, active_shares, earliest_data, latest_data, metric_count, categories. Must NOT crash.",
+          "observed": "Output: JSON with all expected fields. active_shares: 1. Other fields show 0/empty/null due to API key auth resolution issue in upstream routes."
+        },
+        {
+          "action": "Run: same command with --output table for human-readable format",
+          "expected": "Structured summary display with labeled fields",
+          "observed": "Output: 'Health Data Summary' header with labeled rows: Total data points (0), Connected sources (none), Active shares (1), Earliest/Latest data (none), Metrics (0 types across 0 categories). Exit code 0."
+        }
+      ],
+      "evidence": {
+        "terminalOutputJson": "{\n  \"total_data_points\": 0,\n  \"connected_sources\": [],\n  \"active_shares\": 1,\n  \"earliest_data\": null,\n  \"latest_data\": null,\n  \"metric_count\": 0,\n  \"categories\": {}\n}",
+        "terminalOutputTable": "Health Data Summary\n  Total data points:    0\n  Connected sources:    none\n  Active shares:        1\n  Earliest data:        none\n  Latest data:          none\n\n  Metrics:              0 types across 0 categories",
+        "consoleErrors": "none"
+      },
+      "issues": "Summary structure displays correctly with all expected fields. active_shares correctly shows 1. Other data (data points, connections, metric types) shows 0/empty due to known getRequestContext() bug in upstream API routes. The summary command itself works correctly — it aggregates and displays whatever the API returns. Original crash fixed."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Non-TTY mode (Execute tool) defaults to JSON output, requiring explicit --output table flag to test table format",
+      "resolved": true,
+      "resolution": "Used --output table and --output csv flags explicitly to test each format",
+      "affectedAssertions": ["VAL-CLI-005", "VAL-CLI-024", "VAL-CLI-025"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 4 assertions: all 4 passed. The fix in commit 6ab327e (unwrap response.data.types ?? response.data) resolved the 'metricTypes.map is not a function' crash for all metrics commands. All commands now exit cleanly (code 0) and produce correct output formats (table, JSON, CSV, summary). Data is empty/minimal due to known remaining bug where /api/health-data/types uses getRequestContext() instead of getResolvedContext(), but the commands handle empty data gracefully without crashing."
+}

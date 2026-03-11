@@ -1,0 +1,135 @@
+{
+  "groupId": "profile-auth-export",
+  "testedAt": "2026-03-11T20:15:00.000Z",
+  "credentials": {
+    "account": "mock_test_totus_dev",
+    "namespace": "mock_test_totus_dev"
+  },
+  "toolsUsed": ["bun", "curl"],
+  "assertions": [
+    {
+      "id": "VAL-CLI-002",
+      "title": "totus auth login saves API key",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Backup existing config file",
+          "expected": "Config backed up to config.json.bak",
+          "observed": "Config backed up successfully; existing config had api_url set"
+        },
+        {
+          "action": "Pipe API key via echo to auth login --stdin",
+          "expected": "Key validated and saved",
+          "observed": "Output: '✓ Authenticated as test (key: ********************)\\n  API key stored in /Users/weseklund/.config/totus/config.json'. Exit code 0."
+        },
+        {
+          "action": "Read config file after login",
+          "expected": "Config contains api_key field with the provided key",
+          "observed": "Config contains {\"api_url\":\"http://localhost:3000/api\",\"api_key\":\"tot_live_Oxcn5bC8_tRl6NOd4rNEVB19W8pXppzS9M55B6nPC\"}"
+        },
+        {
+          "action": "Test format validation with invalid key",
+          "expected": "Error message about invalid format",
+          "observed": "Output: '✗ Error: Invalid API key format\\n  Expected format: tot_live_{8 chars}_{32 chars}'. Exit code 2."
+        },
+        {
+          "action": "Restore original config from backup",
+          "expected": "Original config restored",
+          "observed": "Config restored to original state (api_url only, no api_key)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "terminal": [
+          "echo 'tot_live_Oxcn5bC8_tRl6NOd4rNEVB19W8pXppzS9M55B6nPC' | bun run packages/cli/src/index.ts auth login --stdin --server-url http://localhost:3000/api -> exit 0, '✓ Authenticated as test'",
+          "cat ~/.config/totus/config.json -> api_key field present with correct key",
+          "echo 'invalid_key_format' | bun run packages/cli/src/index.ts auth login --stdin --server-url http://localhost:3000/api -> exit 2, '✗ Error: Invalid API key format'"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CLI-016",
+      "title": "totus profile shows user display name and health data summary",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run totus profile with API key via env var",
+          "expected": "User display name and health data summary displayed",
+          "observed": "JSON output: {\"id\":\"mock_test_totus_dev\",\"display_name\":\"test\",\"created_at\":\"2026-03-09T12:05:56.130Z\",\"stats\":{\"total_data_points\":720,\"active_shares\":2,\"connections\":1}}. Exit code 0."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "terminal": [
+          "TOTUS_API_KEY=tot_live_Oxcn5bC8_tRl6NOd4rNEVB19W8pXppzS9M55B6nPC bun run packages/cli/src/index.ts profile --server-url http://localhost:3000/api -> exit 0",
+          "Output shows display_name='test', total_data_points=720, active_shares=2, connections=1"
+        ],
+        "network": "GET /api/user/profile -> 200 (via API key auth with getResolvedContext)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CLI-017",
+      "title": "totus export downloads JSON data export",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run totus export with API key via env var and --file flag",
+          "expected": "JSON data export file created",
+          "observed": "Error: 'API error (500): An unexpected error occurred'. Exit code 1. No file created."
+        },
+        {
+          "action": "Test export API directly with curl and API key auth",
+          "expected": "200 with export data",
+          "observed": "500 with {\"error\":{\"code\":\"INTERNAL_ERROR\",\"message\":\"An unexpected error occurred\"}}"
+        },
+        {
+          "action": "Test export API with session cookie auth (to rule out auth issues)",
+          "expected": "200 with export data",
+          "observed": "500 with same INTERNAL_ERROR — confirms the error is server-side, NOT auth-related"
+        },
+        {
+          "action": "Verify data exists in database",
+          "expected": "720 health_data_daily rows for user",
+          "observed": "Confirmed 720 rows exist with valid encrypted values (95 bytes each)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "Server-side unhandled error (logged to Next.js console as 'Unhandled error:')",
+        "terminal": [
+          "TOTUS_API_KEY=... bun run packages/cli/src/index.ts export --server-url http://localhost:3000/api --file /tmp/totus-test-export.json -v -> exit 1, '→ POST http://localhost:3000/api/user/export ← 500 Internal Server Error'",
+          "curl -s -X POST http://localhost:3000/api/user/export -H 'Authorization: Bearer ...' -> 500",
+          "curl with session cookie -> same 500"
+        ],
+        "network": "POST /api/user/export -> 500 (both API key and session auth)"
+      },
+      "issues": "The export API route returns 500 Internal Server Error. This is NOT caused by the auth fix (getResolvedContext works correctly — confirmed by profile command success and the fact that session-based auth also fails with the same 500). The likely cause is a decryption error in the export route when iterating over 720 health_data_daily rows — possibly ENCRYPTION_KEY mismatch between seed time and current server process, or a data serialization issue. The CLI correctly sends POST (not GET) and the route uses getResolvedContext(), confirming both fixes from commit 6ab327e are in place. The 500 is a separate pre-existing server-side bug in the export data pipeline."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "auth login does not support --api-key flag for non-interactive login; uses --stdin flag instead to read key from piped input",
+      "resolved": true,
+      "resolution": "Used 'echo <key> | totus auth login --stdin' pattern to pipe the key non-interactively",
+      "affectedAssertions": ["VAL-CLI-002"]
+    },
+    {
+      "description": "In non-TTY mode (piped output), profile command outputs JSON instead of formatted table — this is by design per CLI TTY detection",
+      "resolved": true,
+      "resolution": "JSON output still contains all required fields (display_name, stats with data_points/connections/active_shares)",
+      "affectedAssertions": ["VAL-CLI-016"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "POST /api/user/export returns 500 Internal Server Error regardless of auth method (API key or session cookie). The error is server-side (not auth-related) — likely a decryption failure when processing the 720 health_data_daily rows for export.",
+      "affectedAssertions": ["VAL-CLI-017"],
+      "quickFixAttempted": "Tested with both API key auth and session cookie auth. Also verified database has 720 valid health_data_daily rows with 95-byte encrypted values. Both auth methods produce the same 500, confirming the issue is in the export data pipeline, not authentication."
+    }
+  ],
+  "summary": "Tested 3 assertions: 2 passed (VAL-CLI-002 auth login, VAL-CLI-016 profile), 1 failed (VAL-CLI-017 export — 500 server error unrelated to auth fix). The getResolvedContext() fix from commit 6ab327e is confirmed working for auth login and profile. The export 500 is a separate server-side bug (decryption/serialization issue) affecting both API key and session auth."
+}

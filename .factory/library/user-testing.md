@@ -205,9 +205,20 @@ bun run packages/cli/src/index.ts <command> --api-key <key> --server-url http://
 TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts <command> --server-url http://localhost:3000/api | cat
 ```
 
-### Known CLI Issues (discovered during setup)
-- `metrics list` crashes with "metricTypes.map is not a function" - API returns `{data: {types: []}}` but CLI expects `{data: []}` (array directly)
-- `profile` command returns 404 "User not found" with API key auth because profile route uses `getRequestContext()` instead of `getResolvedContext()` — user ID is `__api_key_pending__`
+### Known CLI Issues (discovered during testing)
+
+**Fixed in commit 6ab327e (round 2 verified):**
+- ~~`metrics list` crashes with "metricTypes.map is not a function"~~ — Fixed: CLI now unwraps `response.data.types ?? response.data`
+- ~~`profile` returns 404 "User not found" with API key auth~~ — Fixed: profile route uses `getResolvedContext()`
+- ~~`shares create` sends wrong field names~~ — Fixed: now sends `allowed_metrics`, `data_start`, `data_end`
+- ~~`export` sends GET instead of POST~~ — Fixed: now sends POST
+
+**Remaining issues (round 2):**
+- `GET /api/health-data/types` still uses `getRequestContext()` — metrics list/summary return empty data with API key auth
+- `GET /api/connections` still uses `getRequestContext()` — connections list returns empty with API key auth, breaking `sync --all`
+- `GET /api/metric-preferences` still uses `getRequestContext()` — preferences list returns empty with API key auth
+- `POST /api/user/export` returns 500 Internal Server Error — decryption failure in export pipeline (affects both API key and session auth)
+- ENCRYPTION_KEY mismatch with seed data prevents health data decryption (affects `metrics get` and `export`)
 - `connections list` returns empty for API-key-authenticated requests (same root cause: route uses `getRequestContext()` not `getResolvedContext()`)
 - `metrics get` query param mismatch: CLI sends `start`/`end` but API health-data endpoint expects `start`/`end` (this actually works)
 - By default, non-TTY output (piped) outputs JSON format

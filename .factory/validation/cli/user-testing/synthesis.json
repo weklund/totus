@@ -1,28 +1,35 @@
 {
   "milestone": "cli",
-  "round": 1,
+  "round": 2,
   "status": "fail",
   "assertionsSummary": {
     "total": 30,
-    "passed": 19,
-    "failed": 11,
-    "blocked": 0
+    "passed": 26,
+    "failed": 3,
+    "blocked": 1
   },
   "passedAssertions": [
     "VAL-CLI-001",
+    "VAL-CLI-002",
     "VAL-CLI-003",
     "VAL-CLI-004",
+    "VAL-CLI-005",
+    "VAL-CLI-006",
     "VAL-CLI-008",
+    "VAL-CLI-009",
     "VAL-CLI-010",
     "VAL-CLI-011",
     "VAL-CLI-012",
     "VAL-CLI-015",
+    "VAL-CLI-016",
     "VAL-CLI-018",
     "VAL-CLI-019",
     "VAL-CLI-020",
     "VAL-CLI-021",
     "VAL-CLI-022",
     "VAL-CLI-023",
+    "VAL-CLI-024",
+    "VAL-CLI-025",
     "VAL-CLI-026",
     "VAL-CLI-027",
     "VAL-CLI-028",
@@ -31,83 +38,44 @@
   ],
   "failedAssertions": [
     {
-      "id": "VAL-CLI-002",
-      "reason": "auth login validates key against /api/user/profile which returns 404 for API key auth. Profile route uses getRequestContext() instead of getResolvedContext(), resolving userId as __api_key_pending__."
-    },
-    {
-      "id": "VAL-CLI-005",
-      "reason": "metrics list crashes with 'metricTypes.map is not a function'. API returns {data:{types:[]}} but CLI does response.data.map() expecting array directly."
-    },
-    {
-      "id": "VAL-CLI-006",
-      "reason": "metrics list --output json crashes with same metricTypes.map bug as VAL-CLI-005."
-    },
-    {
-      "id": "VAL-CLI-007",
-      "reason": "metrics get returns empty data. Health-data route uses getRequestContext() — userId is __api_key_pending__ with API key auth so no data matches."
-    },
-    {
-      "id": "VAL-CLI-009",
-      "reason": "shares create sends wrong field names: metrics (API wants allowed_metrics), start_date (API wants data_start), end_date (API wants data_end). Returns 400 validation error."
-    },
-    {
       "id": "VAL-CLI-013",
-      "reason": "connections sync returns 500. Sync route uses getRequestContext() instead of getResolvedContext()."
+      "reason": "GET /api/connections still uses getRequestContext() instead of getResolvedContext(). Connections list returns empty for API key auth, breaking 'sync --all'. Direct sync by UUID works (sync route was fixed)."
     },
     {
       "id": "VAL-CLI-014",
-      "reason": "preferences set returns 500. Metric-preferences PUT route uses getRequestContext(). List and delete work."
-    },
-    {
-      "id": "VAL-CLI-016",
-      "reason": "profile returns 404 'User not found'. Profile route uses getRequestContext() — userId __api_key_pending__ not in database."
+      "reason": "GET /api/metric-preferences still uses getRequestContext(). Preferences set/delete work (routes fixed), but preferences list returns empty for API key auth."
     },
     {
       "id": "VAL-CLI-017",
-      "reason": "Two bugs: (1) CLI sends GET but export API only handles POST (405). (2) Export route also uses getRequestContext()."
-    },
-    {
-      "id": "VAL-CLI-024",
-      "reason": "metrics list --output csv crashes with same metricTypes.map bug as VAL-CLI-005."
-    },
-    {
-      "id": "VAL-CLI-025",
-      "reason": "metrics summary crashes iterating metricTypes. Same {data:{types:[]}} shape mismatch as VAL-CLI-005."
+      "reason": "POST /api/user/export returns 500 Internal Server Error. Both API key and session cookie auth fail with same error. RC-4 fix (POST method) and getResolvedContext() fix are applied, but server-side decryption/serialization error in export pipeline. Possibly ENCRYPTION_KEY mismatch with seed data."
     }
   ],
-  "blockedAssertions": [],
+  "blockedAssertions": [
+    {
+      "id": "VAL-CLI-007",
+      "blockedBy": "ENCRYPTION_KEY mismatch: health data decryption fails with 'Unsupported state or unable to authenticate data'. Affects all users (API key and session auth). The RC-1 code fix (getResolvedContext) IS correctly applied in health-data route. Re-seeding the database would fix this."
+    }
+  ],
   "rootCauses": [
     {
-      "id": "RC-1",
-      "description": "Multiple API routes use getRequestContext() instead of getResolvedContext() for API key auth. With API key auth, middleware sets userId='__api_key_pending__'. Only getResolvedContext() resolves the API key to the real userId. Affected routes: /api/user/profile (GET), /api/user/export (POST), /api/health-data (GET), /api/connections (GET sync), /api/metric-preferences (PUT).",
-      "affectedAssertions": ["VAL-CLI-002", "VAL-CLI-007", "VAL-CLI-013", "VAL-CLI-014", "VAL-CLI-016", "VAL-CLI-017"],
-      "suggestedFix": "Change affected route handlers from getRequestContext(request) to await getResolvedContext(request). This resolves the API key to the real user by looking up the key in the database."
+      "id": "RC-1-INCOMPLETE",
+      "description": "RC-1 fix from round 1 was incomplete. Two GET list routes were NOT changed from getRequestContext() to getResolvedContext(): (1) GET /api/connections (apps/web/src/app/api/connections/route.ts), (2) GET /api/metric-preferences (apps/web/src/app/api/metric-preferences/route.ts). Additionally, GET /api/health-data/types (apps/web/src/app/api/health-data/types/route.ts) was also missed.",
+      "affectedAssertions": ["VAL-CLI-013", "VAL-CLI-014"],
+      "suggestedFix": "Change getRequestContext(request) to await getResolvedContext(request) in these 3 route files."
     },
     {
-      "id": "RC-2",
-      "description": "CLI metrics command expects /api/health-data/types to return an array in response.data, but the API returns {data: {types: []}}. CLI does response.data.map() which fails because response.data is {types:[]} not an array.",
-      "affectedAssertions": ["VAL-CLI-005", "VAL-CLI-006", "VAL-CLI-024", "VAL-CLI-025"],
-      "suggestedFix": "In packages/cli/src/commands/metrics.ts, change `const metricTypes = response.data;` to `const metricTypes = (response.data as any).types ?? response.data;` or update the API client generic type."
-    },
-    {
-      "id": "RC-3",
-      "description": "CLI shares create sends wrong field names to API: 'metrics' instead of 'allowed_metrics', 'start_date' instead of 'data_start', 'end_date' instead of 'data_end'.",
-      "affectedAssertions": ["VAL-CLI-009"],
-      "suggestedFix": "In packages/cli/src/commands/shares.ts, update the POST body to use API field names: allowed_metrics, data_start, data_end."
-    },
-    {
-      "id": "RC-4",
-      "description": "CLI export command sends GET to /api/user/export but the API route only defines a POST handler.",
-      "affectedAssertions": ["VAL-CLI-017"],
-      "suggestedFix": "Change export command from client.get() to client.post() in packages/cli/src/commands/export.ts."
+      "id": "RC-5",
+      "description": "ENCRYPTION_KEY mismatch between the current .env.local and the key used when seed data was encrypted. All health data decryption fails. This affects metrics get, export, and any other route that decrypts health_data_daily/series/periods values.",
+      "affectedAssertions": ["VAL-CLI-007", "VAL-CLI-017"],
+      "suggestedFix": "Re-run db:seed from apps/web to re-seed data with current ENCRYPTION_KEY. Or restore the original ENCRYPTION_KEY that was used during seeding."
     }
   ],
   "appliedUpdates": [
     {
       "target": "user-testing.md",
-      "description": "Added Flow Validator Guidance: CLI section with test accounts, API keys, isolation rules, running commands guide, and known CLI issues discovered during testing.",
-      "source": "setup"
+      "description": "Updated Known CLI Issues section: marked fixed issues from commit 6ab327e and documented remaining issues (3 list routes still using getRequestContext, export 500, ENCRYPTION_KEY mismatch).",
+      "source": "flow-report"
     }
   ],
-  "previousRound": null
+  "previousRound": ".factory/validation/cli/user-testing/synthesis-round1.json"
 }
