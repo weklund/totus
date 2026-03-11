@@ -1,0 +1,83 @@
+{
+  "flowId": "api-crud",
+  "testedAt": "2026-03-11T14:53:30.000Z",
+  "credentials": {
+    "account": "ut-keys-crud@test.com",
+    "namespace": "mock_ut_keys_crud_test_com"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": {
+    "VAL-KEY-002": {
+      "status": "pass",
+      "title": "POST /api/keys creates key with correct format",
+      "steps": [
+        { "action": "POST /api/keys with name, scopes, expires_in_days", "expected": "201 with key in tot_live_{8}_{32} format", "observed": "201 returned, key matches tot_live_[0-9A-Za-z]{8}_[0-9A-Za-z]{32} pattern" },
+        { "action": "Verify full key shown only in creation response", "expected": "Response includes 'key' field with full key", "observed": "key field present: tot_live_8fIEEyiD_uuFKNAPcchNzVH7CkVtPvSPB1bHQAe5V" },
+        { "action": "Verify DB stores short_token and SHA-256 hash", "expected": "DB row has short_token and 64-char hex long_token_hash", "observed": "DB row: short_token=8fIEEyiD, long_token_hash=e1649a98...(64 chars)" }
+      ],
+      "evidence": "curl POST /api/keys -> 201, key=tot_live_8fIEEyiD_uuFKNAPcchNzVH7CkVtPvSPB1bHQAe5V. DB: short_token=8fIEEyiD, long_token_hash is 64-char SHA-256 hex.",
+      "issues": []
+    },
+    "VAL-KEY-003": {
+      "status": "pass",
+      "title": "GET /api/keys lists without secrets",
+      "steps": [
+        { "action": "GET /api/keys with session cookie", "expected": "200 with keys list", "observed": "200 returned with 1 key object" },
+        { "action": "Verify fields: id, name, short_token, scopes, status, expires_at, last_used_at", "expected": "All required fields present", "observed": "All fields present: id, name, short_token, scopes, status, expires_at, last_used_at, created_at" },
+        { "action": "Verify full key is NEVER included", "expected": "No 'key' field, no tot_live_ values in any field", "observed": "No 'key' field in listing. No tot_live_ values found in any field." }
+      ],
+      "evidence": "curl GET /api/keys -> 200. Response includes id, name, short_token, scopes, status, expires_at, last_used_at, created_at. No 'key' field or full key value present.",
+      "issues": []
+    },
+    "VAL-KEY-004": {
+      "status": "pass",
+      "title": "PATCH /api/keys/{id} revokes a key",
+      "steps": [
+        { "action": "Create key and verify it works", "expected": "Key auth returns 200", "observed": "GET /api/keys with Bearer key returned 200" },
+        { "action": "PATCH /api/keys/{id} with action=revoke", "expected": "200 with status=revoked and revoked_at set", "observed": "200 returned: status=revoked, revoked_at=2026-03-11T14:53:23.055Z" },
+        { "action": "Verify revoked_at set in DB", "expected": "DB row has revoked_at timestamp", "observed": "DB: revoked_at=2026-03-11 14:53:23.055+00" },
+        { "action": "Auth with revoked key", "expected": "401 Unauthorized", "observed": "401: Authentication is required" },
+        { "action": "Revoke again (idempotent)", "expected": "200 with same revoked_at", "observed": "200 returned with same revoked_at=2026-03-11T14:53:23.055Z" }
+      ],
+      "evidence": "curl PATCH /api/keys/{id} -> 200 revoked. DB revoked_at set. Subsequent Bearer auth -> 401. Re-revoke -> 200 (idempotent, same revoked_at).",
+      "issues": []
+    },
+    "VAL-KEY-005": {
+      "status": "pass",
+      "title": "API key authenticates via Bearer header",
+      "steps": [
+        { "action": "Create API key with keys:read scope", "expected": "201 with full key", "observed": "201 returned with key" },
+        { "action": "GET /api/keys with Authorization: Bearer tot_live_xxx_yyy", "expected": "200 with keys list", "observed": "200 returned with list of keys" },
+        { "action": "Verify last_used_at updated", "expected": "last_used_at set in response", "observed": "Bearer-test-key shows last_used_at=2026-03-11T14:53:04.110Z" }
+      ],
+      "evidence": "curl GET /api/keys with Authorization: Bearer tot_live_QLhM4UVH_Oepm... -> 200. last_used_at updated. authMethod=api_key confirmed via key.used audit event with actor_type=api_key.",
+      "issues": []
+    },
+    "VAL-KEY-009": {
+      "status": "pass",
+      "title": "CSRF exemption for API key auth",
+      "steps": [
+        { "action": "POST /api/keys with API key Bearer auth, no X-CSRF-Token header", "expected": "201 success", "observed": "201 returned, key created successfully" },
+        { "action": "PATCH /api/keys/{id} with API key Bearer auth, no X-CSRF-Token header", "expected": "200 success", "observed": "200 returned, key revoked successfully" }
+      ],
+      "evidence": "curl POST /api/keys without X-CSRF-Token with Bearer API key -> 201. curl PATCH /api/keys/{id} without X-CSRF-Token with Bearer API key -> 200. Both mutating requests succeed without CSRF token when using API key auth.",
+      "issues": []
+    },
+    "VAL-KEY-012": {
+      "status": "pass",
+      "title": "API key audit events",
+      "steps": [
+        { "action": "GET /api/audit after key operations", "expected": "key.created, key.revoked, key.used events present", "observed": "12 key-related audit events found" },
+        { "action": "Verify key.created events", "expected": "Present with correct actor_type", "observed": "5 key.created events: 3 with actor_type=owner (session-created), 1 with actor_type=api_key (key-created)" },
+        { "action": "Verify key.revoked events", "expected": "Present with correct actor_type", "observed": "2 key.revoked events: 1 owner, 1 api_key" },
+        { "action": "Verify key.used events", "expected": "Present with actor_type=api_key", "observed": "5 key.used events, all with actor_type=api_key" },
+        { "action": "Verify actor_type correctness", "expected": "Session-initiated = owner, API key-initiated = api_key", "observed": "Session-based operations have actor_type=owner, API key-based operations have actor_type=api_key" }
+      ],
+      "evidence": "GET /api/audit -> 200. Found key.created (5), key.revoked (2), key.used (5) events. actor_type=owner for session-initiated ops, actor_type=api_key for key-initiated ops. All three event types present with correct actor_type.",
+      "issues": []
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 6 assertions: all 6 passed (VAL-KEY-002, VAL-KEY-003, VAL-KEY-004, VAL-KEY-005, VAL-KEY-009, VAL-KEY-012). API key CRUD, Bearer authentication, CSRF exemption, and audit events all working correctly."
+}

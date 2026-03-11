@@ -1,0 +1,100 @@
+{
+  "flowId": "api-security",
+  "testedAt": "2026-03-11T14:53:00Z",
+  "credentials": {
+    "account": "ut-keys-sec@test.com",
+    "namespace": "mock_ut_keys_sec_test_com"
+  },
+  "toolsUsed": ["curl", "psql"],
+  "assertions": {
+    "VAL-KEY-006": {
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Create API key with health:read scope via session cookie",
+          "expected": "Key created with 201",
+          "observed": "Key created successfully with 201, scopes: [\"health:read\"]"
+        },
+        {
+          "action": "POST /api/shares with read-only API key (Bearer header)",
+          "expected": "403 with INSUFFICIENT_SCOPES error mentioning missing shares:write scope",
+          "observed": "500 INTERNAL_ERROR - endpoint uses getRequestContext (not getResolvedContext) so API key auth is not resolved, causing __api_key_pending__ userId to hit DB and crash"
+        }
+      ],
+      "evidence": "curl -X POST http://localhost:3000/api/shares -H 'Authorization: Bearer tot_live_xxx_yyy' -H 'Content-Type: application/json' -d '{\"label\":\"test\",\"allowed_metrics\":[\"sleep_score\"],\"data_start\":\"2026-01-01\",\"data_end\":\"2026-01-31\",\"expires_in_days\":7}' -> 500 {\"error\":{\"code\":\"INTERNAL_ERROR\",\"message\":\"An unexpected error occurred\"}}",
+      "issues": [
+        "POST /api/shares uses getRequestContext() instead of getResolvedContext(), so API key Bearer tokens are not resolved. The middleware sets userId='__api_key_pending__' which causes a 500 error instead of properly authenticating and then enforcing scopes.",
+        "Additionally, POST /api/shares does not call enforceScope(ctx, 'shares:write'), so even if API key auth were resolved, scope enforcement would not occur."
+      ]
+    },
+    "VAL-KEY-007": {
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create API key with health:read scope via session cookie",
+          "expected": "Key created with 201",
+          "observed": "Key created successfully with 201"
+        },
+        {
+          "action": "Use key to access GET /api/keys (key is valid but wrong scope)",
+          "expected": "Key authenticates (403 for scope, not 401 for auth)",
+          "observed": "403 INSUFFICIENT_SCOPES - confirms key IS authenticated, just wrong scope"
+        },
+        {
+          "action": "Set expires_at to 2020-01-01 via psql",
+          "expected": "UPDATE 1",
+          "observed": "UPDATE 1"
+        },
+        {
+          "action": "Use expired key to access GET /api/keys",
+          "expected": "401 unauthorized (key no longer valid)",
+          "observed": "401 {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Authentication is required\"}}"
+        }
+      ],
+      "evidence": "Before expiry: curl GET /api/keys -H 'Authorization: Bearer key' -> 403 INSUFFICIENT_SCOPES (authenticated but wrong scope). After docker exec totus-db psql -U totus -d totus -c \"UPDATE api_keys SET expires_at = '2020-01-01' WHERE id = 'key-id'\": curl GET /api/keys -H 'Authorization: Bearer key' -> 401 UNAUTHORIZED",
+      "issues": []
+    },
+    "VAL-KEY-010": {
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create parent API key with scopes [health:read, keys:write] via session cookie",
+          "expected": "Key created with 201",
+          "observed": "Key created successfully with 201"
+        },
+        {
+          "action": "Use parent key to create child key with [shares:write] scope (not in parent scopes)",
+          "expected": "403 INSUFFICIENT_SCOPES with message about broader scopes",
+          "observed": "403 {\"error\":{\"code\":\"INSUFFICIENT_SCOPES\",\"message\":\"Cannot create an API key with broader scopes than the creating key. Requested: [shares:write], Available: [health:read, keys:write]\"}}"
+        },
+        {
+          "action": "Use parent key to create child key with [health:read] scope (subset of parent)",
+          "expected": "201 key created",
+          "observed": "201 key created successfully"
+        }
+      ],
+      "evidence": "curl -X POST /api/keys -H 'Authorization: Bearer parent_key' -d '{\"name\":\"escalated\",\"scopes\":[\"shares:write\"]}' -> 403 INSUFFICIENT_SCOPES. curl -X POST /api/keys -H 'Authorization: Bearer parent_key' -d '{\"name\":\"valid\",\"scopes\":[\"health:read\"]}' -> 201",
+      "issues": []
+    },
+    "VAL-KEY-011": {
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify 0 existing active keys, then create 10 keys via session cookie",
+          "expected": "All 10 created with 201",
+          "observed": "All 10 keys created successfully (3 from earlier tests + 7 new = 10 total), all returned 201"
+        },
+        {
+          "action": "Attempt to create 11th key",
+          "expected": "400 KEY_LIMIT_REACHED",
+          "observed": "400 {\"error\":{\"code\":\"KEY_LIMIT_REACHED\",\"message\":\"Maximum 10 active API keys allowed. Revoke existing keys to create new ones.\"}}"
+        }
+      ],
+      "evidence": "Created 10 active keys (all 201). curl -X POST /api/keys -d '{\"name\":\"limit-test-11\",\"scopes\":[\"health:read\"]}' -> 400 KEY_LIMIT_REACHED",
+      "issues": []
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 4 assertions: 3 passed (VAL-KEY-007, VAL-KEY-010, VAL-KEY-011), 1 failed (VAL-KEY-006: POST /api/shares returns 500 instead of 403 because it doesn't support API key auth resolution or scope enforcement)."
+}

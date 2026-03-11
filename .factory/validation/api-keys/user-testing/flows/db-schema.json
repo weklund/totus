@@ -1,0 +1,15 @@
+{
+  "flowId": "db-schema",
+  "testedAt": "2026-03-11T00:00:00.000Z",
+  "assertions": {
+    "VAL-KEY-001": {
+      "status": "pass",
+      "evidence": "\\d api_keys output confirms all required columns, types, constraints, and indexes:\n\nColumns verified:\n- id: uuid NOT NULL DEFAULT gen_random_uuid() — PRIMARY KEY (api_keys_pkey)\n- user_id: character varying(64) NOT NULL — FOREIGN KEY -> users(id) ON DELETE CASCADE\n- name: character varying(100) NOT NULL\n- short_token: character varying(16) NOT NULL — UNIQUE CONSTRAINT (api_keys_short_token_key)\n- long_token_hash: character varying(64) NOT NULL\n- scopes: text[] NOT NULL\n- expires_at: timestamp with time zone NOT NULL\n- last_used_at: timestamp with time zone (nullable)\n- revoked_at: timestamp with time zone (nullable)\n- created_at: timestamp with time zone NOT NULL DEFAULT now()\n\nConstraints verified:\n- api_keys_pkey: PRIMARY KEY (id)\n- api_keys_short_token_key: UNIQUE (short_token)\n- api_keys_user_id_fkey: FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE\n\nIndexes verified:\n- api_keys_pkey: CREATE UNIQUE INDEX api_keys_pkey ON public.api_keys USING btree (id)\n- api_keys_short_token_key: CREATE UNIQUE INDEX api_keys_short_token_key ON public.api_keys USING btree (short_token)\n- idx_api_keys_active_short_token: CREATE INDEX idx_api_keys_active_short_token ON public.api_keys USING btree (short_token) WHERE (revoked_at IS NULL)\n- idx_api_keys_user_created: CREATE INDEX idx_api_keys_user_created ON public.api_keys USING btree (user_id, created_at DESC)",
+      "issues": []
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "toolsUsed": ["psql"],
+  "summary": "Tested 1 assertion: 1 passed. VAL-KEY-001 confirmed api_keys table has all required columns (id UUID PK, user_id FK, name, short_token UNIQUE, long_token_hash, scopes TEXT[], expires_at, last_used_at, revoked_at, created_at), correct types, PK constraint, UNIQUE constraint on short_token, FK to users(id), and partial index on active keys (WHERE revoked_at IS NULL)."
+}

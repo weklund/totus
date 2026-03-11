@@ -1,0 +1,78 @@
+{
+  "flowId": "ui-keys",
+  "testedAt": "2026-03-11T14:56:00.000Z",
+  "credentials": {
+    "account": "ut-keys-ui@test.com",
+    "namespace": "mock_ut_keys_ui_test_com"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": {
+    "VAL-MPUI-012": {
+      "status": "pass",
+      "steps": [
+        { "action": "Navigate to /dashboard/settings", "expected": "Settings page loads", "observed": "Settings page loaded successfully" },
+        { "action": "Scroll to API Keys section", "expected": "API Keys section visible with create button, key list, revoke action", "observed": "API Keys section visible with heading, description, '+ Create Key' button, and initially empty state" },
+        { "action": "After creating a key, verify key list", "expected": "Key list shows masked token, scopes, created date, revoke button", "observed": "Key 'Test UI Key' listed with masked token 'IffjqM1K••••••••', scopes 'health:read, shares:read', 'Created less than a minute ago', and 'Revoke' button" }
+      ],
+      "evidence": {
+        "screenshots": ["/tmp/api-keys-settings.png", "/tmp/key-list-after-creation.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/keys -> 200"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-013": {
+      "status": "pass",
+      "steps": [
+        { "action": "Click '+ Create Key' button", "expected": "Create API Key dialog opens", "observed": "Dialog opened with Name text field and scope checkboxes (10 scopes listed)" },
+        { "action": "Enter label 'Test UI Key' and select Health Data (Read) + Shares (Read) scopes", "expected": "Fields populated, Create Key button enabled", "observed": "Name filled, checkboxes checked, Create Key button became enabled" },
+        { "action": "Click 'Create Key' in dialog", "expected": "Key created, full key shown with copy button and save warning", "observed": "Key created. Full key revealed: 'tot_live_IffjqM1K_EPPAuINIpQ21ha0Jo0GRoqCUbd4Sx0A'. Warning banner shows 'Save your API key now — This key will not be shown again.' with Copy button and 'I've saved it' dismiss button" }
+      ],
+      "evidence": {
+        "screenshots": ["/tmp/create-key-dialog.png", "/tmp/key-reveal-dialog.png"],
+        "consoleErrors": "none",
+        "network": "POST /api/keys -> 201"
+      },
+      "issues": null
+    },
+    "VAL-MPUI-014": {
+      "status": "fail",
+      "steps": [
+        { "action": "Click 'Revoke' on the API key", "expected": "Confirmation dialog appears", "observed": "Confirmation dialog appeared: 'Revoke API Key — Are you sure you want to revoke \"Test UI Key\"? Any applications using this key will immediately lose access. This action cannot be undone.' with Cancel and Revoke Key buttons" },
+        { "action": "Click 'Revoke Key' to confirm", "expected": "Key status changes to revoked in the UI", "observed": "Backend correctly revoked the key (DB: revoked_at set, API: status='revoked'), but UI still shows 'Revoke' button and no 'Revoked' badge even after page reload" }
+      ],
+      "evidence": {
+        "screenshots": ["/tmp/revoke-confirmation.png", "/tmp/key-list-still-showing-revoke.png"],
+        "consoleErrors": "none",
+        "network": "PATCH /api/keys/{id} -> 200, GET /api/keys -> 200 (status: revoked)"
+      },
+      "issues": [
+        "BUG: After revoking an API key, the UI does not display the 'Revoked' badge. Root cause: The GET /api/keys endpoint returns a computed 'status' field but does NOT include 'revoked_at' in the response. The frontend ApiKeysSection component checks '!!apiKey.revoked_at' to determine revoked state, but 'revoked_at' is always undefined since the API omits it. The frontend should either check 'apiKey.status === \"revoked\"' or the API should include 'revoked_at' in its response. File: apps/web/src/app/api/keys/route.ts (GET handler maps but omits revoked_at) and apps/web/src/components/settings/ApiKeysSection.tsx (checks revoked_at instead of status)."
+      ]
+    },
+    "VAL-MPUI-020": {
+      "status": "pass",
+      "steps": [
+        { "action": "Create API key and observe reveal dialog", "expected": "Full key shown with copy button and warning", "observed": "Full key 'tot_live_IffjqM1K_EPPAuINIpQ21ha0Jo0GRoqCUbd4Sx0A' shown in banner with Copy button and 'Save your API key now' warning" },
+        { "action": "Click 'I've saved it' to dismiss reveal banner", "expected": "Reveal banner dismissed", "observed": "Banner dismissed successfully" },
+        { "action": "Verify key list does NOT show full key", "expected": "Key list shows only masked token", "observed": "Key list shows masked token 'IffjqM1K••••••••' only — full key is NOT displayed" }
+      ],
+      "evidence": {
+        "screenshots": ["/tmp/key-reveal-dialog.png", "/tmp/key-list-after-creation.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/keys -> 200 (no full key in response)"
+      },
+      "issues": null
+    }
+  },
+  "frictions": [
+    {
+      "description": "The Create Key dialog has many scope checkboxes that extend beyond the default viewport height (600px). The 'Create Key' submit button was outside the viewport and Playwright could not click it until the viewport was resized to 1280x1024.",
+      "resolved": true,
+      "resolution": "Increased viewport to 1280x1024 using 'agent-browser set viewport 1280 1024'",
+      "affectedAssertions": ["VAL-MPUI-013"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 4 assertions: 3 passed, 1 failed. VAL-MPUI-012 (API key management settings) passed — section correctly shows create button, key list with masked tokens/scopes/dates, and revoke action. VAL-MPUI-013 (create key flow) passed — dialog with scopes/label works, full key revealed once with copy and warning. VAL-MPUI-020 (key shown only once) passed — full key visible only in creation banner, not in subsequent list. VAL-MPUI-014 (revoke key flow) failed — confirmation dialog works and backend correctly revokes the key, but the UI does not display the 'Revoked' badge due to a data mapping mismatch between API response (returns 'status' field) and frontend component (checks 'revoked_at' field which is not in the API response)."
+}

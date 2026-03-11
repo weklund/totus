@@ -137,6 +137,35 @@ Testing surface: tools, URLs, setup steps, isolation notes, known quirks.
 - Wait for page loads and async data fetching before asserting
 - Close sessions when done: agent-browser --session "sessionId" close
 
+## API Key Testing Accounts (api-keys milestone)
+
+| Account | Email | User ID | Purpose |
+|---------|-------|---------|---------|
+| CRUD tester | ut-keys-crud@test.com | mock_ut_keys_crud_test_com | API key creation, listing, revocation, auth, CSRF exemption, audit |
+| Security tester | ut-keys-sec@test.com | mock_ut_keys_sec_test_com | Scope enforcement, expired keys, scope escalation, key limits |
+| Rate limit tester | ut-keys-rate@test.com | mock_ut_keys_rate_test_com | API key rate limiting |
+| UI tester | ut-keys-ui@test.com | mock_ut_keys_ui_test_com | Browser UI for API key management |
+
+### Getting a session cookie (for curl-based subagents)
+```bash
+COOKIE=$(curl -s -D- -X POST http://localhost:3000/api/auth/sign-in \
+  -H "Content-Type: application/json" \
+  -d '{"email":"<email>","password":"TestPassword123!"}' 2>/dev/null | grep -i "set-cookie" | sed 's/.*__session=\([^;]*\).*/\1/')
+```
+
+### Creating an API key (for testing key-based auth)
+```bash
+RESULT=$(curl -s -X POST http://localhost:3000/api/keys \
+  -H "Cookie: __session=$COOKIE" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"<name>","scopes":["health:read","keys:read","keys:write"],"expires_in_days":30}')
+KEY=$(echo $RESULT | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['key'])")
+```
+
+### API Key format
+- Pattern: `tot_live_{8chars}_{32chars}`
+- Auth via: `Authorization: Bearer <key>`
+
 ## Known Quirks
 
 - Clipboard API unavailable in headless Chromium (copy button shows error toast)

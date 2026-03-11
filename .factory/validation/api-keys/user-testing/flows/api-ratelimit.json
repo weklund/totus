@@ -1,0 +1,57 @@
+{
+  "flowId": "api-ratelimit",
+  "testedAt": "2026-03-11T14:53:00.000Z",
+  "credentials": {
+    "account": "ut-keys-rate@test.com",
+    "namespace": "ut-keys-rate"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": {
+    "VAL-KEY-008": {
+      "status": "fail",
+      "title": "API key rate limiting",
+      "steps": [
+        {
+          "action": "Authenticate via POST /api/auth/sign-in with test credentials",
+          "expected": "Session cookie returned",
+          "observed": "Session cookie returned successfully"
+        },
+        {
+          "action": "Create API key with keys:write and keys:read scopes via POST /api/keys",
+          "expected": "API key created with tot_live_* format",
+          "observed": "API key created successfully (HTTP 201)"
+        },
+        {
+          "action": "Send 65 rapid GET /api/keys requests using API key Bearer auth (read rate limiter = 60/min)",
+          "expected": "After 60 requests, receive 429 with X-RateLimit-* headers and Retry-After",
+          "observed": "All 65 requests returned HTTP 200 with no rate limit headers. No 429 response received."
+        },
+        {
+          "action": "Send 10 rapid PATCH /api/keys/{id} revoke requests using API key Bearer auth (write rate limiter = 10/min)",
+          "expected": "After 10 requests, receive 429 with X-RateLimit-* headers",
+          "observed": "All 10 PATCH requests returned HTTP 200 with no rate limit headers. No 429 response received."
+        },
+        {
+          "action": "Code review: check if apiKeyWriteRateLimiter/apiKeyReadRateLimiter/apiKeyGeneralRateLimiter .check() is called in any route handler",
+          "expected": "Rate limiters called with .check() in API key-authenticated route handlers",
+          "observed": "Rate limiters are DEFINED in lib/api/rate-limit.ts and EXPORTED from lib/api/index.ts, but .check() is NEVER called in any route handler. The only rate limiter actually applied is validationRateLimiter in app/api/viewer/validate/route.ts (IP-based, not API key). The wiring is completely missing."
+        }
+      ],
+      "evidence": {
+        "read_burst_test": "65 rapid GET /api/keys requests with Bearer API key auth -> all returned HTTP 200, zero rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset not present), zero 429 responses",
+        "write_burst_test": "10 rapid PATCH /api/keys/{id} revoke requests with Bearer API key auth -> all returned HTTP 200, zero rate limit headers, zero 429 responses",
+        "code_analysis": "apiKeyGeneralRateLimiter (300/min), apiKeyReadRateLimiter (60/min), apiKeyWriteRateLimiter (10/min) are defined as RateLimiter instances in apps/web/src/lib/api/rate-limit.ts (lines 229-252) and re-exported from index.ts, but are never imported or called with .check() in any route handler or middleware. Compare with validationRateLimiter which IS properly applied in viewer/validate/route.ts:44.",
+        "consoleErrors": "none",
+        "network": "POST /api/auth/sign-in -> 200, POST /api/keys -> 201, GET /api/keys x65 -> all 200, PATCH /api/keys/{id} x10 -> all 200"
+      },
+      "issues": [
+        "API key rate limiters (apiKeyGeneralRateLimiter, apiKeyReadRateLimiter, apiKeyWriteRateLimiter) are defined but never wired into route handlers. No .check() calls exist for these limiters in any API route. Rate limiting for API key-authenticated requests is completely non-functional.",
+        "No X-RateLimit-* headers are returned on any API key-authenticated request, even on successful responses (addRateLimitHeaders is never called either).",
+        "No Retry-After header is possible since createRateLimitResponse is never invoked for API key requests."
+      ]
+    }
+  },
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 1 assertion: 0 passed, 1 failed. VAL-KEY-008 (API key rate limiting) FAILS — rate limiters are defined as RateLimiter instances with correct limits (300/min general, 60/min read, 10/min write) but their .check() method is never called in any route handler or middleware. Burst requests (65 read, 10 write) all succeed with HTTP 200 and no rate limit headers."
+}
