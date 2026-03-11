@@ -29,3 +29,17 @@ Architectural decisions, patterns discovered during implementation.
 - health_data split into 3 tables: daily (renamed), series (partitioned), periods
 - Source resolution: user preference > most recent sync > alphabetical
 - Inngest for background sync (sweep, per-connection, initial, manual, token refresh, partition mgmt)
+
+## Inngest Integration Patterns
+
+- Client at `src/inngest/client.ts` with typed events via `EventSchemas.fromRecord<Events>()`
+- Functions in `src/inngest/functions/` with barrel export from `index.ts`
+- Route handler at `/api/inngest/route.ts` using `serve()` from `inngest/next`
+- Sync helpers at `src/inngest/sync-helpers.ts`: shared logic for data fetching, encryption, upserting
+- **Buffer serialization**: Inngest `step.run()` serializes data to JSON between steps. Buffer fields (like `authEnc`) become `{type: "Buffer", data: number[]}`. Use `ensureBuffer()` to reconstruct.
+- **Concurrency guards**: `claimConnection()` uses atomic compare-and-swap to prevent duplicate syncs
+- **Error isolation**: `onFailure` handlers update `sync_status='error'` and `sync_error` in DB
+- **Token refresh**: Each connection refreshed in its own `step.run()` for fault isolation
+- POST /api/connections/[id]/sync dispatches `integration/sync.manual` event (not inline sync)
+- OAuth callback dispatches `integration/sync.initial` event for historical backfill
+- Mock Inngest client in tests: `vi.mock("@/inngest/client", ...)` to avoid needing dev server
