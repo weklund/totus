@@ -215,24 +215,26 @@ describe("MCP Server", () => {
   describe("list_available_metrics", () => {
     it("returns formatted metrics list", async () => {
       mockGet.mockResolvedValueOnce({
-        data: [
-          {
-            metric_type: "sleep_score",
-            label: "Sleep Score",
-            unit: "score",
-            category: "sleep",
-            resolved_source: "oura",
-            data_points: 100,
-          },
-          {
-            metric_type: "hrv",
-            label: "Heart Rate Variability",
-            unit: "ms",
-            category: "cardiovascular",
-            resolved_source: "whoop",
-            data_points: 50,
-          },
-        ],
+        data: {
+          types: [
+            {
+              metric_type: "sleep_score",
+              label: "Sleep Score",
+              unit: "score",
+              category: "sleep",
+              resolved_source: "oura",
+              data_points: 100,
+            },
+            {
+              metric_type: "hrv",
+              label: "Heart Rate Variability",
+              unit: "ms",
+              category: "cardiovascular",
+              resolved_source: "whoop",
+              data_points: 50,
+            },
+          ],
+        },
       });
 
       const { client } = await createTestServer();
@@ -294,6 +296,16 @@ describe("MCP Server", () => {
       expect(text).toContain("Share Created");
       expect(text).toContain("For Dr. Patel");
       expect(text).toContain("https://totus.com/v/abc123");
+
+      // Verify correct field names sent to API
+      expect(mockPost).toHaveBeenCalledWith("/api/shares", {
+        label: "For Dr. Patel",
+        allowed_metrics: ["sleep_score", "hrv"],
+        data_start: "2026-01-01",
+        data_end: "2026-03-01",
+        expires_in_days: 30,
+        note: undefined,
+      });
     });
   });
 
@@ -489,13 +501,15 @@ describe("MCP Server", () => {
   describe("list_metric_preferences", () => {
     it("returns formatted preferences", async () => {
       mockGet.mockResolvedValueOnce({
-        data: [
-          {
-            metric_type: "hrv",
-            provider: "whoop",
-            updated_at: "2026-03-01T14:22:00Z",
-          },
-        ],
+        data: {
+          preferences: [
+            {
+              metric_type: "hrv",
+              provider: "whoop",
+              updated_at: "2026-03-01T14:22:00Z",
+            },
+          ],
+        },
       });
 
       const { client } = await createTestServer();
@@ -511,7 +525,7 @@ describe("MCP Server", () => {
     });
 
     it("shows empty message when no preferences", async () => {
-      mockGet.mockResolvedValueOnce({ data: [] });
+      mockGet.mockResolvedValueOnce({ data: { preferences: [] } });
 
       const { client } = await createTestServer();
       const result = await client.callTool({
@@ -584,14 +598,16 @@ describe("MCP Server", () => {
 
     it("reads totus://metrics resource", async () => {
       mockGet.mockResolvedValueOnce({
-        data: [
-          {
-            metric_type: "sleep_score",
-            label: "Sleep Score",
-            unit: "score",
-            category: "sleep",
-          },
-        ],
+        data: {
+          types: [
+            {
+              metric_type: "sleep_score",
+              label: "Sleep Score",
+              unit: "score",
+              category: "sleep",
+            },
+          ],
+        },
       });
 
       const { client } = await createTestServer();

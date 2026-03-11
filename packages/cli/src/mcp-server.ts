@@ -249,7 +249,7 @@ export function createMcpServer(): McpServer {
         >("/api/health-data/types", query);
         const data = response.data;
 
-        const metricsList = Array.isArray(data) ? data : (data as Record<string, unknown>).metrics ?? [];
+        const metricsList = Array.isArray(data) ? data : (data as Record<string, unknown>).types ?? [];
         const metrics = metricsList as Array<Record<string, unknown>>;
 
         let text = "Available Metrics\n\n";
@@ -320,9 +320,9 @@ export function createMcpServer(): McpServer {
           "/api/shares",
           {
             label: params.label,
-            metrics: params.metrics,
-            start_date: params.start_date,
-            end_date: params.end_date,
+            allowed_metrics: params.metrics,
+            data_start: params.start_date,
+            data_end: params.end_date,
             expires_in_days: params.expires_in_days,
             note: params.note,
           },
@@ -623,7 +623,11 @@ export function createMcpServer(): McpServer {
           Array<Record<string, unknown>> | Record<string, unknown>
         >("/api/metric-preferences");
         const data = response.data;
-        const prefs = Array.isArray(data) ? data : [];
+        const prefs = Array.isArray(data)
+          ? data
+          : Array.isArray((data as Record<string, unknown>).preferences)
+            ? ((data as Record<string, unknown>).preferences as Array<Record<string, unknown>>)
+            : [];
 
         let text = "Source Preferences\n\n";
         if (prefs.length === 0) {
@@ -741,7 +745,7 @@ export function createMcpServer(): McpServer {
           Array<Record<string, unknown>> | Record<string, unknown>
         >("/api/health-data/types");
         const data = response.data;
-        const metricsList = Array.isArray(data) ? data : (data as Record<string, unknown>).metrics ?? [];
+        const metricsList = Array.isArray(data) ? data : (data as Record<string, unknown>).types ?? [];
         const metrics = metricsList as Array<Record<string, unknown>>;
 
         let text = "Available Health Metrics\n\n";
