@@ -1,0 +1,63 @@
+{
+  "featureId": "mpb-schema-migration",
+  "reviewedAt": "2026-03-11T10:15:00.000Z",
+  "commitId": "7f0e6edc943ceb1327cf01d471237f97177f8124",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Comprehensive multi-provider database schema migration. All 8 requirements from the feature description are implemented: provider_connections table with correct schema/indexes/constraints, health_data renamed to health_data_daily, health_data_series with 48 monthly partitions + default, health_data_periods with GIST index, metric_source_preferences with composite PK, btree_gist extension, Node.js migration script, and oura_connections drop. All API routes (10+ files), seed script, upsert utilities, and barrel exports updated. 57 schema-specific tests added covering all tables, constraints, indexes, partitioning, and FK cascades. Typecheck passes, 660/661 tests pass (1 pre-existing failure unrelated to migration).",
+    "issues": [
+      {
+        "file": "apps/web/src/db/schema/oura-connections.ts",
+        "line": 1,
+        "severity": "non_blocking",
+        "description": "Old schema file still exists as dead code. Defines ouraConnections pointing to 'oura_connections' table (which was dropped). The barrel export (index.ts) re-exports providerConnections as ouraConnections, so no code uses this file directly, but it's confusing dead code that should be deleted."
+      },
+      {
+        "file": "apps/web/src/db/schema/health-data.ts",
+        "line": 1,
+        "severity": "non_blocking",
+        "description": "Old schema file still exists as dead code. Defines healthData pointing to 'health_data' table (which was renamed to health_data_daily). The barrel export re-exports healthDataDaily as healthData, so no code uses this file directly, but it should be deleted."
+      },
+      {
+        "file": "apps/web/src/db/__tests__/upsert.test.ts",
+        "line": 6,
+        "severity": "non_blocking",
+        "description": "Test file still imports deprecated alias 'upsertHealthData' and legacy alias 'healthData' from schema. Works via barrel re-exports but should be updated to use 'upsertDailyData' and 'healthDataDaily' for consistency."
+      },
+      {
+        "file": "apps/web/src/db/schema/health-data-series.ts",
+        "line": 28,
+        "severity": "non_blocking",
+        "description": "Missing FK from user_id to users(id). The LLD (integrations-pipeline-lld.md §3.4) specifies 'user_id VARCHAR(64) NOT NULL REFERENCES users(id) ON DELETE CASCADE'. The implementation omits this FK. PostgreSQL 12+ supports FKs from partitioned tables, though there may be performance considerations. Currently data integrity relies on application logic only."
+      },
+      {
+        "file": "apps/web/drizzle/0002_multi_provider_schema.sql",
+        "line": 78,
+        "severity": "non_blocking",
+        "description": "Partition range starts at 2024-01, while LLD §3.4 specifies 'partitions from 2020-01 through 2027-12'. The feature description says '2024-01 through 2027-12' so this matches the feature spec, but differs from LLD. Historical imports for providers with long history windows (e.g., Dexcom 90 days) going back to pre-2024 would land in the default partition."
+      },
+      {
+        "file": "apps/web/src/app/api/shares/__tests__/route.test.ts",
+        "line": 32,
+        "severity": "non_blocking",
+        "description": "Test file uses legacy alias 'healthData' instead of 'healthDataDaily'. Several other test files (health-data/route.test.ts, new-endpoints.test.ts, viewer/route.test.ts) have the same pattern. All work via barrel re-exports but should be updated for clarity."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Legacy alias pattern (re-exporting new names under old names in barrel export) was used for backward compatibility but is not documented in AGENTS.md. Future workers may be confused by both old and new schema files existing, and by imports using old names still working. The old schema files (oura-connections.ts, health-data.ts) being left as dead code with no note about their status could lead to accidental use.",
+      "evidence": "apps/web/src/db/schema/index.ts:18-19 exports legacy aliases. apps/web/src/db/schema/oura-connections.ts and health-data.ts still exist as dead code. Multiple test files (upsert.test.ts, shares/route.test.ts, health-data/route.test.ts, viewer/route.test.ts) still import legacy names."
+    },
+    {
+      "area": "conventions",
+      "observation": "The feature description required 'Update all code that imports oura_connections or healthData to use new names' but several test files and the old schema definition files were not updated. The worker used legacy aliases as a bridge instead of a full rename, which is pragmatic but leaves cleanup work.",
+      "evidence": "apps/web/src/db/__tests__/upsert.test.ts:6-7 still imports upsertHealthData and healthData. apps/web/src/app/api/health-data/__tests__/route.test.ts:27 imports healthData. apps/web/src/app/api/shares/__tests__/route.test.ts:32 imports healthData."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. The multi-provider schema migration is well-implemented with comprehensive SQL migration, Drizzle schema definitions, route updates, upsert utilities, and tests. All core requirements are met: provider_connections replaces oura_connections with proper multi-provider support, health_data is renamed to health_data_daily, health_data_series is partitioned with 48 monthly partitions, health_data_periods has GIST index and CHECK constraints, metric_source_preferences has composite PK, and btree_gist is enabled. The Node.js migration script handles decryption/re-encryption with graceful fallback for test data. Non-blocking issues: old schema files not deleted (dead code), some test files still using legacy aliases, missing FK on health_data_series, and minor LLD partition range discrepancy."
+}

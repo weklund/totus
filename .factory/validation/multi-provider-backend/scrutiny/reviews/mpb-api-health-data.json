@@ -1,0 +1,56 @@
+{
+  "featureId": "mpb-api-health-data",
+  "reviewedAt": "2026-03-11T11:15:00.000Z",
+  "commitId": "28c803df084339123802267c55ae3e8471b4c9d9",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation covering all 6 feature requirements. 8 files changed (1960 insertions, 23 deletions). Source resolution utility is well-structured with clear 3-step logic. New series/periods endpoints follow existing route patterns consistently (auth, Zod validation, audit events, error handling). Types endpoint properly queries all 3 data tables. Metric preferences CRUD is clean with upsert and idempotent delete. 34 new tests cover auth enforcement, validation, happy paths, viewer access, source filtering, and edge cases. All tests pass (788 total, 1 pre-existing known flaky failure). Typecheck and lint clean.",
+    "issues": [
+      {
+        "file": "apps/web/src/lib/api/source-resolution.ts",
+        "line": 78,
+        "severity": "non_blocking",
+        "description": "Performance: resolveSourcesForMetrics queries ALL metric types for the user from the last 7 days rather than filtering to only metricsNeedingResolution. Should add inArray(healthDataDaily.metricType, metricsNeedingResolution) to the WHERE clause to reduce unnecessary data fetching."
+      },
+      {
+        "file": "apps/web/src/app/api/health-data/types/route.ts",
+        "line": 71,
+        "severity": "non_blocking",
+        "description": "Performance: Three sequential DB queries for daily, series, and periods summaries. Could be parallelized with Promise.all() for better latency on the types endpoint."
+      },
+      {
+        "file": "apps/web/src/app/api/health-data/series/route.ts",
+        "line": 202,
+        "severity": "non_blocking",
+        "description": "DRY: isValidUuid helper is duplicated inline in series, periods, and the main health-data route. This follows the existing codebase pattern (also duplicated in audit, viewer, shares routes), but extracting to a shared utility would reduce duplication. Not a regression — matches pre-existing convention."
+      },
+      {
+        "file": "apps/web/src/app/api/health-data/route.ts",
+        "line": 278,
+        "severity": "non_blocking",
+        "description": "Source resolution filtering happens in post-processing (after fetching and decrypting all data). For large datasets, it would be more efficient to push source filters into the SQL query per-metric. Current approach works but decrypts rows that are then discarded."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The isValidUuid helper function is duplicated across 6+ route files (audit, viewer/data, shares, health-data, health-data/series, health-data/periods). This pattern is pre-existing but growing — no shared utility exists. AGENTS.md doesn't mention this as a pattern or anti-pattern.",
+      "evidence": "ripgrep for 'isValidUuid' across apps/web/src shows 6 separate definitions in route files. Worker followed the existing pattern (inline definition per route), which is correct given the codebase state."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker acknowledged deviating from the skill's 'write tests first (red/green)' procedure, implementing routes and tests together. The deviation was reasonable for this feature type where route patterns are well-established. Worker's skillFeedback.suggestedChanges notes this. Skill procedure may benefit from a caveat for well-patterned implementation work.",
+      "evidence": "Handoff skillFeedback.suggestedChanges: 'The backend-worker skill suggests writing tests first (red/green). I read the feature requirements and existing code first, then implemented the routes and tests together since the route patterns were well-established...'"
+    },
+    {
+      "area": "skills",
+      "observation": "Worker did not perform manual curl verification (skill step 6), only automated tests. The handoff verification section has no interactiveChecks. However, the automated test coverage is comprehensive (34 tests across all endpoints) and all pass.",
+      "evidence": "Handoff verification.commandsRun has 5 entries (typecheck, lint, test runs) but no interactiveChecks section. Skill procedure step 6 says 'Start bun dev, use curl to test the endpoint(s) with real HTTP requests.'"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. All 6 feature requirements fully implemented: (1) GET /api/health-data updated with source resolution (user preference > most recent sync > alphabetical, plus sources=all bypass), (2) GET /api/health-data/series returns intraday readings, (3) GET /api/health-data/periods returns duration events, (4) GET /api/health-data/types queries all 3 data tables with data_type field, (5) metric preferences CRUD endpoints, (6) existing viewer/share tests confirm health_data_daily compatibility. 34 new tests pass. Only non-blocking issues found (performance optimizations and DRY concerns). Code consistently follows existing patterns for auth, validation, audit events, and error handling."
+}

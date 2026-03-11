@@ -1,0 +1,40 @@
+{
+  "featureId": "mpb-seed-script",
+  "reviewedAt": "2026-03-11T11:15:00.000Z",
+  "commitId": "3be5c54",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The seed script update is well-implemented and covers all 6 requirements. It adds seedSeriesData() generating 4032 intraday readings (heart_rate + spo2_interval, 288/day × 7 days × 2 metrics) and seedPeriodData() generating 133 period events (18 sleep stages/night × 7 + 7 workouts). The code correctly uses upsertSeriesData and upsertPeriodData for idempotent seeding, uses UTC-based timestamp arithmetic to avoid DST issues, and includes realistic time-of-day variation for heart rate data and realistic sleep architecture patterns. The summary section was updated to display counts for all 4 tables with metric/event type breakdowns. Provider connection seeding was already present from a prior feature.",
+    "issues": [
+      {
+        "file": "apps/web/src/db/seed.ts",
+        "line": 305,
+        "severity": "non_blocking",
+        "description": "Comment says sleep is '10:30 PM to 6:30 AM' (8 hours) but the actual stage durations total 400 minutes (6h40m), so sleep ends around ~5:10 AM. Minor documentation inaccuracy in a code comment — no functional impact."
+      },
+      {
+        "file": "apps/web/src/db/seed.ts",
+        "line": 344,
+        "severity": "non_blocking",
+        "description": "The sourceId for sleep stages includes the raw timestamp ms value (e.g., `oura_sleep_stage_2026-03-10_light_1741561800000`). While unique, this makes sourceIds long and harder to debug. A shorter index-based approach (like series data uses `_${i}`) would be more readable. Non-blocking since functionality is correct."
+      },
+      {
+        "file": "apps/web/src/db/seed.ts",
+        "line": 297,
+        "severity": "non_blocking",
+        "description": "All period data rows are accumulated into a single array before batch upserting. For the current data volume (133 rows) this is fine, but unlike seedSeriesData() which upserts per-day, this could become a memory concern if DAYS_OF_SERIES_DATA were increased significantly. Non-blocking at current scale."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "Worker correctly deviated from 'Write tests FIRST' procedure for a seed script. The backend-worker skill doesn't distinguish seed scripts from application logic — seed scripts are best verified by running them and checking DB state. Worker's skillFeedback suggests adding this exception to the skill.",
+      "evidence": "handoff.skillFeedback.deviations[0]: 'The feature is a seed script (data generation), not application logic. Testing seed scripts is best done by running them and verifying DB state, not via unit tests.' This is a reasonable deviation — the existing upsert functions are already tested in upsert.test.ts."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. The seed script update fully satisfies all 6 feature requirements: provider_connections entry for oura, health_data_daily with 8 daily metrics × 90 days, health_data_series with intraday readings every 5 min × 7 days, health_data_periods with sleep stages and workouts. Implementation uses the required upsert functions, is idempotent (verified by double-run), and all verification commands passed (typecheck, lint, 818/819 tests with 1 pre-existing failure). Only non-blocking issues found: minor comment inaccuracy on sleep duration, verbose period sourceIds, and a minor batch pattern inconsistency."
+}

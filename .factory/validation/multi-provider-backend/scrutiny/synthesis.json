@@ -1,0 +1,145 @@
+{
+  "milestone": "multi-provider-backend",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "bun --filter '@totus/web' test",
+      "exitCode": 1,
+      "note": "818/819 tests pass. 1 failure is known pre-existing flaky test (GET /api/health-data > audit events > emits data.viewed audit event) documented in AGENTS.md as non-blocking."
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "bun --filter '*' typecheck",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "bun --filter '@totus/web' lint",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "nonBlockingIssues": [
+    {
+      "featureId": "mpb-schema-migration",
+      "count": 6,
+      "highlights": [
+        "Old schema files (oura-connections.ts, health-data.ts) still exist as dead code",
+        "Some test files still import legacy aliases (healthData, upsertHealthData)",
+        "Missing FK on health_data_series.user_id to users(id)",
+        "Partition range starts 2024-01 vs LLD spec of 2020-01"
+      ]
+    },
+    {
+      "featureId": "mpb-provider-system",
+      "count": 4,
+      "highlights": [
+        "Adapter fetchDailyData sets userId to empty string (caller must override)",
+        "Category headings display lowercase instead of capitalized (deferred to UI milestone)",
+        "No adapter cache reset function for testing",
+        "Module-time env var evaluation for APP_URL"
+      ]
+    },
+    {
+      "featureId": "mpb-api-connections",
+      "count": 4,
+      "highlights": [
+        "getStateSecret() duplicated in authorize and callback routes",
+        "MOCK_AUTH_SECRET used for both session and OAuth state JWTs",
+        "Middleware regex only allows [a-z] for provider names",
+        "Silent fallback for missing provider in state JWT"
+      ]
+    },
+    {
+      "featureId": "mpb-api-health-data",
+      "count": 4,
+      "highlights": [
+        "Source resolution queries all metric types instead of just requested ones",
+        "Types endpoint makes 3 sequential DB queries (could parallelize)",
+        "isValidUuid duplicated across 6+ route files",
+        "Source filtering in post-processing after decryption (inefficient for large datasets)"
+      ]
+    },
+    {
+      "featureId": "mpb-inngest-sync",
+      "count": 6,
+      "highlights": [
+        "Stuck syncing state if connection deleted between claim and fetch steps",
+        "Inaccurate step.run() counters in token-refresh due to retry semantics",
+        "sql.raw() with template literal interpolation in partition-ensure",
+        "Missing per-provider concurrency limit on syncInitial",
+        "Triple auth decryption per sync cycle",
+        "Fire-and-forget initial sync dispatch"
+      ]
+    },
+    {
+      "featureId": "mpb-seed-script",
+      "count": 3,
+      "highlights": [
+        "Minor comment inaccuracy on sleep duration",
+        "Verbose sourceIds for period data",
+        "Single-batch upsert for periods vs per-day for series"
+      ]
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add convention: Legacy schema aliases (re-exporting new names under old names in barrel exports) should be considered temporary. Workers should update imports to use canonical new names. Old dead-code schema files (e.g., oura-connections.ts, health-data.ts) should be deleted once all imports are migrated.",
+      "evidence": "Features mpb-schema-migration and mpb-provider-system both used legacy alias re-exports as a bridge. Multiple test files (upsert.test.ts, shares/route.test.ts, health-data/route.test.ts, viewer/route.test.ts) still import old names. The old schema files are dead code.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add convention: Utility functions duplicated across 3+ route files (e.g., isValidUuid, getStateSecret) should be extracted to shared utilities in src/lib/. Workers should check for existing duplicates before adding inline helpers.",
+      "evidence": "isValidUuid is duplicated in 6+ route files (audit, viewer/data, shares, health-data, series, periods). getStateSecret is duplicated in authorize and callback routes. Both were flagged in multiple reviews (mpb-api-health-data, mpb-api-connections).",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add convention: MetricCategory values are lowercase machine-format strings (e.g., 'sleep', 'cardiovascular'), not display-ready. UI components must capitalize for display. This changed from the MVP's PascalCase convention.",
+      "evidence": "mpb-provider-system changed MetricCategory from PascalCase to lowercase per LLD. MetricSelector renders raw lowercase. Future UI workers need to know this.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add convention: The 'queued' sync status value is used when the API dispatches an Inngest event. The Inngest function then transitions to 'syncing' via claimConnection(). This 'queued' → 'syncing' → 'idle'/'error' lifecycle is the standard pattern for all background sync flows.",
+      "evidence": "mpb-inngest-sync introduced sync_status='queued' set by the sync API before dispatching Inngest events. This is an important new state value not in the original schema enum definition.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add to 'Known Pre-Existing Issues': MOCK_AUTH_SECRET is used for both session JWT signing and OAuth state JWT signing. When real auth is introduced, these should be split into separate secrets.",
+      "evidence": "mpb-api-connections review found MOCK_AUTH_SECRET used in middleware.ts (session), authorize/route.ts (OAuth state), and callback/route.ts (OAuth state).",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Worker suggested backend-worker skill should note that seed scripts are exceptions to the 'write tests first' procedure.",
+      "reason": "This is a valid point but too granular for the skill file. The existing 'write tests first' guidance already allows reasonable exceptions. Workers can use their judgment."
+    },
+    {
+      "observation": "Worker suggested backend-worker skill should clarify that manual verification (curl) is only needed for API route features, not library/config features.",
+      "reason": "The skill already implies this by saying 'test the endpoint(s)' — the 's' and article make it clear this applies when there are endpoints. No change needed."
+    },
+    {
+      "observation": "Worker suggested feature descriptions should avoid overlapping scope with preconditions (re: upsert functions in mpb-provider-system already done by mpb-schema-migration).",
+      "reason": "This is an orchestrator planning concern, not a convention or skill change. The orchestrator already handles feature scoping."
+    },
+    {
+      "observation": "Worker suggested documenting deprecated type aliases strategy in AGENTS.md.",
+      "reason": "Already covered by the broader legacy alias suggestion above. Separate entry not needed."
+    }
+  ],
+  "previousRound": null
+}

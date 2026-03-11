@@ -1,0 +1,68 @@
+{
+  "featureId": "mpb-inngest-sync",
+  "reviewedAt": "2026-03-11T11:15:00.000Z",
+  "commitId": "effca5f",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Comprehensive Inngest v3 integration with 6 background sync functions, typed event client, shared sync helpers, and updated API endpoints. The implementation is well-structured with proper separation of concerns, atomic claim-and-swap for concurrency safety, Buffer serialization handling for Inngest step outputs, and thorough test coverage (30 tests). All 11 sub-requirements from the feature description are addressed. A few non-blocking issues were identified.",
+    "issues": [
+      {
+        "file": "apps/web/src/inngest/functions/sync-connection.ts",
+        "line": 60,
+        "severity": "non_blocking",
+        "description": "When claimConnection succeeds (sets syncStatus='syncing') but fetch-connection returns null (connection deleted between steps), the function returns early without resetting syncStatus. The connection row would be stuck in 'syncing' state. Same pattern exists in sync-initial.ts:57 and sync-manual.ts:60. Should call markSyncIdle or markSyncError before returning. Very narrow race window in practice."
+      },
+      {
+        "file": "apps/web/src/inngest/functions/token-refresh.ts",
+        "line": 55,
+        "severity": "non_blocking",
+        "description": "The 'refreshed' and 'failed' counters are declared in the outer scope and incremented inside step.run() closures. If Inngest retries individual steps, these counters may be inaccurate. Since they're only used for informational return values, this is non-blocking."
+      },
+      {
+        "file": "apps/web/src/inngest/functions/partition-ensure.ts",
+        "line": 42,
+        "severity": "non_blocking",
+        "description": "Uses sql.raw() with JavaScript template literal interpolation for partition names and dates. While the values are derived from Date calculations (not user input) and format() provides proper quoting, this pattern is fragile. Consider using parameterized values or at minimum documenting why this is safe."
+      },
+      {
+        "file": "apps/web/src/inngest/functions/sync-initial.ts",
+        "line": 17,
+        "severity": "non_blocking",
+        "description": "syncInitial only has per-connection concurrency limit (limit: 1) but not per-provider, unlike syncConnection and syncManual which both have per-provider limits (limit: 3). During a spike of new OAuth connections, this could overwhelm a provider API. Low likelihood but inconsistent with other sync functions."
+      },
+      {
+        "file": "apps/web/src/inngest/sync-helpers.ts",
+        "line": 143,
+        "severity": "non_blocking",
+        "description": "syncDailyData, syncSeriesData, and syncPeriodData each independently call decryptAuth(), meaning auth is decrypted 3 times per sync cycle. Minor inefficiency; could decrypt once in the parent function and pass the auth object."
+      },
+      {
+        "file": "apps/web/src/app/api/connections/[provider]/callback/route.ts",
+        "line": 168,
+        "severity": "non_blocking",
+        "description": "Initial sync dispatch is fire-and-forget with .catch(). If Inngest is unavailable when the OAuth callback completes, the initial sync is silently lost. The user would need to manually trigger a sync. Acceptable tradeoff but worth documenting."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "Worker suggested that the backend-worker skill should mention mocking inngest client's send() method when testing Inngest functions in Vitest (since no dev server runs during tests). This is a valid suggestion — the skill file doesn't mention Inngest testing patterns.",
+      "evidence": "handoff.skillFeedback.suggestedChanges: 'The backend-worker skill could mention that when testing Inngest functions in Vitest, you need to mock the inngest client's send() method since no dev server is running during tests.' Test file at apps/web/src/inngest/__tests__/functions.test.ts:268 shows the pattern: vi.fn() mock on inngest.send with restore in finally block."
+    },
+    {
+      "area": "conventions",
+      "observation": "The worker introduced a 'queued' sync status value (set by the API before dispatching Inngest event), which is a new status not in the original schema enum. This convention (API sets 'queued', Inngest function sets 'syncing' via claimConnection) should be documented as the standard pattern for all Inngest-dispatched sync flows.",
+      "evidence": "apps/web/src/app/api/connections/[id]/sync/route.ts:70 sets syncStatus='queued'. claimConnection in sync-helpers.ts:37 uses ne(syncStatus, 'syncing') allowing queued→syncing transition."
+    },
+    {
+      "area": "conventions",
+      "observation": "The ensureBuffer() helper in sync-helpers.ts handles Inngest's Buffer serialization ({type:'Buffer', data:number[]}). This is an important Inngest-specific gotcha that other workers touching sync code need to know about.",
+      "evidence": "apps/web/src/inngest/sync-helpers.ts:90-103 — ensureBuffer() reconstructs Buffers from Inngest step serialization format. Used in decryptAuth() at line 110."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "The Inngest integration implementation is thorough and well-executed. All 6 functions (sync.sweep, sync.connection, sync.initial, sync.manual, token.refresh, partition.ensure) are properly defined with typed events, registered with the /api/inngest route handler, and tested with 30 tests. The sync API endpoint correctly dispatches Inngest events instead of inline sync, and the OAuth callback dispatches initial sync. The shared sync-helpers module provides clean abstractions for claim/release, encryption, and data upsertion. Non-blocking issues include: stuck 'syncing' state if connection is deleted between claim and fetch steps (narrow race window), inconsistent per-provider concurrency limits on syncInitial, triple auth decryption per sync cycle, and fire-and-forget initial sync dispatch. Overall: PASS."
+}

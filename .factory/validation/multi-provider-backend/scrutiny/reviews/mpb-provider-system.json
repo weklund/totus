@@ -1,0 +1,61 @@
+{
+  "featureId": "mpb-provider-system",
+  "reviewedAt": "2026-03-11T10:35:00.000Z",
+  "commitId": "6db38b9",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of the provider abstraction layer. All 7 provider configs are complete with auth URLs, rate limits, and sync configs. The adapter interface is well-designed with clear contracts for auth lifecycle and data fetching. Oura adapter generates realistic mock data across daily, series, and period types. Stub adapters correctly throw ProviderNotImplementedError. Adapter factory uses singleton caching. Metric registry expanded from 21 to 49 types across 7 categories with new dataType and providers fields. ouraField properly removed. 116 new tests with good coverage. Category naming changed from PascalCase to lowercase per LLD, and MetricSelector + existing tests updated accordingly. One feature requirement (upsert functions) was already fulfilled by the precondition mpb-schema-migration — not a blocking issue since the functions exist and work.",
+    "issues": [
+      {
+        "file": "apps/web/src/lib/integrations/adapters/oura.ts",
+        "line": 135,
+        "severity": "non_blocking",
+        "description": "OuraAdapter.fetchDailyData (and fetchSeriesData, fetchPeriods) sets userId to empty string with comment 'Set by caller'. However, the DailyDataPoint/SeriesReading/PeriodEvent interfaces declare userId as a required string. Callers must remember to override this field before persisting. Consider either accepting userId as a parameter or documenting this contract explicitly in the adapter interface."
+      },
+      {
+        "file": "apps/web/src/components/dashboard/MetricSelector.tsx",
+        "line": 82,
+        "severity": "non_blocking",
+        "description": "Category headings now display as raw lowercase strings (e.g., 'sleep', 'cardiovascular') instead of the previous PascalCase ('Sleep', 'Cardio'). The worker documented this as deferred to the multi-provider-ui milestone, which is acceptable, but downstream UI will need a capitalize helper."
+      },
+      {
+        "file": "apps/web/src/lib/integrations/adapters/index.ts",
+        "line": 18,
+        "severity": "non_blocking",
+        "description": "Module-level adapter cache (adapterCache Map) has no public reset/clear function. Currently not a problem since adapters are stateless, but if future adapters carry mutable state or configuration, test isolation could be compromised. Consider exporting a clearAdapterCache() for testing."
+      },
+      {
+        "file": "apps/web/src/config/providers.ts",
+        "line": 68,
+        "severity": "non_blocking",
+        "description": "APP_URL defaults to process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' at module evaluation time. If the env var changes after module load (unlikely but possible in test setups), redirect URIs will be stale. This is standard Next.js pattern so acceptable, but worth noting."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Feature description included requirement (7) for upsert functions (rename upsertHealthData to upsertDailyData, add upsertSeriesData and upsertPeriodData), but these were already implemented by the precondition feature mpb-schema-migration (commit 7f0e6ed). The worker correctly did not re-implement them. Feature descriptions should avoid overlapping scope with preconditions.",
+      "evidence": "git log --oneline --follow apps/web/src/db/upsert.ts shows last modification in commit 7f0e6ed (feat: multi-provider database schema migration), not 6db38b9. The upsertDailyData, upsertSeriesData, upsertPeriodData functions all exist and are used by seed.ts and sync-helpers.ts."
+    },
+    {
+      "area": "conventions",
+      "observation": "MetricCategory type changed from PascalCase ('Sleep', 'Cardio', 'Activity', 'Body') to lowercase ('sleep', 'cardiovascular', 'activity', 'body', 'metabolic', 'recovery', 'nutrition'). This is a breaking change for any code that compares category strings. AGENTS.md doesn't document this convention choice. Future workers may be confused about whether categories should be display-ready or machine-format.",
+      "evidence": "apps/web/src/config/metrics.ts diff shows MetricCategory type change. MetricSelector.tsx and 3 test files updated to match. MetricSelector renders raw lowercase in UI headings."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker followed the backend-worker skill procedure. The skill says to do manual verification (step 6: start bun dev, use curl), but the handoff shows no interactiveChecks — only automated test runs. For a pure library/config feature with no API routes, this is reasonable and the skill's manual verification step doesn't apply. The skill could clarify that manual verification is only needed for API route features.",
+      "evidence": "Handoff verification.commandsRun shows typecheck, lint, and test commands. No interactiveChecks array in handoff. This feature adds config/types/adapters with no new API endpoints."
+    },
+    {
+      "area": "conventions",
+      "observation": "The worker added a legacy type alias for backward compatibility: 'export type { MetricCategory as MetricCategoryLegacy }' and re-exported MetricSource as ProviderId. These @deprecated aliases are good practice but AGENTS.md doesn't document the deprecation strategy for type changes.",
+      "evidence": "apps/web/src/config/metrics.ts lines ~53-57 show legacy type exports with @deprecated JSDoc tags."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "PASS. The provider abstraction layer is well-implemented: 7 provider configs, clean adapter interface, Oura adapter with mock data, 6 stub adapters, adapter factory, and expanded 49-metric registry. 116 new tests with strong coverage. The only notable gap is that requirement (7) for upsert functions was already done by the precondition feature — not blocking since the functions exist. Non-blocking UI issue: category names now display in lowercase without capitalization, deferred to the UI milestone. Code quality is high with good documentation, proper TypeScript types, and clean separation of concerns."
+}

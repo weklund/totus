@@ -1,0 +1,56 @@
+{
+  "featureId": "mpb-api-connections",
+  "reviewedAt": "2026-03-11T10:45:00.000Z",
+  "commitId": "25bd1d2",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Solid implementation of generic multi-provider connection API endpoints. All 8 requirements from the feature description are met: generic authorize and callback routes with state JWT, expired/syncing guards, old Oura routes removed, middleware updated with regex pattern, DELETE and GET use provider_connections. Code follows existing patterns (ApiError, getRequestContext, fire-and-forget audit events, Drizzle ORM), tests are comprehensive (25 cases), and the provider registry integration is clean. The sync route correctly uses connection.provider instead of hardcoded 'oura'. Minor non-blocking observations noted below.",
+    "issues": [
+      {
+        "file": "apps/web/src/app/api/connections/[provider]/authorize/route.ts",
+        "line": 28,
+        "severity": "non_blocking",
+        "description": "getStateSecret() is duplicated identically in both authorize/route.ts and callback/route.ts. Should be extracted to a shared utility (e.g., src/lib/auth/oauth-state.ts) to avoid drift."
+      },
+      {
+        "file": "apps/web/src/app/api/connections/[provider]/authorize/route.ts",
+        "line": 29,
+        "severity": "non_blocking",
+        "description": "MOCK_AUTH_SECRET is reused for OAuth state JWT signing. The env var name implies it's only for mock auth, but it's used for production OAuth state too. A dedicated OAUTH_STATE_SECRET env var would be clearer and allow independent rotation. Currently acceptable since the project uses mock auth exclusively."
+      },
+      {
+        "file": "apps/web/src/middleware.ts",
+        "line": 44,
+        "severity": "non_blocking",
+        "description": "PROVIDER_CALLBACK_PATTERN regex /^\\/api\\/connections\\/[a-z]+\\/callback$/ only allows lowercase letters [a-z]. This works for all current provider IDs but would silently fail for any future provider with hyphens or digits in its name. Consider [a-z0-9-]+ for future-proofing."
+      },
+      {
+        "file": "apps/web/src/app/api/connections/[provider]/callback/route.ts",
+        "line": 73,
+        "severity": "non_blocking",
+        "description": "Fallback `provider = (payload.provider as string) || pathProvider` on line 73 silently uses pathProvider if JWT has no provider claim. While the subsequent mismatch check would catch real abuse, this fallback could mask bugs where state JWT format changes. Consider treating missing provider in JWT as an explicit error."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "The getStateSecret() helper function is copy-pasted in both authorize/route.ts and callback/route.ts. This pattern of duplicating small helper functions across route files risks drift. AGENTS.md doesn't mention a convention about shared OAuth/auth utilities.",
+      "evidence": "apps/web/src/app/api/connections/[provider]/authorize/route.ts:28-35 and apps/web/src/app/api/connections/[provider]/callback/route.ts:27-34 contain identical getStateSecret() implementations."
+    },
+    {
+      "area": "conventions",
+      "observation": "The MOCK_AUTH_SECRET env var is used both for session JWT signing (middleware.ts) and OAuth state JWT signing (authorize + callback routes). AGENTS.md documents 'Mock Clerk auth with jose JWTs' but doesn't note the dual-purpose use of this secret. When real OAuth is introduced, this coupling could cause issues.",
+      "evidence": "authorize/route.ts:29 and callback/route.ts:28 both use process.env.MOCK_AUTH_SECRET for OAuth state JWT signing. middleware.ts uses the same secret for session verification."
+    },
+    {
+      "area": "skills",
+      "observation": "Worker followed the SKILL.md procedure accurately — ran tests, typecheck, and documented all verification steps. skillFeedback confirms followedProcedure=true with no deviations. The skill procedure is well-aligned with what was needed.",
+      "evidence": "Handoff verification shows 25 tests passing, typecheck clean, and full coverage of all endpoints. No deviations reported."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Feature mpb-api-connections passes review. The implementation correctly refactors all connection API endpoints from Oura-specific to generic multi-provider using the provider registry and adapter system. All 8 feature requirements are satisfied: generic authorize/callback routes with state JWT, provider_connections table used throughout, old Oura routes removed, middleware updated for dynamic provider callbacks, sync-in-progress guard (409), and expired connection guard (403). Tests are comprehensive with 25 cases covering auth, happy paths, error cases, and multi-provider scenarios. Four non-blocking issues identified: duplicated getStateSecret() helper, MOCK_AUTH_SECRET dual-purpose reuse, middleware regex only matching [a-z], and silent fallback for missing provider in state JWT."
+}
