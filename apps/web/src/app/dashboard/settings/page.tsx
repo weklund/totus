@@ -3,11 +3,12 @@ import { ConnectionsManager } from "@/components/settings/ConnectionsManager";
 import { ProfileForm } from "@/components/settings/ProfileForm";
 import { ExportSection } from "@/components/settings/ExportSection";
 import { DeleteAccountDialog } from "@/components/settings/DeleteAccountDialog";
+import { ApiKeysSection } from "@/components/settings/ApiKeysSection";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 
 /**
- * Settings page — account management with profile, connections, export, and deletion.
+ * Settings page — account management with profile, connections, API keys, export, and deletion.
  *
  * This is the RSC shell; client components handle interactive sections.
  *
@@ -19,7 +20,7 @@ export default function SettingsPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
         <p className="text-muted-foreground text-sm">
-          Manage your account and connections.
+          Manage your account, connections, and API keys.
         </p>
       </div>
 
@@ -55,6 +56,27 @@ export default function SettingsPage() {
           fallback={<Skeleton className="h-[72px] w-full rounded-lg" />}
         >
           <ConnectionsManager />
+        </Suspense>
+      </section>
+
+      <Separator />
+
+      {/* API Keys section */}
+      <section>
+        <h3 className="mb-3 text-lg font-medium">API Keys</h3>
+        <p className="text-muted-foreground mb-4 text-sm">
+          Create and manage API keys for CLI and programmatic access to your
+          data.
+        </p>
+        <Suspense
+          fallback={
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </div>
+          }
+        >
+          <ApiKeysSection />
         </Suspense>
       </section>
 

@@ -54,4 +54,12 @@ export const queryKeys = {
     all: ["user"] as const,
     profile: () => ["user", "profile"] as const,
   },
+  preferences: {
+    all: ["preferences"] as const,
+    list: () => ["preferences", "list"] as const,
+  },
+  apiKeys: {
+    all: ["api-keys"] as const,
+    list: () => ["api-keys", "list"] as const,
+  },
 };

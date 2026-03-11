@@ -3,7 +3,9 @@
 import { useConnections } from "@/hooks/useConnections";
 import { ProviderConnectionCard } from "@/components/dashboard/ProviderConnectionCard";
 import { AddProviderDialog } from "@/components/dashboard/AddProviderDialog";
+import { SourcePreferencesSection } from "@/components/settings/SourcePreferencesSection";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
 import { ErrorCard } from "@/components/dashboard/ErrorCard";
 import { getAllProviders } from "@/config/providers";
 
@@ -12,6 +14,7 @@ import { getAllProviders } from "@/config/providers";
  *
  * Lists all providers: connected ones show status/sync/disconnect actions,
  * and an "Add Data Source" button allows connecting new providers.
+ * Also includes a source preferences section for per-metric provider selection.
  */
 export function ConnectionsManager() {
   const { data, isLoading, error, refetch } = useConnections();
@@ -68,6 +71,10 @@ export function ConnectionsManager() {
 
       {/* Add provider dialog to connect new sources */}
       <AddProviderDialog connections={connections} />
+
+      {/* Source preferences for multi-provider metrics */}
+      <Separator className="my-4" />
+      <SourcePreferencesSection />
     </div>
   );
 }

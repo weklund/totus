@@ -29,6 +29,30 @@ vi.mock("@/hooks/useConnections", () => ({
   useConnections: () => mockUseConnections(),
 }));
 
+// Mock source preference hooks (used by SourcePreferencesSection)
+vi.mock("@/hooks/useSourcePreferences", () => ({
+  useSourcePreferences: () => ({
+    data: { data: { preferences: [] } },
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  }),
+}));
+
+vi.mock("@/hooks/useSetSourcePreference", () => ({
+  useSetSourcePreference: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
+}));
+
+vi.mock("@/hooks/useClearSourcePreference", () => ({
+  useClearSourcePreference: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
+}));
+
 function createQueryClient() {
   return new QueryClient({
     defaultOptions: {
