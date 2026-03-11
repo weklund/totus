@@ -1,0 +1,196 @@
+{
+  "groupId": "mcp-tools",
+  "testedAt": "2026-03-11T21:27:00.000Z",
+  "credentials": {
+    "account": "Seed user (mock_test_totus_dev)",
+    "namespace": "mock_test_totus_dev"
+  },
+  "toolsUsed": ["mcp-stdio", "curl"],
+  "assertions": [
+    {
+      "id": "VAL-MCP-001",
+      "title": "MCP server starts on stdio and responds to JSON-RPC initialize request with server capabilities",
+      "status": "pass",
+      "steps": [
+        { "action": "Create input file with initialize JSON-RPC message", "expected": "File created", "observed": "File created at /tmp/mcp_batch1_input.txt" },
+        { "action": "Spawn MCP server with TOTUS_API_KEY and TOTUS_SERVER_URL env vars, pipe stdin", "expected": "Server starts and responds on stdout", "observed": "Server started, produced JSON-RPC responses on stdout" },
+        { "action": "Parse initialize response (id:1)", "expected": "Response with capabilities including tools, resources, prompts", "observed": "Response: {protocolVersion:'2024-11-05', capabilities:{tools:{listChanged:true}, resources:{listChanged:true}, prompts:{listChanged:true}}, serverInfo:{name:'totus-health', version:'1.0.0'}}" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC initialize -> response with capabilities (tools, resources, prompts)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-002",
+      "title": "get_health_data tool works — returns text-formatted health data",
+      "status": "pass",
+      "steps": [
+        { "action": "Send tools/call for get_health_data with metrics=['sleep_score'], start_date='2026-01-01', end_date='2026-01-31'", "expected": "Response with text-formatted health data", "observed": "Response contains 31 daily sleep_score data points (Jan 1-31), formatted as text with date:value pairs" },
+        { "action": "Verify response content format", "expected": "Content array with type:'text' and formatted health data", "observed": "Content: [{type:'text', text:'Health Data: sleep_score\\nPeriod: 2026-01-01 to 2026-01-31 (daily)\\n\\nsleep_score (score):\\n  2026-01-01: 84\\n...  Average: 81.4 | Min: 61 | Max: 95'}]" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call get_health_data -> 31 data points with summary stats"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-003",
+      "title": "list_available_metrics tool works — returns formatted metric types list",
+      "status": "fail",
+      "steps": [
+        { "action": "Send tools/call for list_available_metrics with no arguments", "expected": "Response with formatted list of available metric types", "observed": "Response: 'Available Metrics\\n\\nNo metrics found.' — tool returns empty despite API having 11+ metric types" },
+        { "action": "Verify API directly via curl GET /api/health-data/types", "expected": "API returns metric types", "observed": "API returns {data:{types:[...11 metrics...]}} with sleep_score, hrv, steps, heart_rate, etc." },
+        { "action": "Root cause analysis", "expected": "Tool correctly parses API response", "observed": "Bug in mcp-server.ts list_available_metrics: code checks `data.metrics` but API wraps metrics in `data.types`. Line: `const metricsList = Array.isArray(data) ? data : (data as Record<string, unknown>).metrics ?? [];` should use `.types` instead of `.metrics`" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call list_available_metrics -> 'No metrics found' (bug); curl GET /api/health-data/types -> 200 with 11 metrics"
+      },
+      "issues": "Bug: MCP server list_available_metrics tool parses API response incorrectly. The API returns `{data:{types:[...]}}` but the tool looks for `data.metrics` key, finding nothing and returning 'No metrics found'. Fix: change `.metrics` to `.types` in the response parsing code in mcp-server.ts."
+    },
+    {
+      "id": "VAL-MCP-004",
+      "title": "create_share tool works — creates a share and returns the URL in text format",
+      "status": "fail",
+      "steps": [
+        { "action": "Send tools/call for create_share with label, metrics, start_date, end_date, expires_in_days", "expected": "Response with share URL and details", "observed": "Response: {isError:true, content:[{type:'text', text:'Validation error: Validation error: Invalid request body'}]}" },
+        { "action": "Verify API directly via curl POST /api/shares", "expected": "API accepts share creation", "observed": "API expects fields: allowed_metrics, data_start, data_end. MCP tool sends: metrics, start_date, end_date." },
+        { "action": "Root cause analysis", "expected": "Tool sends correct field names", "observed": "Bug in mcp-server.ts create_share: tool sends {metrics, start_date, end_date} but API expects {allowed_metrics, data_start, data_end}. Field name mismatch causes 400 validation error." }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call create_share -> isError:true 'Validation error: Invalid request body'; curl POST /api/shares with correct fields -> 200"
+      },
+      "issues": "Bug: MCP server create_share tool sends wrong field names to the API. Tool sends {metrics, start_date, end_date} but API expects {allowed_metrics, data_start, data_end}. Fix: update client.post() call in mcp-server.ts to use correct field names."
+    },
+    {
+      "id": "VAL-MCP-005",
+      "title": "list_shares tool works — returns active shares formatted as text",
+      "status": "pass",
+      "steps": [
+        { "action": "Send tools/call for list_shares with no arguments", "expected": "Response with formatted list of share grants", "observed": "Response lists 4 shares with id, label, status, views. Includes 2 revoked and 2 active shares." },
+        { "action": "Verify response format", "expected": "Text with share details", "observed": "Text: 'Share Grants\\n\\ne06f4640-...: E2E Test Share\\n  Status: revoked\\n  Views: 2\\n...83362d17-...: Viewer Test Share 2\\n  Status: active\\n  Views: 4\\n...'" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call list_shares -> 4 shares returned with correct statuses"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-006",
+      "title": "revoke_share tool works — revokes a share with valid share ID",
+      "status": "pass",
+      "steps": [
+        { "action": "Create a test share via curl POST /api/shares", "expected": "Share created with ID", "observed": "Share created: id=1c13ea51-c70b-4b60-a3c4-b920ec68e080, label='MCP Revoke Test Share'" },
+        { "action": "Send tools/call for revoke_share with share_id", "expected": "Response confirming revocation", "observed": "Response: 'Share Revoked\\n\\nShare ID: 1c13ea51-c70b-4b60-a3c4-b920ec68e080\\nRevoked at: 2026-03-11T21:27:05.678Z'" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "curl POST /api/shares -> 200 (created); JSON-RPC tools/call revoke_share -> share revoked with timestamp"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-007",
+      "title": "get_audit_log tool works — returns formatted audit events",
+      "status": "pass",
+      "steps": [
+        { "action": "Send tools/call for get_audit_log with limit=10", "expected": "Response with formatted audit events", "observed": "Response lists 10 audit events with timestamps, actor types (api_key), event types (key.used, data.viewed), and descriptions" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call get_audit_log -> 10 events returned, e.g. '[2026-03-11T21:25:23.834Z] api_key: key.used — key used'"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-008",
+      "title": "get_profile tool works — returns user profile information",
+      "status": "pass",
+      "steps": [
+        { "action": "Send tools/call for get_profile with no arguments", "expected": "Response with user profile information", "observed": "Response: 'User Profile\\n\\nName: test\\n\\nHealth Data Summary:\\n  Connected sources: 1\\n  Active shares: 2'" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call get_profile -> profile with name, connected sources (1), active shares (2)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-009",
+      "title": "trigger_sync tool works — triggers a sync for specified provider",
+      "status": "pass",
+      "steps": [
+        { "action": "Call list_connections to get connection ID", "expected": "Connection ID returned", "observed": "Oura connection found: id=4c260e95-0aa9-46e2-9e59-d4fc7472f120, status=active" },
+        { "action": "Send tools/call for trigger_sync with connection_id", "expected": "Response confirming sync triggered", "observed": "Response: 'Sync Triggered\\n\\nConnection ID: 4c260e95-0aa9-46e2-9e59-d4fc7472f120\\nStatus: queued\\n\\nRun list_connections to check sync progress.'" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call trigger_sync -> status:queued"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-010",
+      "title": "list_connections tool works — returns connected providers",
+      "status": "pass",
+      "steps": [
+        { "action": "Send tools/call for list_connections with no arguments", "expected": "Response with connected providers", "observed": "Response: 'Connected Data Sources\\n\\noura (active)\\n  ID: 4c260e95-0aa9-46e2-9e59-d4fc7472f120\\n  Last synced: 2026-03-09T12:07:09.935Z'" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call list_connections -> 1 connection (oura, active)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-011",
+      "title": "metric preference tools work — list_metric_preferences, set_metric_preference, delete_metric_preference all function correctly",
+      "status": "fail",
+      "steps": [
+        { "action": "Send tools/call for set_metric_preference with metric_type='hrv', source='oura'", "expected": "Preference set confirmation", "observed": "Response: 'Preference set: hrv → oura\\n\\nTotus will now use oura as the source for hrv data.' — PASS" },
+        { "action": "Send tools/call for set_metric_preference with metric_type='sleep_score', source='oura' (clean test)", "expected": "Preference set confirmation", "observed": "Response: 'Preference set: sleep_score → oura' — PASS" },
+        { "action": "Verify preference persisted via curl GET /api/metric-preferences", "expected": "Preference listed", "observed": "API returns {data:{preferences:[{metric_type:'sleep_score', provider:'oura', updated_at:'2026-03-11T21:27:35.883Z'}]}} — preference exists in DB" },
+        { "action": "Send tools/call for list_metric_preferences", "expected": "Response showing set preferences", "observed": "Response: 'Source Preferences\\n\\nNo source preferences set.' — FAIL: tool returns empty despite preference existing in DB" },
+        { "action": "Root cause analysis for list_metric_preferences", "expected": "Tool correctly parses API response", "observed": "Bug: code checks `Array.isArray(data) ? data : []` but API returns {preferences:[...]}. Tool should extract data.preferences array." },
+        { "action": "Send tools/call for delete_metric_preference with metric_type='hrv'", "expected": "Preference cleared confirmation", "observed": "Response: 'Preference cleared: hrv\\n\\nTotus will now use auto-resolution for hrv (most recent data source wins).' — PASS" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "set_metric_preference -> 200 (pass); list_metric_preferences -> returns 'No source preferences' despite data existing (fail); delete_metric_preference -> 200 (pass); curl GET /api/metric-preferences -> confirms preferences exist"
+      },
+      "issues": "Bug: set_metric_preference and delete_metric_preference work correctly. list_metric_preferences has a bug: code does `const prefs = Array.isArray(data) ? data : []` but API returns `{preferences:[...]}` not a bare array. Tool should unwrap `data.preferences`. This is the same pattern as VAL-MCP-003 (types vs metrics key mismatch)."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "MCP server processes multiple JSON-RPC requests concurrently when piped via stdin, causing non-deterministic response ordering. This makes sequential dependency testing (e.g., set preference then list) unreliable in a single batch.",
+      "resolved": true,
+      "resolution": "Sent dependent operations in separate MCP server invocations to ensure proper sequencing",
+      "affectedAssertions": ["VAL-MCP-011"]
+    },
+    {
+      "description": "create_share tool cannot be tested via MCP alone because of field name mismatch bug. Had to use curl to create share for revoke_share test.",
+      "resolved": true,
+      "resolution": "Created test share via direct curl POST /api/shares with correct field names, then tested revoke_share MCP tool against it",
+      "affectedAssertions": ["VAL-MCP-004", "VAL-MCP-006"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 11 assertions: 8 passed, 3 failed. VAL-MCP-003 (list_available_metrics) fails due to API response key mismatch (.metrics vs .types). VAL-MCP-004 (create_share) fails due to field name mismatch (metrics/start_date/end_date vs allowed_metrics/data_start/data_end). VAL-MCP-011 (metric preferences) partially fails: set and delete work correctly, but list_metric_preferences has the same response unwrapping bug as VAL-MCP-003 (checks for array but API wraps in {preferences:[...]})."
+}

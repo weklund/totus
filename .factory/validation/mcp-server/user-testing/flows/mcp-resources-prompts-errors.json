@@ -1,0 +1,170 @@
+{
+  "groupId": "mcp-resources-prompts-errors",
+  "testedAt": "2026-03-11T00:00:00.000Z",
+  "credentials": {
+    "account": "mock_test_totus_dev / mock_ut_cli_3_test_com",
+    "namespace": "mcp-server"
+  },
+  "toolsUsed": ["MCP server via stdio (JSON-RPC 2.0)"],
+  "assertions": [
+    {
+      "id": "VAL-MCP-012",
+      "title": "totus://metrics resource works",
+      "status": "pass",
+      "steps": [
+        { "action": "Send initialize + notifications/initialized", "expected": "Server ready", "observed": "Server initialized with capabilities" },
+        { "action": "Send resources/read with uri totus://metrics", "expected": "Returns metric types data", "observed": "Response contains contents array with uri 'totus://metrics' and text 'Available Health Metrics'" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC resources/read -> result with contents[0].uri='totus://metrics', text starts with 'Available Health Metrics'"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-013",
+      "title": "totus://profile resource works",
+      "status": "pass",
+      "steps": [
+        { "action": "Send resources/read with uri totus://profile", "expected": "Returns user profile data", "observed": "Response contains contents with uri 'totus://profile', text shows 'User Profile', Name: test, Connections: 1, Active shares: 2" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC resources/read -> result with contents[0].uri='totus://profile', text='User Profile\\n\\nName: test\\n\\nHealth Data:\\n  Connections: 1\\n  Active shares: 2'"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-014",
+      "title": "totus://shares resource works",
+      "status": "pass",
+      "steps": [
+        { "action": "Send resources/read with uri totus://shares", "expected": "Returns active shares", "observed": "Response contains contents with uri 'totus://shares', text shows 'Active Shares' with 2 share entries including IDs, names, and view counts" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC resources/read -> result with contents[0].uri='totus://shares', lists 2 shares (83362d17... 'Viewer Test Share 2' Views:4, f0e25996... 'Viewer Test Share' Views:0)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-015",
+      "title": "analyze_sleep prompt works",
+      "status": "pass",
+      "steps": [
+        { "action": "Send prompts/get with name analyze_sleep, arguments {period: last_7_days}", "expected": "Returns sleep analysis template with messages", "observed": "Response contains messages array with role 'user' and text about analyzing sleep data for last 7 days including sleep_score, sleep_duration, deep_sleep, rem_sleep, sleep_latency" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC prompts/get -> result.messages[0].role='user', content.text contains sleep analysis instructions"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-016",
+      "title": "compare_metrics prompt works",
+      "status": "pass",
+      "steps": [
+        { "action": "Send prompts/get with name compare_metrics, arguments {metrics: 'hrv,sleep_score', period: 'last_30_days'}", "expected": "Returns metric comparison template", "observed": "Response contains messages array with role 'user' and text about comparing hrv,sleep_score data over last 30 days, looking for correlations" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC prompts/get -> result.messages[0].role='user', content.text contains metric comparison instructions with 'hrv,sleep_score' and 'last 30 days'"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-017",
+      "title": "prepare_share prompt works",
+      "status": "pass",
+      "steps": [
+        { "action": "Send prompts/get with name prepare_share, arguments {provider_type: 'doctor', concern: 'sleep issues'}", "expected": "Returns share creation guidance template", "observed": "Response contains messages with text about sharing health data with doctor regarding sleep issues, with guidance on metrics, date range, and using create_share tool" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC prompts/get -> result.messages[0].role='user', content.text contains share preparation guidance for doctor + sleep issues"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-018",
+      "title": "health_summary prompt works",
+      "status": "pass",
+      "steps": [
+        { "action": "Send prompts/get with name health_summary, arguments {period: 'last_30_days'}", "expected": "Returns comprehensive health report template", "observed": "Response contains messages with text about generating comprehensive health report for last 30 days, including all metrics by category, averages, trends, outliers, and 3 actionable takeaways" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC prompts/get -> result.messages[0].role='user', content.text contains comprehensive health report template for last_30_days"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-019",
+      "title": "Error responses use isError",
+      "status": "pass",
+      "steps": [
+        { "action": "Send tools/call for get_health_data with invalid params (empty metrics array, missing start_date/end_date)", "expected": "Response has isError: true with error description", "observed": "Response has isError:true, content text says 'MCP error -32602: Input validation error' with details about metrics array too small and missing start_date/end_date" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call -> result.isError=true, result.content[0].text='MCP error -32602: Input validation error: Invalid arguments for tool get_health_data: [...]'"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-020",
+      "title": "Auth from TOTUS_API_KEY env",
+      "status": "pass",
+      "steps": [
+        { "action": "Spawn MCP server WITHOUT TOTUS_API_KEY env var", "expected": "Server starts but tool calls return auth error", "observed": "Server initialized successfully, but tools/call returned isError:true with message 'No API key configured' and setup instructions" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC initialize -> success; tools/call -> result.isError=true, content text='No API key configured. To use the Totus MCP server: 1. Create an API key... 2. Set TOTUS_API_KEY...'"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-021",
+      "title": "Insufficient scope returns descriptive error",
+      "status": "pass",
+      "steps": [
+        { "action": "Spawn MCP server with read-only API key (health:read, connections:read, audit:read, keys:read)", "expected": "Server starts", "observed": "Server initialized successfully" },
+        { "action": "Send tools/call for create_share (requires shares:write) with valid params", "expected": "isError: true with message specifying missing scope", "observed": "Response has isError:true, content text says 'Insufficient permissions. Your API key needs the \"shares:write\" scope for this action.'" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call -> result.isError=true, content text='Insufficient permissions. Your API key needs the \"shares:write\" scope for this action. Create a new API key with the required scopes at https://totus.com/dashboard/settings'"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-022",
+      "title": "No API key returns setup instructions",
+      "status": "pass",
+      "steps": [
+        { "action": "Spawn MCP server without TOTUS_API_KEY, send tools/call for get_health_data", "expected": "isError: true with instructions to set env var or run totus auth login", "observed": "Response has isError:true, content includes instructions: '1. Create an API key at https://totus.com/dashboard/settings' and '2. Set the TOTUS_API_KEY environment variable' and 'Or run totus auth login'" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "JSON-RPC tools/call -> result.isError=true, content text contains setup instructions including TOTUS_API_KEY env var and 'totus auth login'"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 11 assertions: 11 passed, 0 failed. All MCP resources (metrics, profile, shares), prompts (analyze_sleep, compare_metrics, prepare_share, health_summary), error handling (isError flag), and auth scenarios (no key, insufficient scope) work correctly."
+}

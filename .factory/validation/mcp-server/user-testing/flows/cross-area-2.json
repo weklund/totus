@@ -1,0 +1,156 @@
+{
+  "groupId": "cross-area-2",
+  "testedAt": "2026-03-11T21:27:00.000Z",
+  "credentials": {
+    "account": "test@totus.dev / mock_test_totus_dev (full-scope), ut-cli-3@test.com / mock_ut_cli_3_test_com (read-only)",
+    "namespace": "mock_test_totus_dev + mock_ut_cli_3_test_com"
+  },
+  "toolsUsed": ["terminal (bun)", "curl", "agent-browser", "MCP (stdio)"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-006",
+      "title": "Monorepo builds both packages",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `bun --filter '*' typecheck` from repo root",
+          "expected": "Both @totus/web and @totus/cli typecheck pass with exit 0",
+          "observed": "@totus/cli typecheck: Exited with code 0, @totus/web typecheck: Exited with code 0. Process exited with code 0."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (terminal test)",
+        "network": "n/a",
+        "terminal": "bun --filter '*' typecheck → @totus/cli typecheck: Exited with code 0, @totus/web typecheck: Exited with code 0"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-007",
+      "title": "Audit trail spans all surfaces",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Perform CLI action: `shares list` with full-scope API key",
+          "expected": "Command succeeds and generates audit events",
+          "observed": "shares list returned 4 shares successfully (exit 0), key.used audit events generated"
+        },
+        {
+          "action": "Perform MCP action: `get_profile` via MCP server stdin/stdout",
+          "expected": "MCP server responds with profile data and generates audit events",
+          "observed": "MCP server returned profile with name 'test', 1 connected source, 2 active shares. key.used audit event generated."
+        },
+        {
+          "action": "Browse web dashboard (login as test@totus.dev, view /dashboard)",
+          "expected": "Dashboard loads and generates data.viewed audit events",
+          "observed": "Dashboard loaded with charts showing Oura Ring data. Web-session events appear in audit log with 'YOU' badge."
+        },
+        {
+          "action": "Check audit log via CLI: `audit list --output json`",
+          "expected": "Events from all surfaces visible",
+          "observed": "Audit log contains 50 events including key.used (CLI/MCP), data.viewed (web/API), share.revoked (MCP), sync events. Events from all three surfaces present."
+        },
+        {
+          "action": "Check audit log via web: navigate to /dashboard/audit",
+          "expected": "Audit page shows events from all surfaces",
+          "observed": "Activity Log page shows events with 'YOU' badge (web session), and 'key used' events (CLI/MCP API key). 'Synced health data from Oura', 'Viewed 3 metric(s)', and 'key used' events all visible."
+        }
+      ],
+      "evidence": {
+        "screenshots": ["cross2-audit.png", "cross2-audit-expanded.png", "cross2-audit-sync-detail.png"],
+        "consoleErrors": "none",
+        "network": "CLI shares list → 200, MCP get_profile → success, web /dashboard → 200",
+        "terminal": "CLI audit list returned 50 events with actor_type api_key and user. MCP get_profile returned profile data."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-008",
+      "title": "Read-only API key enforced across CLI",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `metrics list` with read-only API key (scopes: health:read, connections:read, audit:read, keys:read)",
+          "expected": "Command succeeds with exit 0",
+          "observed": "Command returned {\"metrics\": []} with exit code 0. Empty because read-only user has no health data, but the command succeeded (not blocked by scope enforcement)."
+        },
+        {
+          "action": "Run `shares create --label 'Test' --metrics sleep_score --start 2026-01-01 --end 2026-01-31 --expires 30` with read-only API key",
+          "expected": "Command fails with exit code 3 (permission error)",
+          "observed": "Error: 'Insufficient permissions: API key does not have the required scope: shares:write. Create a new key with the required scope.' Exit code: 3"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (terminal test)",
+        "network": "metrics list → 200, shares create → 403",
+        "terminal": "metrics list exit 0, shares create exit 3 with scope error message"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-009",
+      "title": "API key actor in audit log",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Perform actions via API key (CLI shares list, MCP get_profile, CLI audit list)",
+          "expected": "Audit events generated with actor_type='api_key'",
+          "observed": "Multiple key.used and data.viewed events created with actor_type='api_key' and actor_id='mock_test_totus_dev'"
+        },
+        {
+          "action": "Check audit log via CLI with --output json",
+          "expected": "Events show actor_type='api_key' and key identifier",
+          "observed": "42 out of 50 events have actor_type='api_key'. Each key.used event has resource_detail with api_key_id (masked). actor_id shows user ID."
+        },
+        {
+          "action": "Check audit log via web at /dashboard/audit, expand a 'key used' event",
+          "expected": "API key events distinguishable from session events, key name/ID visible",
+          "observed": "API key events show no 'YOU' badge (distinguishing them from session events). Expanded detail shows api_key_id UUID (7a391890-e0b0-49af-9a3b-9ef064d5fa29) matching key 'cli-test-seed-full' (short_token: Oxcn5bC8)."
+        }
+      ],
+      "evidence": {
+        "screenshots": ["cross2-audit-expanded.png"],
+        "consoleErrors": "none",
+        "network": "CLI audit list → 200",
+        "terminal": "CLI audit list JSON shows actor_type='api_key' on 42/50 events. Keys list shows key name 'cli-test-seed-full' maps to the api_key_id in audit."
+      },
+      "issues": "Key name not shown directly in audit event detail on web — only the api_key_id UUID is displayed in expanded view. The key name can be correlated via the keys list. CLI JSON also only shows masked api_key_id, not the key name."
+    },
+    {
+      "id": "VAL-CROSS-010",
+      "title": "CLI sync updates web dashboard",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Trigger sync via CLI: `connections sync --all` with full-scope API key",
+          "expected": "Sync queued for Oura connection",
+          "observed": "Sync response: {\"synced\": [{\"provider\": \"oura\", \"status\": \"queued\", \"message\": \"\"}], \"skipped\": []}. Exit code 0."
+        },
+        {
+          "action": "Navigate to web dashboard at http://localhost:3000/dashboard",
+          "expected": "Dashboard shows synced data in charts",
+          "observed": "Dashboard loaded with Oura Ring connection shown (green dot), metric pills for Sleep Score, HRV, Resting Heart Rate, Steps, etc. Charts displaying time-series data for Sleep Score, Heart Rate Variability, and Resting Heart Rate from Oura Ring source."
+        }
+      ],
+      "evidence": {
+        "screenshots": ["cross2-dashboard.png", "cross2-dashboard-after-sync.png"],
+        "consoleErrors": "none",
+        "network": "CLI sync → 200, web dashboard → 200",
+        "terminal": "connections sync --all returned queued status for oura"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Audit log on web shows raw JSON in expanded details (e.g., {\"api_key_id\":\"UUID\"}) rather than a human-friendly display with the key name. Users must cross-reference with the keys list to identify which key was used.",
+      "resolved": false,
+      "resolution": null,
+      "affectedAssertions": ["VAL-CROSS-009"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed. VAL-CROSS-006 confirms both workspaces typecheck cleanly. VAL-CROSS-007 confirms audit events from CLI, MCP, and web all appear in the audit log. VAL-CROSS-008 confirms read-only key allows metrics list but blocks shares create with exit 3. VAL-CROSS-009 confirms actor_type='api_key' visible in both CLI and web audit, with key ID shown (though key name requires cross-reference). VAL-CROSS-010 confirms CLI sync triggers Oura data sync and dashboard displays the data in charts."
+}

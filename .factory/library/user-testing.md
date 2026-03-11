@@ -223,6 +223,99 @@ TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts <command> --server-url htt
 - ~~CLI preferences list doesn't unwrap nested response~~ — Fixed: unwraps response.data.preferences
 - Non-TTY output (piped) defaults to JSON format (by design)
 
+## Flow Validator Guidance: MCP
+
+### Testing Surface
+- MCP server launched via: `bun run packages/cli/src/index.ts mcp-server`
+- Protocol: JSON-RPC 2.0 over stdio (newline-delimited JSON, NOT content-length framing)
+- Auth via `TOTUS_API_KEY` env var and `TOTUS_SERVER_URL` env var
+- Server URL: `http://localhost:3000/api`
+
+### Protocol Details
+- Each message is a JSON object followed by `\n`
+- Must send `initialize` request first, then `notifications/initialized` notification
+- After initialization, send `tools/call`, `tools/list`, `resources/read`, `resources/list`, `prompts/get`, `prompts/list`
+
+### Message Format Examples
+```
+# Initialize
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}
+
+# Initialized notification (no id)
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+
+# List tools
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}
+
+# Call a tool
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_health_data","arguments":{"metrics":["sleep_score"],"start_date":"2026-01-01","end_date":"2026-01-31"}}}
+
+# List resources
+{"jsonrpc":"2.0","id":4,"method":"resources/list"}
+
+# Read a resource
+{"jsonrpc":"2.0","id":5,"method":"resources/read","params":{"uri":"totus://metrics"}}
+
+# List prompts
+{"jsonrpc":"2.0","id":6,"method":"prompts/list"}
+
+# Get a prompt
+{"jsonrpc":"2.0","id":7,"method":"prompts/get","params":{"name":"analyze_sleep","arguments":{"period":"last_7_days"}}}
+```
+
+### Test Accounts & API Keys for MCP Testing
+
+| Account | User ID | API Key | Scopes | Data |
+|---------|---------|---------|--------|------|
+| Seed user (full) | mock_test_totus_dev | tot_live_Oxcn5bC8_tRl6NOd4rNEVB19W8pXppzS9M55B6nPC | All scopes | 720 daily, 4080 series, 133 periods, 1 Oura connection, 4 shares |
+| Read-only user | mock_ut_cli_3_test_com | tot_live_FZfWe95f_sLncxoNzrw1CBIStV68vJZOm0YWteLDi | health:read, connections:read, audit:read, keys:read | No health data |
+
+### How to Spawn an MCP Server Process (TypeScript/Bun)
+```typescript
+import { spawn } from 'child_process';
+
+const proc = spawn('bun', ['run', 'packages/cli/src/index.ts', 'mcp-server'], {
+  env: {
+    ...process.env,
+    TOTUS_API_KEY: '<key>',
+    TOTUS_SERVER_URL: 'http://localhost:3000/api',
+  },
+  cwd: '/Users/weseklund/Projects/totus',
+  stdio: ['pipe', 'pipe', 'pipe'],
+});
+
+// Read responses from stdout (newline-delimited JSON)
+proc.stdout.on('data', (data) => { /* parse JSON lines */ });
+
+// Send messages by writing JSON + newline to stdin
+proc.stdin.write(JSON.stringify(message) + '\n');
+```
+
+### How to Test MCP via Shell Script
+```bash
+# Create a temp script that sends messages
+cat > /tmp/mcp_test_input.txt << 'EOF'
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}
+{"jsonrpc":"2.0","method":"notifications/initialized"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list"}
+EOF
+
+# Run and capture output (use timeout to prevent hanging)
+cd /Users/weseklund/Projects/totus
+timeout 15 bash -c 'TOTUS_API_KEY="<key>" TOTUS_SERVER_URL="http://localhost:3000/api" bun run packages/cli/src/index.ts mcp-server < /tmp/mcp_test_input.txt' 2>/dev/null
+```
+
+**CRITICAL:** MCP server blocks on stdin. Use `timeout` or close stdin to prevent hanging.
+**CRITICAL:** Each subagent spawns its OWN MCP server process. Do NOT share processes.
+
+### Isolation Rules
+- Each subagent uses its OWN assigned API key and MCP server process.
+- Do NOT modify config files, source files, or database data directly.
+- Write reports ONLY to the assigned flow file.
+- Do NOT start or stop the web server or database — they are managed by the parent.
+
+### Known Quirks
+
 ## Known Quirks
 
 - Clipboard API unavailable in headless Chromium (copy button shows error toast)

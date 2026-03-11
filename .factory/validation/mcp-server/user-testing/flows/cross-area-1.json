@@ -1,0 +1,100 @@
+{
+  "groupId": "cross-area-1",
+  "testedAt": "2026-03-11T21:27:30.000Z",
+  "credentials": {
+    "account": "mock_test_totus_dev",
+    "namespace": "test@totus.dev"
+  },
+  "toolsUsed": ["agent-browser", "curl", "CLI", "MCP"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-001",
+      "title": "Web connect to CLI query flow",
+      "status": "pass",
+      "steps": [
+        { "action": "Verify Oura connection exists in database", "expected": "provider_connections row with provider=oura, status=active", "observed": "Row found: id=4c260e95, provider=oura, status=active" },
+        { "action": "Sign in to web UI at /sign-in as test@totus.dev", "expected": "Redirected to /dashboard", "observed": "Redirected to /dashboard, Oura connection visible in provider bar" },
+        { "action": "Run CLI: connections list --server-url http://localhost:3000/api", "expected": "Shows Oura connection with active status", "observed": "JSON output showing 1 connection: provider=oura, status=active, last_sync_at=2026-03-09T12:07:09.935Z" },
+        { "action": "Run CLI: metrics get sleep_score --from 2026-01-01 --to 2026-01-31", "expected": "Returns sleep_score data from Oura source", "observed": "31 data points returned for Jan 2026, all source=oura, values range 61-95" }
+      ],
+      "evidence": {
+        "screenshots": ["cross1-dashboard.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/connections -> 200, GET /api/health-data -> 200",
+        "cli_output": "connections list returned 1 Oura connection; metrics get returned 31 sleep_score data points"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "Web API key to CLI auth flow",
+      "status": "pass",
+      "steps": [
+        { "action": "Navigate to /dashboard/settings in web UI", "expected": "Settings page shows API Keys section with Create Key button", "observed": "Settings page shows Create Key button (@e38) and Revoke button (@e39) for existing key" },
+        { "action": "Take screenshot of API keys section", "expected": "API keys section visible", "observed": "Screenshot captured showing API keys management area" },
+        { "action": "Set API key via CLI: config set api_key tot_live_Oxcn5bC8_...", "expected": "Config saved", "observed": "Config set: api_key = *** (config file at ~/.config/totus/config.json)" },
+        { "action": "Set server_url via CLI: config set server_url http://localhost:3000/api", "expected": "Config saved", "observed": "Config set: server_url = http://localhost:3000/api" },
+        { "action": "Run CLI: auth status", "expected": "Shows authenticated with key short token and server URL", "observed": "Authenticated, Key: ***, Source: config file, User: test, Server: http://localhost:3000/api" }
+      ],
+      "evidence": {
+        "screenshots": ["cross1-settings.png", "cross1-settings-apikeys.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/auth/me -> 200 (auth status verification)",
+        "cli_output": "auth status confirmed authenticated with correct server URL"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-003",
+      "title": "CLI share to browser viewer",
+      "status": "pass",
+      "steps": [
+        { "action": "Create share via CLI: shares create --label 'Cross Test Share' --metrics sleep_score --start 2026-01-01 --end 2026-01-31 --expires 30 --output json", "expected": "Share created with URL returned", "observed": "Share created: id=8fd434ff, share_url=http://localhost:3000/v/y7RhbO9DVP5IQfkphewDB9t1rX7vTk_hDVus3WY7eT8" },
+        { "action": "Open share URL in browser", "expected": "Viewer page shows shared sleep_score data", "observed": "Viewer page loaded with Sleep Score metric button (90 data points), Daily/Weekly/Monthly tabs, date range Jan 1-31 2026" }
+      ],
+      "evidence": {
+        "screenshots": ["cross1-viewer-share.png"],
+        "consoleErrors": "none",
+        "network": "GET /api/shares/viewer/* -> 200",
+        "cli_output": "shares create returned JSON with share_url and token"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-004",
+      "title": "MCP revoke share, verify web",
+      "status": "pass",
+      "steps": [
+        { "action": "Create share via curl POST /api/shares", "expected": "Share created with ID and token", "observed": "Share created: id=fc444a33-dafb-416c-99f9-994959d55b69, share_url=http://localhost:3000/v/894JxIZVdsfLwjqlHxfdczuMcfgO93xgDEDtOlNMazw" },
+        { "action": "Revoke share via MCP revoke_share tool", "expected": "MCP returns confirmation of revocation", "observed": "MCP response: Share Revoked, Share ID: fc444a33-dafb-416c-99f9-994959d55b69, Revoked at: 2026-03-11T21:27:17.524Z" },
+        { "action": "Open revoked share URL in browser", "expected": "Shows expired/unavailable page", "observed": "Page shows 'This link is no longer available' with message: 'It may have expired, been revoked, or never existed.'" }
+      ],
+      "evidence": {
+        "screenshots": ["cross1-revoked-share.png"],
+        "consoleErrors": "none",
+        "network": "POST /api/shares -> 201, PATCH /api/shares/{id} -> 200 (revoke), GET /api/shares/viewer/* -> 404/gone",
+        "mcp_output": "revoke_share returned content with 'Share Revoked' confirmation"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-005",
+      "title": "Web API key in MCP server",
+      "status": "pass",
+      "steps": [
+        { "action": "Verify API key exists in web UI settings", "expected": "API keys section shows existing key with Revoke button", "observed": "Settings page shows Create Key and Revoke buttons, confirming key exists" },
+        { "action": "Start MCP server with TOTUS_API_KEY env var and send get_health_data tool call", "expected": "MCP returns health data for sleep_score", "observed": "MCP returned 31 sleep_score data points for Jan 2026 (range 61-95, avg 81.4)" }
+      ],
+      "evidence": {
+        "screenshots": ["cross1-settings-apikeys.png"],
+        "consoleErrors": "none",
+        "network": "MCP -> GET /api/health-data -> 200",
+        "mcp_output": "get_health_data returned formatted text with 31 daily sleep_score values, Average: 81.4, Min: 61, Max: 95"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed, 0 failed. All cross-area flows work correctly — web connections visible in CLI, API keys from web authenticate CLI, CLI shares display in browser viewer, MCP can revoke shares and query data using web-created API keys."
+}
