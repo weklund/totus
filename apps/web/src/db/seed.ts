@@ -3,8 +3,10 @@
  *
  * Populates the local database with synthetic test data:
  * - 1 test user
- * - 1 Oura connection with mock encrypted tokens
- * - 90 days of health data across 8 metric types (~720 rows)
+ * - 1 Oura provider connection (provider_connections)
+ * - 90 days of daily health data across 8 metric types (~720 rows in health_data_daily)
+ * - 7 days of intraday series data (heart rate every 5 min) in health_data_series
+ * - 7 days of period events (sleep stages, workouts) in health_data_periods
  * - 1 share grant with a known token
  * - Sample audit events
  *
@@ -19,10 +21,19 @@ import {
   users,
   providerConnections,
   healthDataDaily,
+  healthDataSeries,
+  healthDataPeriods,
   shareGrants,
   auditEvents,
 } from "./schema";
-import { upsertDailyData, type HealthDataRow } from "./upsert";
+import {
+  upsertDailyData,
+  upsertSeriesData,
+  upsertPeriodData,
+  type HealthDataRow,
+  type SeriesDataRow,
+  type PeriodDataRow,
+} from "./upsert";
 import { createEncryptionProvider } from "@/lib/encryption";
 
 // ─── Constants ──────────────────────────────────────────────
@@ -52,6 +63,28 @@ const SEED_METRICS = [
 ] as const;
 
 const DAYS_OF_DATA = 90;
+const DAYS_OF_SERIES_DATA = 7;
+const SERIES_INTERVAL_MINUTES = 5;
+
+/**
+ * Intraday series metric definitions.
+ * These generate data points every 5 minutes for 7 days.
+ */
+const SEED_SERIES_METRICS = [
+  { id: "heart_rate", min: 55, max: 140, decimals: 0 },
+  { id: "spo2_interval", min: 94, max: 100, decimals: 1 },
+] as const;
+
+/**
+ * Period event definitions for sleep stages and workouts.
+ */
+const WORKOUT_SUBTYPES = [
+  "running",
+  "cycling",
+  "strength",
+  "yoga",
+  "walking",
+] as const;
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -208,7 +241,224 @@ async function seedHealthData() {
     console.log("  ✓ %s: %d data points", metric.id, rows.length);
   }
 
-  console.log("  ✓ Total health data rows: %d", totalRows);
+  console.log("  ✓ Total daily health data rows: %d", totalRows);
+}
+
+async function seedSeriesData() {
+  console.log(
+    "  Seeding %d days of intraday series data...",
+    DAYS_OF_SERIES_DATA,
+  );
+
+  const encryption = createEncryptionProvider();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let totalRows = 0;
+
+  for (const metric of SEED_SERIES_METRICS) {
+    let metricTotal = 0;
+
+    for (let dayOffset = 0; dayOffset < DAYS_OF_SERIES_DATA; dayOffset++) {
+      // Use UTC to avoid DST issues that cause duplicate timestamps
+      const dayStartMs = Date.UTC(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() - dayOffset,
+      );
+
+      const dayRows: SeriesDataRow[] = [];
+      const dateStr = new Date(dayStartMs).toISOString().split("T")[0]!;
+
+      // Generate readings every 5 minutes for 24 hours (288 readings/day)
+      const readingsPerDay = (24 * 60) / SERIES_INTERVAL_MINUTES;
+      for (let i = 0; i < readingsPerDay; i++) {
+        const recordedAt = new Date(
+          dayStartMs + i * SERIES_INTERVAL_MINUTES * 60 * 1000,
+        );
+
+        // Generate a deterministic value with some time-of-day variation
+        const hourOfDay = recordedAt.getUTCHours();
+        // Heart rate is lower at night (sleeping) and higher during day
+        let adjustedMin: number = metric.min;
+        let adjustedMax: number = metric.max;
+        if (metric.id === "heart_rate") {
+          if (hourOfDay >= 0 && hourOfDay < 6) {
+            adjustedMin = 50;
+            adjustedMax = 65;
+          } else if (hourOfDay >= 6 && hourOfDay < 9) {
+            adjustedMin = 60;
+            adjustedMax = 90;
+          } else if (hourOfDay >= 17 && hourOfDay < 20) {
+            adjustedMin = 70;
+            adjustedMax = 130;
+          }
+        }
+
+        const seed = dayOffset * 10000 + i * 100 + metric.id.length * 37;
+        const value = generateValue(
+          adjustedMin,
+          adjustedMax,
+          metric.decimals,
+          seed,
+        );
+
+        const encrypted = await encryption.encrypt(
+          Buffer.from(JSON.stringify(value)),
+          TEST_USER_ID,
+        );
+
+        dayRows.push({
+          userId: TEST_USER_ID,
+          metricType: metric.id,
+          recordedAt,
+          valueEncrypted: encrypted,
+          source: SEED_SOURCE,
+          sourceId: `oura_${metric.id}_${dateStr}_${i}`,
+        });
+      }
+
+      // Upsert one day at a time to avoid cross-day conflicts in a single INSERT
+      await upsertSeriesData(db, dayRows);
+      metricTotal += dayRows.length;
+    }
+
+    totalRows += metricTotal;
+    console.log("  ✓ %s: %d data points", metric.id, metricTotal);
+  }
+
+  console.log("  ✓ Total series data rows: %d", totalRows);
+}
+
+async function seedPeriodData() {
+  console.log(
+    "  Seeding %d days of period events (sleep stages, workouts)...",
+    DAYS_OF_SERIES_DATA,
+  );
+
+  const encryption = createEncryptionProvider();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  let totalRows = 0;
+  const rows: PeriodDataRow[] = [];
+
+  for (let dayOffset = 0; dayOffset < DAYS_OF_SERIES_DATA; dayOffset++) {
+    // Use UTC to avoid DST issues
+    const dayStartMs = Date.UTC(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() - dayOffset,
+    );
+    const dayDateStr = new Date(dayStartMs).toISOString().split("T")[0]!;
+
+    // ─── Sleep stages: a full night of sleep (10:30 PM to 6:30 AM) ────
+    // Previous evening at 22:30 UTC
+    const sleepStartMs =
+      dayStartMs - 24 * 60 * 60 * 1000 + 22 * 60 * 60 * 1000 + 30 * 60 * 1000;
+
+    // Typical sleep architecture: light → deep → light → REM → repeat
+    const stagePatterns = [
+      { subtype: "light", durationMin: 15 },
+      { subtype: "deep", durationMin: 45 },
+      { subtype: "light", durationMin: 20 },
+      { subtype: "rem", durationMin: 10 },
+      { subtype: "light", durationMin: 25 },
+      { subtype: "deep", durationMin: 40 },
+      { subtype: "light", durationMin: 15 },
+      { subtype: "rem", durationMin: 25 },
+      { subtype: "awake", durationMin: 5 },
+      { subtype: "light", durationMin: 20 },
+      { subtype: "deep", durationMin: 30 },
+      { subtype: "rem", durationMin: 35 },
+      { subtype: "light", durationMin: 15 },
+      { subtype: "rem", durationMin: 40 },
+      { subtype: "light", durationMin: 10 },
+      { subtype: "awake", durationMin: 5 },
+      { subtype: "light", durationMin: 20 },
+      { subtype: "rem", durationMin: 25 },
+    ];
+
+    // Add deterministic variation per day
+    const seed = dayOffset * 777;
+    const variationMin = Math.floor(
+      Math.abs(Math.sin(seed * 9301 + 49297) % 1) * 10,
+    );
+
+    let currentTimeMs = sleepStartMs + variationMin * 60 * 1000;
+
+    for (const stage of stagePatterns) {
+      const stageStart = new Date(currentTimeMs);
+      const stageEndMs = currentTimeMs + stage.durationMin * 60 * 1000;
+      const stageEnd = new Date(stageEndMs);
+
+      const metadata = {
+        stage: stage.subtype,
+        night_date: dayDateStr,
+      };
+      const metadataEnc = await encryption.encrypt(
+        Buffer.from(JSON.stringify(metadata)),
+        TEST_USER_ID,
+      );
+
+      rows.push({
+        userId: TEST_USER_ID,
+        eventType: "sleep_stage",
+        subtype: stage.subtype,
+        startedAt: stageStart,
+        endedAt: stageEnd,
+        metadataEnc,
+        source: SEED_SOURCE,
+        sourceId: `oura_sleep_stage_${dayDateStr}_${stage.subtype}_${currentTimeMs}`,
+      });
+
+      currentTimeMs = stageEndMs;
+      totalRows++;
+    }
+
+    // ─── Workouts: 1 workout per day (alternating types) ────
+    const workoutSubtype =
+      WORKOUT_SUBTYPES[dayOffset % WORKOUT_SUBTYPES.length]!;
+    const workoutSeed = dayOffset * 4321;
+    const workoutHour =
+      7 + Math.floor(Math.abs(Math.sin(workoutSeed) % 1) * 12); // 7am-7pm
+    const workoutDurationMin =
+      30 + Math.floor(Math.abs(Math.sin(workoutSeed * 2) % 1) * 60); // 30-90 min
+
+    const workoutStartMs = dayStartMs + workoutHour * 60 * 60 * 1000;
+    const workoutEndMs = workoutStartMs + workoutDurationMin * 60 * 1000;
+
+    const workoutMetadata = {
+      type: workoutSubtype,
+      calories: Math.floor(200 + Math.abs(Math.sin(workoutSeed * 3) % 1) * 400),
+      intensity: ["low", "moderate", "high"][dayOffset % 3],
+    };
+    const workoutMetadataEnc = await encryption.encrypt(
+      Buffer.from(JSON.stringify(workoutMetadata)),
+      TEST_USER_ID,
+    );
+
+    rows.push({
+      userId: TEST_USER_ID,
+      eventType: "workout",
+      subtype: workoutSubtype,
+      startedAt: new Date(workoutStartMs),
+      endedAt: new Date(workoutEndMs),
+      metadataEnc: workoutMetadataEnc,
+      source: SEED_SOURCE,
+      sourceId: `oura_workout_${dayDateStr}_${workoutSubtype}`,
+    });
+    totalRows++;
+  }
+
+  // Batch upsert
+  const batchSize = 100;
+  for (let i = 0; i < rows.length; i += batchSize) {
+    const batch = rows.slice(i, i + batchSize);
+    await upsertPeriodData(db, batch);
+  }
+
+  console.log("  ✓ Total period events: %d", totalRows);
 }
 
 async function seedShareGrant() {
@@ -354,6 +604,8 @@ async function main() {
     await seedUser();
     await seedProviderConnection();
     await seedHealthData();
+    await seedSeriesData();
+    await seedPeriodData();
     await seedShareGrant();
     await seedAuditEvents();
 
@@ -364,9 +616,18 @@ async function main() {
     const [userCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(users);
-    const [healthCount] = await db
+    const [connectionCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(providerConnections);
+    const [dailyCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(healthDataDaily);
+    const [seriesCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(healthDataSeries);
+    const [periodsCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(healthDataPeriods);
     const [shareCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(shareGrants);
@@ -374,7 +635,7 @@ async function main() {
       .select({ count: sql<number>`count(*)::int` })
       .from(auditEvents);
 
-    const metricBreakdown = await db
+    const dailyBreakdown = await db
       .select({
         metricType: healthDataDaily.metricType,
         count: sql<number>`count(*)::int`,
@@ -383,14 +644,43 @@ async function main() {
       .groupBy(healthDataDaily.metricType)
       .orderBy(healthDataDaily.metricType);
 
+    const seriesBreakdown = await db
+      .select({
+        metricType: healthDataSeries.metricType,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(healthDataSeries)
+      .groupBy(healthDataSeries.metricType)
+      .orderBy(healthDataSeries.metricType);
+
+    const periodsBreakdown = await db
+      .select({
+        eventType: healthDataPeriods.eventType,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(healthDataPeriods)
+      .groupBy(healthDataPeriods.eventType)
+      .orderBy(healthDataPeriods.eventType);
+
     console.log("\n📊 Summary:");
-    console.log("  Users:        %d", userCount!.count);
-    console.log("  Health data:  %d rows", healthCount!.count);
-    console.log("  Share grants: %d", shareCount!.count);
-    console.log("  Audit events: %d", auditCount!.count);
-    console.log("\n  Health data by metric:");
-    for (const row of metricBreakdown) {
+    console.log("  Users:              %d", userCount!.count);
+    console.log("  Connections:        %d", connectionCount!.count);
+    console.log("  Health data daily:  %d rows", dailyCount!.count);
+    console.log("  Health data series: %d rows", seriesCount!.count);
+    console.log("  Health data periods:%d rows", periodsCount!.count);
+    console.log("  Share grants:       %d", shareCount!.count);
+    console.log("  Audit events:       %d", auditCount!.count);
+    console.log("\n  Daily data by metric:");
+    for (const row of dailyBreakdown) {
       console.log("    %s: %d", row.metricType.padEnd(20), row.count);
+    }
+    console.log("\n  Series data by metric:");
+    for (const row of seriesBreakdown) {
+      console.log("    %s: %d", row.metricType.padEnd(20), row.count);
+    }
+    console.log("\n  Period events by type:");
+    for (const row of periodsBreakdown) {
+      console.log("    %s: %d", row.eventType.padEnd(20), row.count);
     }
   } catch (error) {
     console.error("❌ Seed failed:", error);
