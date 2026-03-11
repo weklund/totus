@@ -13,6 +13,14 @@ import { Command } from "@commander-js/extra-typings";
 import chalk from "chalk";
 import { createAuthCommand } from "./commands/auth.js";
 import { createConfigCommand } from "./commands/config.js";
+import { createMetricsCommand } from "./commands/metrics.js";
+import { createSharesCommand } from "./commands/shares.js";
+import { createAuditCommand } from "./commands/audit.js";
+import { createConnectionsCommand } from "./commands/connections.js";
+import { createPreferencesCommand } from "./commands/preferences.js";
+import { createKeysCommand } from "./commands/keys.js";
+import { createProfileCommand } from "./commands/profile.js";
+import { createExportCommand } from "./commands/export.js";
 import { checkConfigPermissions, getConfigPath } from "./config.js";
 import { EXIT_AUTH, EXIT_ERROR, EXIT_PERMISSION } from "./exit-codes.js";
 import { ApiError } from "./api-client.js";
@@ -35,6 +43,14 @@ const program = new Command()
 // Register subcommands
 program.addCommand(createAuthCommand());
 program.addCommand(createConfigCommand());
+program.addCommand(createMetricsCommand());
+program.addCommand(createSharesCommand());
+program.addCommand(createAuditCommand());
+program.addCommand(createConnectionsCommand());
+program.addCommand(createPreferencesCommand());
+program.addCommand(createKeysCommand());
+program.addCommand(createProfileCommand());
+program.addCommand(createExportCommand());
 
 // Check config file permissions on startup
 if (!checkConfigPermissions()) {
