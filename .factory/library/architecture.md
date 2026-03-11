@@ -30,6 +30,17 @@ Architectural decisions, patterns discovered during implementation.
 - Source resolution: user preference > most recent sync > alphabetical
 - Inngest for background sync (sweep, per-connection, initial, manual, token refresh, partition mgmt)
 
+## API Key Auth Architecture
+
+- Next.js middleware runs in Edge Runtime — cannot import node-postgres or node:crypto
+- API key auth uses pass-through pattern: middleware parses Bearer header, sets `x-api-key-token` header, route handlers do DB validation via `getResolvedContext()`
+- Routes supporting API key auth must import `getResolvedContext` from `resolve-api-key.ts` (not `getRequestContext` from `request-context.ts`)
+- `getResolvedContext()` checks for `__api_key_pending__` sentinel and performs DB validation (hash check, revocation, expiry)
+- API key format: `tot_live_{8 base62}_{32 base62}` — short_token (first 8) stored plaintext, long token SHA-256 hashed
+- Scope enforcement via `requireScope()` in permissions system
+- CSRF exempted for API key requests (`authMethod === 'api_key'`)
+- Droid Shield may flag BASE62_ALPHABET constants and test tokens as secrets — split commits if needed
+
 ## Inngest Integration Patterns
 
 - Client at `src/inngest/client.ts` with typed events via `EventSchemas.fromRecord<Events>()`

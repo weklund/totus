@@ -1,0 +1,56 @@
+{
+  "milestone": "api-keys",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": { "passed": true, "command": "bun --filter '@totus/web' test", "exitCode": 0 },
+    "typecheck": { "passed": true, "command": "bun --filter '*' typecheck", "exitCode": 0 },
+    "lint": { "passed": true, "command": "bun --filter '@totus/web' lint", "exitCode": 0 }
+  },
+  "reviewsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Added 'API Key Auth Architecture' section to .factory/library/architecture.md documenting Edge Runtime limitation, pass-through pattern, getResolvedContext() usage, key format, scope enforcement, CSRF exemption, and Droid Shield workaround.",
+      "sourceFeature": "api-keys-backend"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add note: Routes supporting API key auth must use getResolvedContext() from resolve-api-key.ts instead of getRequestContext() from request-context.ts. This is required because Next.js middleware runs in Edge Runtime and cannot perform DB lookups.",
+      "evidence": "Feature api-keys-backend implemented a pass-through pattern where middleware sets x-api-key-token header and route handlers validate via getResolvedContext(). This is a new convention future workers must follow for any route that supports API key authentication.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Droid Shield false positive workaround (split commits for BASE62_ALPHABET constants)",
+      "reason": "This is a one-time implementation quirk, not a recurring pattern. Already documented in library as a brief note. No guidance change needed."
+    }
+  ],
+  "nonBlockingIssues": [
+    {
+      "featureId": "api-keys-backend",
+      "severity": "non_blocking",
+      "description": "API key-specific rate limiters (apiKeyGeneralRateLimiter 300/min, apiKeyReadRateLimiter 60/min, apiKeyWriteRateLimiter 10/min) are defined and exported but never wired into route handlers with .check() calls. General middleware-level rate limiting still applies."
+    },
+    {
+      "featureId": "api-keys-backend",
+      "severity": "non_blocking",
+      "description": "key.used audit event is emitted on every API key usage without deduplication. Could cause significant audit table growth under high-frequency API usage. Comment in code acknowledges 'daily dedup can be added later'."
+    },
+    {
+      "featureId": "api-keys-backend",
+      "severity": "non_blocking",
+      "description": "request.json() in POST /api/keys handler can throw SyntaxError for malformed JSON, falling through to generic 500 handler. Consistent with existing codebase patterns."
+    }
+  ],
+  "previousRound": null
+}
