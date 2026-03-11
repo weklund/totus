@@ -18,7 +18,10 @@ import {
   healthDataSeries,
   healthDataPeriods,
 } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
+import {
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "@/lib/auth/resolve-api-key";
 import type { ViewerPermissions } from "@/lib/auth/request-context";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
 import { getMetricType } from "@/config/metrics";
@@ -39,7 +42,9 @@ interface MetricTypeSummary {
 
 export async function GET(request: Request): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+    const rateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (rateLimitResponse) return rateLimitResponse;
 
     // Auth check: must be owner or viewer
     if (ctx.role === "unauthenticated" || !ctx.userId) {
