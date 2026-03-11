@@ -1,0 +1,125 @@
+{
+  "flowId": "basic-commands",
+  "testedAt": "2026-03-11T00:00:00.000Z",
+  "credentials": {
+    "account": "mock_test_totus_dev",
+    "apiKey": "tot_live_Oxcn5bC8_***masked***",
+    "serverUrl": "http://localhost:3000/api"
+  },
+  "toolsUsed": ["bun CLI"],
+  "assertions": {
+    "VAL-CLI-001": {
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `bun run packages/cli/src/index.ts` with no arguments",
+          "expected": "Help text with available commands",
+          "observed": "Help text displayed with all commands (auth, config, metrics, shares, audit, connections, preferences, keys, profile, export). Bare command exits 1 with '✗ Error: (outputHelp)' appended."
+        },
+        {
+          "action": "Run `bun run packages/cli/src/index.ts --help`",
+          "expected": "Help text with available commands, exit 0",
+          "observed": "Same help text displayed, exits 0 cleanly."
+        }
+      ],
+      "evidence": "Bare `totus` shows: Usage: totus [options] [command]\\n\\nCommands: auth, config, metrics, shares, audit, connections, preferences, keys, profile, export, help. With --help flag exits 0. Without flag exits 1 with error line '✗ Error: (outputHelp)'.",
+      "issues": "Minor: bare `totus` (no args) exits 1 and prints '✗ Error: (outputHelp)' after the help text. With `--help` flag it works cleanly (exit 0). Help text content is correct in both cases."
+    },
+    "VAL-CLI-018": {
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `totus config set server_url http://localhost:3000/api`",
+          "expected": "Config value set confirmation",
+          "observed": "✓ Config set: server_url = http://localhost:3000/api. Exit code 0."
+        },
+        {
+          "action": "Run `totus config get server_url`",
+          "expected": "Returns http://localhost:3000/api",
+          "observed": "Prints 'http://localhost:3000/api'. Exit code 0."
+        }
+      ],
+      "evidence": "config set outputs '✓ Config set: server_url = http://localhost:3000/api' (exit 0). config get outputs 'http://localhost:3000/api' (exit 0). Config stored at ~/.config/totus/config.json.",
+      "issues": null
+    },
+    "VAL-CLI-019": {
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `totus shares list` in simulated TTY (via `script -q`)",
+          "expected": "Table format output",
+          "observed": "Formatted table with columns: ID, Label, Status, Metrics, Views, Expires, Created. 4 shares displayed with box-drawing borders."
+        },
+        {
+          "action": "Run `totus shares list | cat` (piped, non-TTY)",
+          "expected": "JSON output",
+          "observed": "JSON object with shares array containing 4 share objects with full details."
+        }
+      ],
+      "evidence": "TTY output: ASCII table with ┌─┬─┐ borders and columns (ID, Label, Status, Metrics, Views, Expires, Created). Pipe output: {\"shares\": [...]} JSON. Used `shares list` instead of `metrics list` per task note (metrics list has known bug).",
+      "issues": null
+    },
+    "VAL-CLI-020": {
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run successful command: `totus shares list` with valid API key",
+          "expected": "Exit code 0",
+          "observed": "Exit code 0. Shares data returned."
+        },
+        {
+          "action": "Run without auth: `totus shares list` with no API key",
+          "expected": "Exit code 2 (auth error)",
+          "observed": "Exit code 2. Error: 'No API key configured'."
+        },
+        {
+          "action": "Run with unreachable server: `totus shares list --server-url http://localhost:9999/api`",
+          "expected": "Exit code 1 (server error)",
+          "observed": "Exit code 1. Error: 'Could not connect to Totus API'."
+        }
+      ],
+      "evidence": "Success -> exit 0. No API key -> exit 2 with 'No API key configured'. Unreachable server -> exit 1 with 'Could not connect to Totus API'.",
+      "issues": null
+    },
+    "VAL-CLI-023": {
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run `totus metrics list --server-url http://localhost:3000/api` without any API key",
+          "expected": "Clear error with instructions to authenticate",
+          "observed": "✗ Error: No API key configured\\n  Run \"totus auth login\" to authenticate, or set TOTUS_API_KEY environment variable. Exit code 2."
+        }
+      ],
+      "evidence": "Output: '✗ Error: No API key configured\\n  Run \"totus auth login\" to authenticate, or set TOTUS_API_KEY environment variable.' Exit code 2. Message is clear, actionable, and mentions both auth methods.",
+      "issues": null
+    },
+    "VAL-CLI-024": {
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Run `totus metrics list --output csv --server-url http://localhost:3000/api` with valid API key",
+          "expected": "Valid CSV output with headers",
+          "observed": "Crash: '✗ Error: metricTypes.map is not a function'. Exit code 1."
+        }
+      ],
+      "evidence": "Error: metricTypes.map is not a function. CLI expects API to return array directly but API returns {data: {types: []}} nested object. Known bug documented in user-testing.md.",
+      "issues": "Known bug: `metrics list` crashes because CLI expects `metricTypes` to be an array but the API returns `{data: {types: []}}`. The `.map()` call fails on the nested object. This affects all `metrics list` output formats (table, json, csv)."
+    }
+  },
+  "frictions": [
+    {
+      "description": "Running bare `totus` (no arguments, no --help) shows help text but exits with code 1 and appends '✗ Error: (outputHelp)'. Users must use `--help` flag for clean exit.",
+      "resolved": false,
+      "resolution": null,
+      "affectedAssertions": ["VAL-CLI-001"]
+    },
+    {
+      "description": "TTY detection test required using `script -q /dev/null` to simulate a TTY since `bun run` in Execute tool runs in non-TTY context by default.",
+      "resolved": true,
+      "resolution": "Used `script -q /dev/null` wrapper to test TTY output; piped version tested with `| cat`.",
+      "affectedAssertions": ["VAL-CLI-019"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 6 assertions: 5 passed, 1 failed. VAL-CLI-024 (metrics list --output csv) fails due to known bug where CLI crashes with 'metricTypes.map is not a function' because API response shape doesn't match CLI expectations. All other assertions pass: help text displays correctly (VAL-CLI-001), config get/set works (VAL-CLI-018), TTY vs pipe auto-detection works with shares list (VAL-CLI-019), exit codes are correct (VAL-CLI-020), and unauthenticated error is helpful (VAL-CLI-023)."
+}

@@ -1,0 +1,159 @@
+{
+  "flowId": "data-commands",
+  "testedAt": "2026-03-11T00:00:00.000Z",
+  "credentials": {
+    "account": "mock_test_totus_dev",
+    "namespace": "mock_test_totus_dev"
+  },
+  "toolsUsed": ["bun CLI", "curl", "psql"],
+  "assertions": {
+    "VAL-CLI-005": {
+      "status": "fail",
+      "title": "totus metrics list shows table",
+      "steps": [
+        {
+          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts metrics list --server-url http://localhost:3000/api",
+          "expected": "Table output with columns: type, label, category, unit, sources",
+          "observed": "Crash with error: metricTypes.map is not a function"
+        }
+      ],
+      "evidence": {
+        "terminalOutput": "✗ Error: metricTypes.map is not a function. (In 'metricTypes.map((m) => ({...}))', 'metricTypes.map' is undefined)",
+        "exitCode": 1
+      },
+      "issues": "Known bug: API endpoint /api/health-data/types returns {data: {types: []}} (object with types property) but CLI code tries to call .map() directly on the response data, expecting it to be an array. The CLI does `const metricTypes = response.data;` then `metricTypes.map(...)` but response.data is {types: []} not an array."
+    },
+    "VAL-CLI-006": {
+      "status": "fail",
+      "title": "totus metrics list --output json",
+      "steps": [
+        {
+          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts metrics list --output json --server-url http://localhost:3000/api",
+          "expected": "Valid JSON array of metric types",
+          "observed": "Crash with same metricTypes.map error as VAL-CLI-005"
+        }
+      ],
+      "evidence": {
+        "terminalOutput": "✗ Error: metricTypes.map is not a function. (In 'metricTypes.map((m) => ({...}))', 'metricTypes.map' is undefined)",
+        "exitCode": 1
+      },
+      "issues": "Same root cause as VAL-CLI-005 — the .map() call happens before any output format branching, so both table and JSON output paths crash."
+    },
+    "VAL-CLI-007": {
+      "status": "fail",
+      "title": "totus metrics get returns data",
+      "steps": [
+        {
+          "action": "Verify test user has data: SELECT COUNT(*) FROM health_data_daily WHERE user_id='mock_test_totus_dev' AND metric_type='sleep_score'",
+          "expected": "Data rows exist",
+          "observed": "90 rows exist, date range 2025-12-10 to 2026-03-09"
+        },
+        {
+          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts metrics get sleep_score --from 2026-01-01 --to 2026-01-31 --server-url http://localhost:3000/api",
+          "expected": "Table with time-series sleep_score data points",
+          "observed": "Command exits 0 but returns empty data: {metrics: {sleep_score: {unit: 'score', points: []}}, query: {metrics_returned: []}}"
+        },
+        {
+          "action": "Verify via direct API call: curl with Bearer auth to /api/health-data?metrics=sleep_score&start=2026-01-01&end=2026-01-31",
+          "expected": "Data returned from API",
+          "observed": "Same empty response — API returns {data: {metrics: {sleep_score: {points: []}}}}"
+        },
+        {
+          "action": "Check API route auth: grep for getRequestContext in health-data route",
+          "expected": "Route uses getResolvedContext() for API key resolution",
+          "observed": "Route uses getRequestContext() — with API key auth, userId is '__api_key_pending__' so no data is found"
+        }
+      ],
+      "evidence": {
+        "terminalOutput": "{\"metrics\":{\"sleep_score\":{\"unit\":\"score\",\"points\":[]}},\"query\":{\"start\":\"2026-01-01\",\"end\":\"2026-01-31\",\"resolution\":\"daily\",\"metrics_requested\":[\"sleep_score\"],\"metrics_returned\":[]}}",
+        "exitCode": 0,
+        "dbVerification": "90 sleep_score rows exist for mock_test_totus_dev (2025-12-10 to 2026-03-09)",
+        "rootCause": "apps/web/src/app/api/health-data/route.ts uses getRequestContext() instead of getResolvedContext(), so API key auth resolves userId as '__api_key_pending__' and no data is found"
+      },
+      "issues": "Health data API route uses getRequestContext() instead of getResolvedContext(). API key auth sets userId to '__api_key_pending__' initially; only getResolvedContext() resolves the API key to the real user. Command exits 0 but returns empty data — no error is raised for zero results."
+    },
+    "VAL-CLI-016": {
+      "status": "fail",
+      "title": "totus profile",
+      "steps": [
+        {
+          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts profile --server-url http://localhost:3000/api",
+          "expected": "Display user display name and health data summary",
+          "observed": "Crash with error: Not found: User not found"
+        }
+      ],
+      "evidence": {
+        "terminalOutput": "✗ Error: Not found: User not found",
+        "exitCode": 1,
+        "rootCause": "Profile API route uses getRequestContext() instead of getResolvedContext(), so userId is '__api_key_pending__' and user lookup returns 404"
+      },
+      "issues": "Known bug: profile route uses getRequestContext() instead of getResolvedContext(). With API key auth, userId is '__api_key_pending__' which doesn't match any user in the database."
+    },
+    "VAL-CLI-017": {
+      "status": "fail",
+      "title": "totus export",
+      "steps": [
+        {
+          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts export --server-url http://localhost:3000/api",
+          "expected": "JSON data export downloaded",
+          "observed": "Crash with error: null is not an object (evaluating 'errorBody.error')"
+        },
+        {
+          "action": "Verify via curl GET to /api/user/export",
+          "expected": "GET returns export data",
+          "observed": "HTTP 405 Method Not Allowed — export route only supports POST"
+        },
+        {
+          "action": "Verify via curl POST to /api/user/export with Bearer auth",
+          "expected": "Export data returned",
+          "observed": "HTTP 404: {error: {code: 'NOT_FOUND', message: 'User not found'}} — same getRequestContext() bug"
+        }
+      ],
+      "evidence": {
+        "terminalOutput": "✗ Error: null is not an object (evaluating 'errorBody.error')",
+        "exitCode": 1,
+        "rootCause": "Two bugs: (1) CLI uses client.get('/api/user/export') but API only exposes POST handler, causing 405 with HTML response that CLI cannot parse as JSON. (2) Even if fixed to POST, export route uses getRequestContext() so API key auth would return 'User not found'."
+      },
+      "issues": "Two bugs: (1) HTTP method mismatch — CLI sends GET but export route only handles POST. The 405 returns HTML which crashes the CLI JSON error parser. (2) Export route uses getRequestContext() instead of getResolvedContext(), same as profile/health-data routes."
+    },
+    "VAL-CLI-025": {
+      "status": "fail",
+      "title": "totus metrics summary",
+      "steps": [
+        {
+          "action": "Run: TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts metrics summary --server-url http://localhost:3000/api",
+          "expected": "Display data points, connected sources, active shares, date range, metric counts",
+          "observed": "Crash with error: undefined is not a function (near '...m of metricTypes...')"
+        }
+      ],
+      "evidence": {
+        "terminalOutput": "✗ Error: undefined is not a function (near '...m of metricTypes...')",
+        "exitCode": 1,
+        "rootCause": "Same root cause as VAL-CLI-005/006: API returns {data: {types: []}} but CLI code iterates metricTypes with for...of expecting an array"
+      },
+      "issues": "Same metricTypes bug as VAL-CLI-005/006. The metrics summary command fetches /api/health-data/types and tries to iterate the response data, but the response wraps metrics in a {types: []} object rather than returning a plain array."
+    }
+  },
+  "frictions": [
+    {
+      "description": "The health-data, profile, and export API routes all use getRequestContext() instead of getResolvedContext(), making them incompatible with API key authentication. With API key auth, userId is set to '__api_key_pending__' which doesn't match any real user. This affects VAL-CLI-007, VAL-CLI-016, VAL-CLI-017.",
+      "resolved": false,
+      "resolution": null,
+      "affectedAssertions": ["VAL-CLI-007", "VAL-CLI-016", "VAL-CLI-017"]
+    },
+    {
+      "description": "The /api/health-data/types endpoint returns {data: {types: [...]}} but CLI code expects the metric types to be directly in response.data as an array. This shape mismatch crashes metrics list, metrics list --output json, and metrics summary.",
+      "resolved": false,
+      "resolution": null,
+      "affectedAssertions": ["VAL-CLI-005", "VAL-CLI-006", "VAL-CLI-025"]
+    },
+    {
+      "description": "CLI export command sends GET request to /api/user/export but the API route only defines a POST handler, resulting in 405 Method Not Allowed.",
+      "resolved": false,
+      "resolution": null,
+      "affectedAssertions": ["VAL-CLI-017"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 6 assertions: 0 passed, 6 failed. Three root causes: (1) metricTypes shape mismatch — API returns {types:[]} wrapper but CLI expects plain array (affects VAL-CLI-005, VAL-CLI-006, VAL-CLI-025). (2) API routes use getRequestContext() instead of getResolvedContext(), breaking API key auth for health-data, profile, and export endpoints (affects VAL-CLI-007, VAL-CLI-016, VAL-CLI-017). (3) Export CLI sends GET but API only handles POST (affects VAL-CLI-017)."
+}

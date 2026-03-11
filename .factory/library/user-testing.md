@@ -166,6 +166,52 @@ KEY=$(echo $RESULT | python3 -c "import sys,json; print(json.load(sys.stdin)['da
 - Pattern: `tot_live_{8chars}_{32chars}`
 - Auth via: `Authorization: Bearer <key>`
 
+## Flow Validator Guidance: CLI
+
+### Testing Surface
+- CLI commands run via `bun run packages/cli/src/index.ts [command]` from repo root
+- Commands require `--server-url http://localhost:3000/api` or config `server_url` set
+- API key auth via `TOTUS_API_KEY` env var, `--api-key` flag, or config file
+- Config file at `~/.config/totus/config.json`
+
+### Test Accounts & API Keys for CLI Testing
+
+| Account | User ID | API Key | Scopes |
+|---------|---------|---------|--------|
+| Full-scope user 1 | mock_test_totus_dev | tot_live_Oxcn5bC8_tRl6NOd4rNEVB19W8pXppzS9M55B6nPC | All scopes |
+| Full-scope user 2 (CLI test 1) | mock_ut_cli_1_test_com | tot_live_Nbt1Dqpq_0iqSM7cr1CqJuEINQdnG82BKFUBPxUO4 | All scopes |
+| Full-scope user 3 (CLI test 2) | mock_ut_cli_2_test_com | tot_live_zGhn5fxd_TDur1tQnj3dYx8oztBTZfGaD0nKxCnmT | All scopes |
+| Read-only user (CLI test 3) | mock_ut_cli_3_test_com | tot_live_FZfWe95f_sLncxoNzrw1CBIStV68vJZOm0YWteLDi | health:read, connections:read, audit:read, keys:read |
+
+### Data Available
+- `mock_test_totus_dev` has 720 daily data points, 1 Oura connection, 4 shares, audit events
+- `mock_ut_cli_1_test_com`, `mock_ut_cli_2_test_com`, `mock_ut_cli_3_test_com` have no health data (newly created)
+
+### Isolation Rules
+- Each subagent uses its OWN assigned API key and user account.
+- Do NOT modify another subagent's config, data, or API keys.
+- If testing `totus auth login`, back up and restore `~/.config/totus/config.json` afterward.
+- All subagents write reports to their assigned flow file only.
+
+### Running Commands
+```bash
+# With env var
+TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts <command> --server-url http://localhost:3000/api
+
+# With flag
+bun run packages/cli/src/index.ts <command> --api-key <key> --server-url http://localhost:3000/api
+
+# TTY detection: pipe through cat to simulate non-TTY
+TOTUS_API_KEY=<key> bun run packages/cli/src/index.ts <command> --server-url http://localhost:3000/api | cat
+```
+
+### Known CLI Issues (discovered during setup)
+- `metrics list` crashes with "metricTypes.map is not a function" - API returns `{data: {types: []}}` but CLI expects `{data: []}` (array directly)
+- `profile` command returns 404 "User not found" with API key auth because profile route uses `getRequestContext()` instead of `getResolvedContext()` — user ID is `__api_key_pending__`
+- `connections list` returns empty for API-key-authenticated requests (same root cause: route uses `getRequestContext()` not `getResolvedContext()`)
+- `metrics get` query param mismatch: CLI sends `start`/`end` but API health-data endpoint expects `start`/`end` (this actually works)
+- By default, non-TTY output (piped) outputs JSON format
+
 ## Known Quirks
 
 - Clipboard API unavailable in headless Chromium (copy button shows error toast)

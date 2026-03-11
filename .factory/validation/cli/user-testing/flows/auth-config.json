@@ -1,0 +1,216 @@
+{
+  "flowId": "auth-config",
+  "testedAt": "2026-03-11T15:52:00Z",
+  "credentials": {
+    "account": "mock_ut_cli_1_test_com",
+    "namespace": "cli-auth-config",
+    "primaryKey": "tot_live_Nbt1Dqpq_***",
+    "secondaryKey": "tot_live_Oxcn5bC8_***"
+  },
+  "toolsUsed": ["bun CLI", "curl"],
+  "assertions": {
+    "VAL-CLI-002": {
+      "status": "fail",
+      "title": "totus auth login saves API key",
+      "steps": [
+        {
+          "action": "Pipe invalid key format to auth login",
+          "expected": "Rejects invalid format with error message",
+          "observed": "Correctly rejected: 'Invalid API key format' with exit code 2"
+        },
+        {
+          "action": "Pipe valid API key (tot_live_Nbt1Dqpq_...) to auth login --server-url http://localhost:3000/api",
+          "expected": "Validates format, verifies with server, saves to config",
+          "observed": "Format validation passed, but server validation failed with 'Not found: User not found' (exit code 1). Key NOT saved to config."
+        }
+      ],
+      "evidence": {
+        "terminalOutput": "echo 'tot_live_Nbt1Dqpq_...' | bun run packages/cli/src/index.ts auth login -> '✗ Error: Not found: User not found' (exit 1)",
+        "formatValidation": "Invalid key correctly rejected with exit code 2 and helpful error message",
+        "serverValidation": "curl -H 'Authorization: Bearer <key>' /api/user/profile -> {\"error\":{\"code\":\"NOT_FOUND\",\"message\":\"User not found\"}}",
+        "otherEndpointsWork": "Same key works with /api/shares (200), /api/audit (200) — proving key is valid"
+      },
+      "issues": "auth login validates by calling /api/user/profile, which has a known bug: profile route uses getRequestContext() instead of getResolvedContext(), resulting in user_id='__api_key_pending__' and 404. Format validation and key prompting work correctly, but the command cannot complete successfully due to the profile endpoint bug."
+    },
+    "VAL-CLI-003": {
+      "status": "pass",
+      "title": "totus auth status shows auth state",
+      "steps": [
+        {
+          "action": "Set api_key in config manually, run auth status --server-url http://localhost:3000/api",
+          "expected": "Shows authenticated state, masked key, source, server URL",
+          "observed": "Output: '✓ Authenticated\\n  Key: tot_live_...Nbt1Dqpq\\n  Source: config file (...)\\n  Server: http://localhost:3000/api\\n  ⚠ Could not verify key with server' — exit code 0"
+        },
+        {
+          "action": "Remove api_key from config, run auth status",
+          "expected": "Shows not authenticated with instructions",
+          "observed": "Output: '✗ Not authenticated\\n  Run \"totus auth login\" to authenticate, or set TOTUS_API_KEY environment variable.' — exit code 2"
+        },
+        {
+          "action": "Run auth status with --api-key flag",
+          "expected": "Shows source as 'command flag'",
+          "observed": "Source: 'command flag' — exit code 0"
+        },
+        {
+          "action": "Run auth status with TOTUS_API_KEY env var",
+          "expected": "Shows source as env var",
+          "observed": "Source: 'TOTUS_API_KEY environment variable' — exit code 0"
+        }
+      ],
+      "evidence": {
+        "authenticatedOutput": "✓ Authenticated | Key: tot_live_...Nbt1Dqpq | Source: config file | Server: http://localhost:3000/api",
+        "unauthenticatedOutput": "✗ Not authenticated | exit code 2",
+        "flagSource": "Source: command flag",
+        "envSource": "Source: TOTUS_API_KEY environment variable"
+      },
+      "issues": null
+    },
+    "VAL-CLI-004": {
+      "status": "pass",
+      "title": "totus auth logout clears key",
+      "steps": [
+        {
+          "action": "With api_key in config, run auth logout",
+          "expected": "Removes api_key from config, shows confirmation",
+          "observed": "Output: '✓ API key removed from config\\n  Config: /Users/weseklund/.config/totus/config.json' — exit code 0"
+        },
+        {
+          "action": "Verify config file after logout",
+          "expected": "Config has no api_key field",
+          "observed": "Config contains only {\"api_url\": \"http://localhost:3000/api\"} — api_key removed"
+        },
+        {
+          "action": "Verify auth status after logout",
+          "expected": "Shows not authenticated",
+          "observed": "'✗ Not authenticated' — exit code 2"
+        }
+      ],
+      "evidence": {
+        "logoutOutput": "✓ API key removed from config",
+        "configAfterLogout": "{\"api_url\": \"http://localhost:3000/api\"} — no api_key field",
+        "statusAfterLogout": "✗ Not authenticated — exit code 2"
+      },
+      "issues": null
+    },
+    "VAL-CLI-021": {
+      "status": "pass",
+      "title": "--api-key flag overrides stored key",
+      "steps": [
+        {
+          "action": "Store primary key (mock_ut_cli_1_test_com) in config, run shares list with --api-key secondary key (mock_test_totus_dev)",
+          "expected": "Returns data for secondary key's user, not stored key's user",
+          "observed": "shares list --api-key <secondary> returned 4 shares (E2E Test Share, Revoke Test Share, etc.) belonging to mock_test_totus_dev"
+        },
+        {
+          "action": "Run shares list with stored key (no override)",
+          "expected": "Returns data for primary key's user (which has no shares)",
+          "observed": "shares list returned {\"shares\": []} — 0 shares for mock_ut_cli_1_test_com"
+        },
+        {
+          "action": "Run audit list with --api-key flag",
+          "expected": "Returns audit events for overridden user",
+          "observed": "audit list --api-key <secondary> returned events with event_type 'data.viewed' — exit code 0"
+        }
+      ],
+      "evidence": {
+        "flagOverrideShares": "4 shares returned (mock_test_totus_dev's data) vs 0 shares with stored key",
+        "flagOverrideAudit": "audit list returned events — exit code 0",
+        "authStatusSource": "auth status --api-key shows Source: 'command flag'"
+      },
+      "issues": null
+    },
+    "VAL-CLI-022": {
+      "status": "pass",
+      "title": "TOTUS_API_KEY env var works",
+      "steps": [
+        {
+          "action": "Run shares list with TOTUS_API_KEY=<secondary key>",
+          "expected": "Returns data for env var key's user",
+          "observed": "TOTUS_API_KEY=<secondary> shares list returned 4 shares (same as mock_test_totus_dev) — exit code 0"
+        },
+        {
+          "action": "Run audit list with TOTUS_API_KEY=<secondary key>",
+          "expected": "Returns audit events for env var key's user",
+          "observed": "audit list returned events — exit code 0"
+        },
+        {
+          "action": "Verify auth status with TOTUS_API_KEY set",
+          "expected": "Source shows environment variable",
+          "observed": "Source: 'TOTUS_API_KEY environment variable'"
+        }
+      ],
+      "evidence": {
+        "envVarShares": "4 shares returned (mock_test_totus_dev's data) — same result as --api-key flag",
+        "envVarAudit": "audit list returned events — exit code 0",
+        "authStatusSource": "Source: 'TOTUS_API_KEY environment variable'"
+      },
+      "issues": null
+    },
+    "VAL-CLI-027": {
+      "status": "pass",
+      "title": "totus auth token prints masked key",
+      "steps": [
+        {
+          "action": "With api_key in config, run auth token",
+          "expected": "Prints masked key and source",
+          "observed": "Output: 'tot_live_...Nbt1Dqpq\\n  Source: config file (...)' — exit code 0"
+        }
+      ],
+      "evidence": {
+        "maskedOutput": "tot_live_...Nbt1Dqpq — shows prefix and short token only, long token masked",
+        "source": "Source: config file (/Users/weseklund/.config/totus/config.json)"
+      },
+      "issues": null
+    },
+    "VAL-CLI-029": {
+      "status": "pass",
+      "title": "Config file permissions",
+      "steps": [
+        {
+          "action": "Delete config file, run config set to trigger writeConfig (fresh file creation)",
+          "expected": "New config file has mode 0600",
+          "observed": "stat shows mode 600 on freshly created config file"
+        },
+        {
+          "action": "Verify config.ts uses CONFIG_FILE_MODE = 0o600",
+          "expected": "Code sets 0600 permissions",
+          "observed": "writeConfig calls fs.writeFileSync with { mode: 0o600 }, ensureConfigDir creates dir with 0o700"
+        },
+        {
+          "action": "Check permissions after auth logout (another writeConfig call)",
+          "expected": "Mode stays 0600",
+          "observed": "stat shows mode 600 after logout"
+        }
+      ],
+      "evidence": {
+        "freshFilePermissions": "stat -f '%Lp' ~/.config/totus/config.json -> 600 (fresh creation)",
+        "afterLogoutPermissions": "stat -f '%Lp' -> 600 (after writeConfig via logout)",
+        "codeVerification": "config.ts: CONFIG_FILE_MODE = 0o600, ensureConfigDir mode 0o700",
+        "caveat": "Note: fs.writeFileSync mode only applies on file creation. Overwriting an existing file does not reset permissions. Tested: chmod 644 then config set -> stays 644. This is a Node.js limitation, not a CLI bug."
+      },
+      "issues": null
+    }
+  },
+  "frictions": [
+    {
+      "description": "auth login validates API key by calling /api/user/profile, which has a known bug (returns 404 'User not found' for API key auth due to getRequestContext() vs getResolvedContext()). This prevents auth login from completing, even with a valid API key.",
+      "resolved": false,
+      "resolution": "Manually wrote config file to test other auth assertions. This is a known issue documented in AGENTS.md.",
+      "affectedAssertions": ["VAL-CLI-002"]
+    },
+    {
+      "description": "auth status shows '⚠ Could not verify key with server' because it also calls /api/user/profile for display name. The status command still works (shows auth state, key, source) but cannot show user display name.",
+      "resolved": true,
+      "resolution": "The command handles the profile error gracefully and still shows all other information.",
+      "affectedAssertions": ["VAL-CLI-003"]
+    },
+    {
+      "description": "Node.js fs.writeFileSync mode option only applies on file creation, not when overwriting. If config file already exists with wrong permissions (e.g., 644), writeConfig does not fix them. The CLI warns about insecure permissions but doesn't correct them.",
+      "resolved": false,
+      "resolution": "Code correctly creates files with 0600 but could add explicit chmod after write for existing files.",
+      "affectedAssertions": ["VAL-CLI-029"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 7 assertions: 6 passed, 1 failed. VAL-CLI-002 (auth login) fails because it validates the key against /api/user/profile which has a known bug returning 404 for API-key-authenticated requests. All other auth/config assertions pass: auth status correctly shows auth state with multiple key sources, auth logout cleanly removes the key, --api-key flag and TOTUS_API_KEY env var both override stored key (verified with different users' data), auth token prints masked key, and config file gets 0600 permissions on creation."
+}
