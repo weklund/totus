@@ -21,7 +21,11 @@ import { NextResponse } from "next/server";
 import { and, eq, desc, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { auditEvents } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
+import {
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "@/lib/auth/resolve-api-key";
+import { enforceScope } from "@/lib/auth/permissions";
 import {
   createErrorResponse,
   ApiError,
@@ -31,7 +35,7 @@ import {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const VALID_ACTOR_TYPES = ["owner", "viewer", "system"];
+const VALID_ACTOR_TYPES = ["owner", "viewer", "system", "api_key"];
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
@@ -115,11 +119,18 @@ function isValidUuid(s: string): boolean {
 
 export async function GET(request: Request): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+
+    // Check API key rate limiting
+    const rateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (rateLimitResponse) return rateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
+
+    // Enforce scope for API key auth (audit:read)
+    enforceScope(ctx, "audit:read");
 
     // Parse query parameters
     const url = new URL(request.url);
@@ -143,7 +154,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     if (actorType && !VALID_ACTOR_TYPES.includes(actorType)) {
       throw new ApiError(
         "VALIDATION_ERROR",
-        "Invalid actor_type filter. Must be one of: owner, viewer, system",
+        "Invalid actor_type filter. Must be one of: owner, viewer, system, api_key",
         400,
       );
     }

@@ -358,10 +358,11 @@ export async function GET(request: Request): Promise<NextResponse> {
       ctx.grantId && isValidUuid(ctx.grantId) ? ctx.grantId : null;
 
     // Emit audit event (fire-and-forget)
+    const actorType = ctx.authMethod === "api_key" ? "api_key" : ctx.role;
     db.insert(auditEvents)
       .values({
         ownerId: ctx.userId,
-        actorType: ctx.role,
+        actorType,
         actorId: ctx.role === "owner" ? ctx.userId : null,
         grantId: auditGrantId,
         eventType: "data.viewed",

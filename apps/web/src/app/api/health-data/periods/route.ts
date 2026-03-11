@@ -13,8 +13,15 @@ import { and, between, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { healthDataPeriods, auditEvents } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
-import { enforcePermissions, PermissionError } from "@/lib/auth/permissions";
+import {
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "@/lib/auth/resolve-api-key";
+import {
+  enforceScope,
+  enforcePermissions,
+  PermissionError,
+} from "@/lib/auth/permissions";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
 import { METRIC_TYPE_IDS, getMetricType } from "@/config/metrics";
 import { PROVIDER_IDS } from "@/config/providers";
@@ -50,12 +57,19 @@ interface PeriodEvent {
 
 export async function GET(request: Request): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+
+    // Check API key rate limiting
+    const rateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (rateLimitResponse) return rateLimitResponse;
 
     // Auth check: must be owner or viewer
     if (ctx.role === "unauthenticated" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
+
+    // Enforce scope for API key auth
+    enforceScope(ctx, "health:read");
 
     // Parse and validate query parameters
     const url = new URL(request.url);
@@ -199,10 +213,11 @@ export async function GET(request: Request): Promise<NextResponse> {
       ctx.grantId && isValidUuid(ctx.grantId) ? ctx.grantId : null;
 
     // Emit audit event (fire-and-forget)
+    const actorType = ctx.authMethod === "api_key" ? "api_key" : ctx.role;
     db.insert(auditEvents)
       .values({
         ownerId: ctx.userId,
-        actorType: ctx.role,
+        actorType,
         actorId: ctx.role === "owner" ? ctx.userId : null,
         grantId: auditGrantId,
         eventType: "data.viewed",

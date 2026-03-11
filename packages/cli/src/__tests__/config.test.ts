@@ -147,8 +147,25 @@ describe("config", () => {
       expect(resolveServerUrl()).toBe("http://env-url");
     });
 
-    it("defaults to https://totus.com/api", () => {
-      expect(resolveServerUrl()).toBe("https://totus.com/api");
+    it("defaults to https://totus.com/api when no config file exists", () => {
+      // Mock readConfig to return empty config (no config file on disk)
+      const origReadFile = fs.readFileSync;
+      const origExists = fs.existsSync;
+      // Temporarily rename the config file if it exists to avoid reading it
+      const configPath = path.join(os.homedir(), ".config", "totus", "config.json");
+      const backupPath = configPath + ".test-backup";
+      let didBackup = false;
+      try {
+        if (origExists(configPath)) {
+          fs.renameSync(configPath, backupPath);
+          didBackup = true;
+        }
+        expect(resolveServerUrl()).toBe("https://totus.com/api");
+      } finally {
+        if (didBackup) {
+          fs.renameSync(backupPath, configPath);
+        }
+      }
     });
   });
 

@@ -14,7 +14,11 @@ import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { providerConnections, auditEvents } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
+import {
+  getResolvedContext,
+  checkApiKeyRateLimit,
+} from "@/lib/auth/resolve-api-key";
+import { enforceScope } from "@/lib/auth/permissions";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
 
 export async function DELETE(
@@ -22,11 +26,18 @@ export async function DELETE(
   { params }: { params: Promise<{ provider: string }> },
 ): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
+
+    // Check API key rate limiting
+    const rateLimitResponse = checkApiKeyRateLimit(ctx);
+    if (rateLimitResponse) return rateLimitResponse;
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
+
+    // Enforce scope for API key auth
+    enforceScope(ctx, "connections:write");
 
     // The [provider] slug is used as a connection ID for DELETE operations
     const { provider: id } = await params;
@@ -53,10 +64,11 @@ export async function DELETE(
     const now = new Date().toISOString();
 
     // Emit audit event (fire-and-forget)
+    const actorType = ctx.authMethod === "api_key" ? "api_key" : "owner";
     db.insert(auditEvents)
       .values({
         ownerId: ctx.userId,
-        actorType: "owner",
+        actorType,
         actorId: ctx.userId,
         eventType: "account.disconnected",
         resourceType: "connection",
