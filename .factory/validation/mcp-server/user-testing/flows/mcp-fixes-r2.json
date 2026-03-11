@@ -1,0 +1,80 @@
+{
+  "groupId": "mcp-fixes-r2",
+  "testedAt": "2026-03-11T00:00:00.000Z",
+  "credentials": {
+    "account": "Seed user (mock_test_totus_dev)",
+    "namespace": "mock_test_totus_dev"
+  },
+  "toolsUsed": ["shell-script", "JSON-RPC-over-stdio"],
+  "assertions": [
+    {
+      "id": "VAL-MCP-003",
+      "title": "list_available_metrics tool works",
+      "status": "pass",
+      "steps": [
+        { "action": "Send initialize + notifications/initialized to MCP server", "expected": "Server responds with capabilities", "observed": "Server responded with protocolVersion 2024-11-05 and capabilities for tools, resources, prompts" },
+        { "action": "Send tools/call for list_available_metrics with empty arguments", "expected": "Response with formatted metric types list (not 'No metrics found')", "observed": "Response contains 12 metrics: active_calories, deep_sleep, hrv, readiness_score, rhr, sleep_duration, sleep_score, steps, heart_rate, spo2_interval, sleep_stage, workout — each with unit, category, and source" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none (stderr suppressed, no errors on stdout)",
+        "network": "MCP server -> GET /api/health-data/types -> 200 (inferred from successful response)",
+        "jsonRpcResponse": "{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Available Metrics\\n\\nactive_calories: Active Calories (kcal) [activity] — source: oura\\ndeep_sleep: Deep Sleep (hr) [sleep] — source: oura\\nhrv: Heart Rate Variability (ms) [cardiovascular] — source: oura\\nreadiness_score: Readiness Score (score) [recovery] — source: oura\\nrhr: Resting Heart Rate (bpm) [cardiovascular] — source: oura\\nsleep_duration: Sleep Duration (hr) [sleep] — source: oura\\nsleep_score: Sleep Score (score) [sleep] — source: oura\\nsteps: Steps (steps) [activity] — source: oura\\nheart_rate: Heart Rate (bpm) [cardiovascular] — source: oura\\nspo2_interval: SpO2 (interval) (%) [cardiovascular] — source: oura\\nsleep_stage: Sleep Stage (—) [sleep] — source: oura\\nworkout: Workout (—) [activity] — source: oura\\n\"}]},\"jsonrpc\":\"2.0\",\"id\":2}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-004",
+      "title": "create_share tool works",
+      "status": "pass",
+      "steps": [
+        { "action": "Send initialize + notifications/initialized to MCP server", "expected": "Server responds with capabilities", "observed": "Server responded with protocolVersion 2024-11-05 and capabilities" },
+        { "action": "Send tools/call for create_share with label, metrics, start_date, end_date, expires_in_days", "expected": "Response with share URL in text format", "observed": "Response contains 'Share Created Successfully' with label, URL (masked share token), metrics (sleep_score, steps), and date range (2026-01-01 → 2026-01-31)" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "MCP server -> POST /api/shares -> 200 (inferred from successful share creation)",
+        "jsonRpcResponse": "{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Share Created Successfully\\n\\nLabel: MCP Fix Test Share\\nURL: Share token: *******************************************\\nMetrics: sleep_score, steps\\nDate range: 2026-01-01 → 2026-01-31\\n\"}]},\"jsonrpc\":\"2.0\",\"id\":2}"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-MCP-011",
+      "title": "metric preference tools work (set, list, delete)",
+      "status": "pass",
+      "steps": [
+        { "action": "Send tools/call for set_metric_preference with metric_type=hrv, source=oura", "expected": "Preference set confirmation", "observed": "Response: 'Preference set: hrv → oura. Totus will now use oura as the source for hrv data.'" },
+        { "action": "Send tools/call for list_metric_preferences", "expected": "List showing hrv preference (not 'No metrics found' or empty due to array unwrapping bug)", "observed": "Response: 'Source Preferences: hrv → oura (set 2026-03-11). 1 preference(s) set. All other metrics use auto-resolution.'" },
+        { "action": "Send tools/call for delete_metric_preference with metric_type=hrv", "expected": "Preference cleared confirmation", "observed": "Response: 'Preference cleared: hrv. Totus will now use auto-resolution for hrv (most recent data source wins).'" }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "none",
+        "network": "MCP server -> PUT /api/metric-preferences/hrv -> 200, GET /api/metric-preferences -> 200, DELETE /api/metric-preferences/hrv -> 200",
+        "jsonRpcResponses": {
+          "set": "{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Preference set: hrv → oura\\n\\nTotus will now use oura as the source for hrv data.\"}]},\"jsonrpc\":\"2.0\",\"id\":2}",
+          "list": "{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Source Preferences\\n\\nhrv → oura (set 2026-03-11)\\n\\n1 preference(s) set. All other metrics use auto-resolution.\"}]},\"jsonrpc\":\"2.0\",\"id\":2}",
+          "delete": "{\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"Preference cleared: hrv\\n\\nTotus will now use auto-resolution for hrv (most recent data source wins).\"}]},\"jsonrpc\":\"2.0\",\"id\":2}"
+        }
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "create_share tool requires a 'label' parameter that is not mentioned in the validation contract assertion description. First attempt without label failed with Zod validation error.",
+      "resolved": true,
+      "resolution": "Added label parameter to the create_share call",
+      "affectedAssertions": ["VAL-MCP-004"]
+    },
+    {
+      "description": "set_metric_preference tool uses 'source' parameter name (not 'provider'). Parameter name differs from the API endpoint which uses 'provider'.",
+      "resolved": true,
+      "resolution": "Used correct parameter name 'source' as per tool schema",
+      "affectedAssertions": ["VAL-MCP-011"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 3 assertions (VAL-MCP-003, VAL-MCP-004, VAL-MCP-011): all 3 passed. The fixes from commit 1bc8111 are verified working. list_available_metrics now correctly reads data.types (returns 12 metrics), create_share now sends correct field names (allowed_metrics, data_start, data_end), and list_metric_preferences now correctly unwraps data.preferences array (shows preferences instead of empty/error)."
+}

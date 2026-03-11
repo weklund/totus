@@ -1,22 +1,25 @@
 {
   "milestone": "mcp-server",
-  "round": 1,
-  "status": "fail",
+  "round": 2,
+  "status": "pass",
   "assertionsSummary": {
     "total": 32,
-    "passed": 29,
-    "failed": 3,
+    "passed": 32,
+    "failed": 0,
     "blocked": 0
   },
   "passedAssertions": [
     "VAL-MCP-001",
     "VAL-MCP-002",
+    "VAL-MCP-003",
+    "VAL-MCP-004",
     "VAL-MCP-005",
     "VAL-MCP-006",
     "VAL-MCP-007",
     "VAL-MCP-008",
     "VAL-MCP-009",
     "VAL-MCP-010",
+    "VAL-MCP-011",
     "VAL-MCP-012",
     "VAL-MCP-013",
     "VAL-MCP-014",
@@ -39,27 +42,8 @@
     "VAL-CROSS-009",
     "VAL-CROSS-010"
   ],
-  "failedAssertions": [
-    {
-      "id": "VAL-MCP-003",
-      "reason": "Bug in mcp-server.ts list_available_metrics: code reads `data.metrics` but API returns data under `data.types` key. Always shows 'No metrics found' despite API having 11+ metric types. Fix: change `.metrics` to `.types` in the response parsing code."
-    },
-    {
-      "id": "VAL-MCP-004",
-      "reason": "Bug in mcp-server.ts create_share: tool sends {metrics, start_date, end_date} but API expects {allowed_metrics, data_start, data_end}. Returns 400 validation error. Fix: update client.post() call to use correct field names."
-    },
-    {
-      "id": "VAL-MCP-011",
-      "reason": "Partial fail: set_metric_preference and delete_metric_preference work correctly. list_metric_preferences fails because code does `Array.isArray(data) ? data : []` but API returns `{preferences:[...]}` wrapped object. Fix: extract `data.preferences` array before rendering."
-    }
-  ],
+  "failedAssertions": [],
   "blockedAssertions": [],
-  "appliedUpdates": [
-    {
-      "target": "user-testing.md",
-      "description": "Added Flow Validator Guidance: MCP section with protocol details, message format examples, test account/key table, and isolation rules for MCP testing",
-      "source": "setup"
-    }
-  ],
-  "previousRound": null
+  "appliedUpdates": [],
+  "previousRound": ".factory/validation/mcp-server/user-testing/synthesis-round1.json"
 }
