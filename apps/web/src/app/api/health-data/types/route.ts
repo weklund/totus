@@ -12,7 +12,7 @@
 import { NextResponse } from "next/server";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { healthData } from "@/db/schema";
+import { healthDataDaily } from "@/db/schema";
 import { getRequestContext } from "@/lib/auth/request-context";
 import type { ViewerPermissions } from "@/lib/auth/request-context";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
@@ -28,14 +28,14 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
 
     // Build query conditions
-    const conditions = [eq(healthData.userId, ctx.userId)];
+    const conditions = [eq(healthDataDaily.userId, ctx.userId)];
 
     // For viewers, filter to only allowed metrics
     if (ctx.role === "viewer" && ctx.permissions !== "full") {
       const viewerPerms = ctx.permissions as ViewerPermissions;
       if (viewerPerms.allowedMetrics.length > 0) {
         conditions.push(
-          inArray(healthData.metricType, viewerPerms.allowedMetrics),
+          inArray(healthDataDaily.metricType, viewerPerms.allowedMetrics),
         );
       }
     }
@@ -43,16 +43,16 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Query for metric type summaries
     const summaries = await db
       .select({
-        metricType: healthData.metricType,
-        source: healthData.source,
-        earliestDate: sql<string>`min(${healthData.date})`,
-        latestDate: sql<string>`max(${healthData.date})`,
+        metricType: healthDataDaily.metricType,
+        source: healthDataDaily.source,
+        earliestDate: sql<string>`min(${healthDataDaily.date})`,
+        latestDate: sql<string>`max(${healthDataDaily.date})`,
         count: sql<number>`count(*)::int`,
       })
-      .from(healthData)
+      .from(healthDataDaily)
       .where(and(...conditions))
-      .groupBy(healthData.metricType, healthData.source)
-      .orderBy(healthData.metricType);
+      .groupBy(healthDataDaily.metricType, healthDataDaily.source)
+      .orderBy(healthDataDaily.metricType);
 
     // Build response with metric config enrichment
     const types = summaries.map((row) => {

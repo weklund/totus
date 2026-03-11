@@ -42,8 +42,8 @@ vi.mock("next/headers", () => ({
 let pool: PoolType;
 let db: ReturnType<typeof import("drizzle-orm/node-postgres").drizzle>;
 let users: typeof import("@/db/schema").users;
-let ouraConnections: typeof import("@/db/schema").ouraConnections;
-let healthData: typeof import("@/db/schema").healthData;
+let providerConnections: typeof import("@/db/schema").providerConnections;
+let healthDataDaily: typeof import("@/db/schema").healthDataDaily;
 
 // Route handlers
 let listGET: typeof import("../route").GET;
@@ -81,8 +81,8 @@ beforeAll(async () => {
 
   const schema = await import("@/db/schema");
   users = schema.users;
-  ouraConnections = schema.ouraConnections;
-  healthData = schema.healthData;
+  providerConnections = schema.providerConnections;
+  healthDataDaily = schema.healthDataDaily;
 
   const encModule = await import("@/lib/encryption");
   createEncryptionProvider = encModule.createEncryptionProvider;
@@ -133,12 +133,14 @@ afterEach(async () => {
 
   // Clean up test data in correct order (FK constraints)
   await db
-    .delete(healthData)
-    .where(sql`${healthData.userId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`);
-  await db
-    .delete(ouraConnections)
+    .delete(healthDataDaily)
     .where(
-      sql`${ouraConnections.userId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`,
+      sql`${healthDataDaily.userId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`,
+    );
+  await db
+    .delete(providerConnections)
+    .where(
+      sql`${providerConnections.userId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`,
     );
 
   // Delete audit events via raw SQL (immutability trigger blocks normal DELETE)
@@ -191,26 +193,30 @@ function createUnauthRequest(url: string, method: string = "GET"): Request {
 
 async function createOuraConnection(userId: string): Promise<string> {
   const encryption = createEncryptionProvider();
-  const accessToken = await encryption.encrypt(
-    Buffer.from("mock_access_token"),
-    userId,
-  );
-  const refreshToken = await encryption.encrypt(
-    Buffer.from("mock_refresh_token"),
+  const authPayload = JSON.stringify({
+    access_token: "mock_access_token",
+    refresh_token: "mock_refresh_token",
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    scopes: ["daily", "heartrate", "sleep"],
+  });
+  const authEnc = await encryption.encrypt(
+    Buffer.from(authPayload, "utf-8"),
     userId,
   );
 
   const [conn] = await db
-    .insert(ouraConnections)
+    .insert(providerConnections)
     .values({
       userId,
-      accessTokenEnc: accessToken,
-      refreshTokenEnc: refreshToken,
+      provider: "oura",
+      authType: "oauth2",
+      authEnc,
       tokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      status: "active",
       lastSyncAt: new Date(),
       syncStatus: "idle",
     })
-    .returning({ id: ouraConnections.id });
+    .returning({ id: providerConnections.id });
 
   return conn.id;
 }
@@ -254,7 +260,7 @@ describe("GET /api/connections", () => {
     const body = await response.json();
     expect(body.data).toHaveLength(1);
     expect(body.data[0].provider).toBe("oura");
-    expect(body.data[0].status).toBe("connected");
+    expect(body.data[0].status).toBe("active");
     expect(body.data[0].id).toBeDefined();
     expect(body.data[0].connected_at).toBeDefined();
     expect(body.data[0].last_sync_at).toBeDefined();
@@ -382,8 +388,8 @@ describe("GET /api/connections/oura/callback", () => {
     // Verify connection was created
     const connections = await db
       .select()
-      .from(ouraConnections)
-      .where(eq(ouraConnections.userId, TEST_USER_ID));
+      .from(providerConnections)
+      .where(eq(providerConnections.userId, TEST_USER_ID));
     expect(connections).toHaveLength(1);
     expect(connections[0].syncStatus).toBe("idle");
   });
@@ -438,7 +444,7 @@ describe("DELETE /api/connections/:id", () => {
       TEST_USER_ID,
     );
 
-    await db.insert(healthData).values({
+    await db.insert(healthDataDaily).values({
       userId: TEST_USER_ID,
       metricType: "sleep_score",
       date: "2026-01-15",
@@ -464,15 +470,15 @@ describe("DELETE /api/connections/:id", () => {
     // Connection should be gone
     const connections = await db
       .select()
-      .from(ouraConnections)
-      .where(eq(ouraConnections.id, connId));
+      .from(providerConnections)
+      .where(eq(providerConnections.id, connId));
     expect(connections).toHaveLength(0);
 
     // Health data should still be there
     const data = await db
       .select()
-      .from(healthData)
-      .where(eq(healthData.userId, TEST_USER_ID));
+      .from(healthDataDaily)
+      .where(eq(healthDataDaily.userId, TEST_USER_ID));
     expect(data.length).toBeGreaterThan(0);
   });
 });
@@ -535,15 +541,15 @@ describe("POST /api/connections/:id/sync", () => {
     // Check that health data was generated
     const data = await db
       .select()
-      .from(healthData)
-      .where(eq(healthData.userId, TEST_USER_ID));
+      .from(healthDataDaily)
+      .where(eq(healthDataDaily.userId, TEST_USER_ID));
     expect(data.length).toBeGreaterThan(0);
 
     // Check connection sync status is back to idle
     const [conn] = await db
       .select()
-      .from(ouraConnections)
-      .where(eq(ouraConnections.id, connId));
+      .from(providerConnections)
+      .where(eq(providerConnections.id, connId));
     expect(conn.syncStatus).toBe("idle");
     expect(conn.lastSyncAt).toBeDefined();
   });
@@ -553,9 +559,9 @@ describe("POST /api/connections/:id/sync", () => {
 
     // Set sync status to syncing manually
     await db
-      .update(ouraConnections)
-      .set({ syncStatus: "syncing" })
-      .where(eq(ouraConnections.id, connId));
+      .update(providerConnections)
+      .set({ syncStatus: "syncing", updatedAt: new Date() })
+      .where(eq(providerConnections.id, connId));
 
     const request = createAuthRequest(
       `http://localhost:3000/api/connections/${connId}/sync`,

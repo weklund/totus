@@ -15,9 +15,9 @@ import { z } from "zod";
 import { db } from "@/db";
 import {
   users,
-  healthData,
+  healthDataDaily,
   shareGrants,
-  ouraConnections,
+  providerConnections,
   auditEvents,
 } from "@/db/schema";
 import { getRequestContext } from "@/lib/auth/request-context";
@@ -65,8 +65,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Count total data points
     const [dataPointsResult] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(healthData)
-      .where(eq(healthData.userId, ctx.userId));
+      .from(healthDataDaily)
+      .where(eq(healthDataDaily.userId, ctx.userId));
 
     // Count active shares
     const [activeSharesResult] = await db
@@ -83,8 +83,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     // Count connections
     const [connectionsResult] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(ouraConnections)
-      .where(eq(ouraConnections.userId, ctx.userId));
+      .from(providerConnections)
+      .where(eq(providerConnections.userId, ctx.userId));
 
     return NextResponse.json({
       data: {

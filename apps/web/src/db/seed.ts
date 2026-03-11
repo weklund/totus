@@ -17,12 +17,12 @@ import { sql } from "drizzle-orm";
 import { db, pool } from "./index";
 import {
   users,
-  ouraConnections,
-  healthData,
+  providerConnections,
+  healthDataDaily,
   shareGrants,
   auditEvents,
 } from "./schema";
-import { upsertHealthData, type HealthDataRow } from "./upsert";
+import { upsertDailyData, type HealthDataRow } from "./upsert";
 import { createEncryptionProvider } from "@/lib/encryption";
 
 // ─── Constants ──────────────────────────────────────────────
@@ -102,43 +102,57 @@ async function seedUser() {
   console.log("  ✓ Test user created (id: %s)", TEST_USER_ID);
 }
 
-async function seedOuraConnection() {
-  console.log("  Seeding Oura connection...");
+async function seedProviderConnection() {
+  console.log("  Seeding provider connection (Oura)...");
 
   const encryption = createEncryptionProvider();
-  const mockAccessToken = await encryption.encrypt(
-    Buffer.from("mock_access_token_for_testing"),
-    TEST_USER_ID,
-  );
-  const mockRefreshToken = await encryption.encrypt(
-    Buffer.from("mock_refresh_token_for_testing"),
+
+  // Create a combined auth payload (new format)
+  const authPayload = JSON.stringify({
+    access_token: "mock_access_token_for_testing",
+    refresh_token: "mock_refresh_token_for_testing",
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    scopes: [
+      "daily",
+      "heartrate",
+      "workout",
+      "tag",
+      "session",
+      "sleep",
+      "spo2",
+    ],
+  });
+  const authEnc = await encryption.encrypt(
+    Buffer.from(authPayload, "utf-8"),
     TEST_USER_ID,
   );
 
-  // Use raw SQL for upsert on the unique user_id constraint
+  // Upsert into provider_connections on the unique (user_id, provider) constraint
   await db
-    .insert(ouraConnections)
+    .insert(providerConnections)
     .values({
       userId: TEST_USER_ID,
-      accessTokenEnc: mockAccessToken,
-      refreshTokenEnc: mockRefreshToken,
+      provider: "oura",
+      authType: "oauth2",
+      authEnc,
       tokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+      status: "active",
       lastSyncAt: new Date(),
       syncStatus: "idle",
     })
     .onConflictDoUpdate({
-      target: ouraConnections.userId,
+      target: [providerConnections.userId, providerConnections.provider],
       set: {
-        accessTokenEnc: mockAccessToken,
-        refreshTokenEnc: mockRefreshToken,
+        authEnc,
         tokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         lastSyncAt: new Date(),
         syncStatus: "idle",
         syncError: null,
+        updatedAt: new Date(),
       },
     });
 
-  console.log("  ✓ Oura connection created for user %s", TEST_USER_ID);
+  console.log("  ✓ Provider connection created for user %s", TEST_USER_ID);
 }
 
 async function seedHealthData() {
@@ -187,7 +201,7 @@ async function seedHealthData() {
     const batchSize = 100;
     for (let i = 0; i < rows.length; i += batchSize) {
       const batch = rows.slice(i, i + batchSize);
-      await upsertHealthData(db, batch);
+      await upsertDailyData(db, batch);
     }
 
     totalRows += rows.length;
@@ -261,8 +275,8 @@ async function seedAuditEvents() {
       ownerId: TEST_USER_ID,
       actorType: "owner" as const,
       actorId: TEST_USER_ID,
-      eventType: "connection.created",
-      resourceType: "oura_connection",
+      eventType: "account.connected",
+      resourceType: "connection",
       resourceDetail: { source: "oura" },
       ipAddress: "127.0.0.1",
     },
@@ -338,7 +352,7 @@ async function main() {
 
   try {
     await seedUser();
-    await seedOuraConnection();
+    await seedProviderConnection();
     await seedHealthData();
     await seedShareGrant();
     await seedAuditEvents();
@@ -352,7 +366,7 @@ async function main() {
       .from(users);
     const [healthCount] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(healthData);
+      .from(healthDataDaily);
     const [shareCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(shareGrants);
@@ -362,12 +376,12 @@ async function main() {
 
     const metricBreakdown = await db
       .select({
-        metricType: healthData.metricType,
+        metricType: healthDataDaily.metricType,
         count: sql<number>`count(*)::int`,
       })
-      .from(healthData)
-      .groupBy(healthData.metricType)
-      .orderBy(healthData.metricType);
+      .from(healthDataDaily)
+      .groupBy(healthDataDaily.metricType)
+      .orderBy(healthDataDaily.metricType);
 
     console.log("\n📊 Summary:");
     console.log("  Users:        %d", userCount!.count);

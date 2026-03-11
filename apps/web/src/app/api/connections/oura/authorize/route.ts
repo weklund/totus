@@ -13,9 +13,9 @@
 import { NextResponse } from "next/server";
 import { SignJWT } from "jose";
 import { randomBytes } from "crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { ouraConnections } from "@/db/schema";
+import { providerConnections } from "@/db/schema";
 import { getRequestContext } from "@/lib/auth/request-context";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
 
@@ -43,9 +43,14 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     // Check if user already has an Oura connection
     const existing = await db
-      .select({ id: ouraConnections.id })
-      .from(ouraConnections)
-      .where(eq(ouraConnections.userId, ctx.userId))
+      .select({ id: providerConnections.id })
+      .from(providerConnections)
+      .where(
+        and(
+          eq(providerConnections.userId, ctx.userId),
+          eq(providerConnections.provider, "oura"),
+        ),
+      )
       .limit(1);
 
     if (existing.length > 0) {

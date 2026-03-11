@@ -13,7 +13,7 @@
 import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { db } from "@/db";
-import { ouraConnections, auditEvents } from "@/db/schema";
+import { providerConnections, auditEvents } from "@/db/schema";
 import { createEncryptionProvider } from "@/lib/encryption";
 
 /**
@@ -69,35 +69,48 @@ export async function GET(request: Request): Promise<NextResponse> {
     const refreshToken = `mock_refresh_token_${Date.now()}`;
     const tokenExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-    // Encrypt tokens
+    // Encrypt tokens as a single auth payload (new format)
     const encryption = createEncryptionProvider();
-    const accessTokenEnc = await encryption.encrypt(
-      Buffer.from(accessToken),
-      userId,
-    );
-    const refreshTokenEnc = await encryption.encrypt(
-      Buffer.from(refreshToken),
+    const authPayload = JSON.stringify({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_at: tokenExpiresAt.toISOString(),
+      scopes: [
+        "daily",
+        "heartrate",
+        "workout",
+        "tag",
+        "session",
+        "sleep",
+        "spo2",
+      ],
+    });
+    const authEnc = await encryption.encrypt(
+      Buffer.from(authPayload, "utf-8"),
       userId,
     );
 
-    // Store connection (upsert on unique user_id)
+    // Store connection (upsert on unique (user_id, provider))
     await db
-      .insert(ouraConnections)
+      .insert(providerConnections)
       .values({
         userId,
-        accessTokenEnc,
-        refreshTokenEnc,
+        provider: "oura",
+        authType: "oauth2",
+        authEnc,
         tokenExpiresAt,
+        status: "active",
         syncStatus: "idle",
       })
       .onConflictDoUpdate({
-        target: ouraConnections.userId,
+        target: [providerConnections.userId, providerConnections.provider],
         set: {
-          accessTokenEnc,
-          refreshTokenEnc,
+          authEnc,
           tokenExpiresAt,
+          status: "active",
           syncStatus: "idle",
           syncError: null,
+          updatedAt: new Date(),
         },
       });
 
@@ -108,7 +121,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         actorType: "owner",
         actorId: userId,
         eventType: "account.connected",
-        resourceType: "oura_connection",
+        resourceType: "connection",
         resourceDetail: { provider: "oura" },
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       })

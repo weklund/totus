@@ -13,11 +13,11 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { ouraConnections, auditEvents } from "@/db/schema";
+import { providerConnections, auditEvents } from "@/db/schema";
 import { getRequestContext } from "@/lib/auth/request-context";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
 import { createEncryptionProvider } from "@/lib/encryption";
-import { upsertHealthData, type HealthDataRow } from "@/db/upsert";
+import { upsertDailyData, type HealthDataRow } from "@/db/upsert";
 
 /**
  * Metric definitions for mock sync data generation.
@@ -66,9 +66,12 @@ export async function POST(
     // Find the connection (only if owned by this user)
     const connections = await db
       .select()
-      .from(ouraConnections)
+      .from(providerConnections)
       .where(
-        and(eq(ouraConnections.id, id), eq(ouraConnections.userId, ctx.userId)),
+        and(
+          eq(providerConnections.id, id),
+          eq(providerConnections.userId, ctx.userId),
+        ),
       )
       .limit(1);
 
@@ -89,9 +92,9 @@ export async function POST(
 
     // Set status to syncing
     await db
-      .update(ouraConnections)
-      .set({ syncStatus: "syncing" })
-      .where(eq(ouraConnections.id, id));
+      .update(providerConnections)
+      .set({ syncStatus: "syncing", updatedAt: new Date() })
+      .where(eq(providerConnections.id, id));
 
     try {
       // Generate mock data for the last 7 days
@@ -126,19 +129,20 @@ export async function POST(
       }
 
       // Batch upsert data
-      await upsertHealthData(db, rows);
+      await upsertDailyData(db, rows);
 
       // Update connection: set sync cursor, last_sync_at, status back to idle
       const now = new Date();
       await db
-        .update(ouraConnections)
+        .update(providerConnections)
         .set({
           syncStatus: "idle",
           lastSyncAt: now,
-          syncCursor: formatDate(today),
+          dailyCursor: formatDate(today),
           syncError: null,
+          updatedAt: now,
         })
-        .where(eq(ouraConnections.id, id));
+        .where(eq(providerConnections.id, id));
 
       // Emit audit event (fire-and-forget)
       db.insert(auditEvents)
@@ -147,7 +151,7 @@ export async function POST(
           actorType: "owner",
           actorId: ctx.userId,
           eventType: "data.synced",
-          resourceType: "oura_connection",
+          resourceType: "connection",
           resourceDetail: {
             connection_id: id,
             provider: "oura",
@@ -172,15 +176,16 @@ export async function POST(
     } catch (syncError) {
       // On error, set status back to error
       await db
-        .update(ouraConnections)
+        .update(providerConnections)
         .set({
           syncStatus: "error",
           syncError:
             syncError instanceof Error
               ? syncError.message
               : "Unknown sync error",
+          updatedAt: new Date(),
         })
-        .where(eq(ouraConnections.id, id));
+        .where(eq(providerConnections.id, id));
 
       throw syncError;
     }

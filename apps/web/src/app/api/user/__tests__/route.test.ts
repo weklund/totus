@@ -46,9 +46,9 @@ vi.mock("next/headers", () => ({
 let pool: PoolType;
 let db: ReturnType<typeof import("drizzle-orm/node-postgres").drizzle>;
 let users: typeof import("@/db/schema").users;
-let healthData: typeof import("@/db/schema").healthData;
+let healthDataDaily: typeof import("@/db/schema").healthDataDaily;
 let shareGrants: typeof import("@/db/schema").shareGrants;
-let ouraConnections: typeof import("@/db/schema").ouraConnections;
+let providerConnections: typeof import("@/db/schema").providerConnections;
 let auditEvents: typeof import("@/db/schema").auditEvents;
 
 // Route handlers
@@ -81,9 +81,9 @@ beforeAll(async () => {
 
   const schema = await import("@/db/schema");
   users = schema.users;
-  healthData = schema.healthData;
+  healthDataDaily = schema.healthDataDaily;
   shareGrants = schema.shareGrants;
-  ouraConnections = schema.ouraConnections;
+  providerConnections = schema.providerConnections;
   auditEvents = schema.auditEvents;
 
   const encModule = await import("@/lib/encryption");
@@ -130,15 +130,17 @@ afterEach(async () => {
 
   // Clean up test data in correct order (FK constraints)
   await db
-    .delete(healthData)
-    .where(sql`${healthData.userId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`);
+    .delete(healthDataDaily)
+    .where(
+      sql`${healthDataDaily.userId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`,
+    );
   await db
     .delete(shareGrants)
     .where(sql`${shareGrants.ownerId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`);
   await db
-    .delete(ouraConnections)
+    .delete(providerConnections)
     .where(
-      sql`${ouraConnections.userId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`,
+      sql`${providerConnections.userId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`,
     );
 
   // Use session_replication_role to bypass triggers for cleanup
@@ -230,7 +232,7 @@ async function createTestHealthData(userId: string, count: number = 5) {
       source: "oura",
     });
   }
-  await db.insert(healthData).values(values);
+  await db.insert(healthDataDaily).values(values);
 }
 
 async function createTestShare(userId: string) {
@@ -251,22 +253,26 @@ async function createTestShare(userId: string) {
 
 async function createTestConnection(userId: string) {
   const encryption = createEncryptionProvider();
-  const accessToken = await encryption.encrypt(
-    Buffer.from("mock_access_token"),
-    userId,
-  );
-  const refreshToken = await encryption.encrypt(
-    Buffer.from("mock_refresh_token"),
+  const authPayload = JSON.stringify({
+    access_token: "mock_access_token",
+    refresh_token: "mock_refresh_token",
+    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    scopes: ["daily", "heartrate", "sleep"],
+  });
+  const authEnc = await encryption.encrypt(
+    Buffer.from(authPayload, "utf-8"),
     userId,
   );
 
   const [conn] = await db
-    .insert(ouraConnections)
+    .insert(providerConnections)
     .values({
       userId,
-      accessTokenEnc: accessToken,
-      refreshTokenEnc: refreshToken,
+      provider: "oura",
+      authType: "oauth2",
+      authEnc,
       tokenExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      status: "active",
       lastSyncAt: new Date(),
       syncStatus: "idle",
     })
@@ -657,8 +663,8 @@ describe("DELETE /api/user/account", () => {
     // Verify cascaded health data is gone
     const dataRows = await db
       .select()
-      .from(healthData)
-      .where(eq(healthData.userId, TEST_USER_ID));
+      .from(healthDataDaily)
+      .where(eq(healthDataDaily.userId, TEST_USER_ID));
     expect(dataRows).toHaveLength(0);
 
     // Verify cascaded shares are gone
@@ -671,8 +677,8 @@ describe("DELETE /api/user/account", () => {
     // Verify cascaded connections are gone
     const connRows = await db
       .select()
-      .from(ouraConnections)
-      .where(eq(ouraConnections.userId, TEST_USER_ID));
+      .from(providerConnections)
+      .where(eq(providerConnections.userId, TEST_USER_ID));
     expect(connRows).toHaveLength(0);
   });
 

@@ -14,9 +14,9 @@ import { eq, desc } from "drizzle-orm";
 import { db } from "@/db";
 import {
   users,
-  healthData,
+  healthDataDaily,
   shareGrants,
-  ouraConnections,
+  providerConnections,
   auditEvents,
 } from "@/db/schema";
 import { getRequestContext } from "@/lib/auth/request-context";
@@ -46,26 +46,27 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Fetch connections
     const connections = await db
       .select({
-        id: ouraConnections.id,
-        syncStatus: ouraConnections.syncStatus,
-        lastSyncAt: ouraConnections.lastSyncAt,
-        createdAt: ouraConnections.createdAt,
+        id: providerConnections.id,
+        provider: providerConnections.provider,
+        syncStatus: providerConnections.syncStatus,
+        lastSyncAt: providerConnections.lastSyncAt,
+        createdAt: providerConnections.createdAt,
       })
-      .from(ouraConnections)
-      .where(eq(ouraConnections.userId, ctx.userId));
+      .from(providerConnections)
+      .where(eq(providerConnections.userId, ctx.userId));
 
     // Fetch and decrypt health data
     const healthRows = await db
       .select({
-        metricType: healthData.metricType,
-        date: healthData.date,
-        valueEncrypted: healthData.valueEncrypted,
-        source: healthData.source,
-        importedAt: healthData.importedAt,
+        metricType: healthDataDaily.metricType,
+        date: healthDataDaily.date,
+        valueEncrypted: healthDataDaily.valueEncrypted,
+        source: healthDataDaily.source,
+        importedAt: healthDataDaily.importedAt,
       })
-      .from(healthData)
-      .where(eq(healthData.userId, ctx.userId))
-      .orderBy(healthData.metricType, healthData.date);
+      .from(healthDataDaily)
+      .where(eq(healthDataDaily.userId, ctx.userId))
+      .orderBy(healthDataDaily.metricType, healthDataDaily.date);
 
     const encryption = createEncryptionProvider();
     const decryptedHealthData = [];
@@ -120,7 +121,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       },
       connections: connections.map((c) => ({
         id: c.id,
-        provider: "oura",
+        provider: c.provider,
         sync_status: c.syncStatus,
         last_sync_at: c.lastSyncAt?.toISOString() ?? null,
         created_at: c.createdAt.toISOString(),

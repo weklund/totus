@@ -13,7 +13,7 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { ouraConnections, auditEvents } from "@/db/schema";
+import { providerConnections, auditEvents } from "@/db/schema";
 import { getRequestContext } from "@/lib/auth/request-context";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
 
@@ -32,13 +32,17 @@ export async function DELETE(
 
     // Find and delete the connection (only if owned by this user)
     const deleted = await db
-      .delete(ouraConnections)
+      .delete(providerConnections)
       .where(
-        and(eq(ouraConnections.id, id), eq(ouraConnections.userId, ctx.userId)),
+        and(
+          eq(providerConnections.id, id),
+          eq(providerConnections.userId, ctx.userId),
+        ),
       )
       .returning({
-        id: ouraConnections.id,
-        userId: ouraConnections.userId,
+        id: providerConnections.id,
+        provider: providerConnections.provider,
+        userId: providerConnections.userId,
       });
 
     if (deleted.length === 0) {
@@ -54,8 +58,8 @@ export async function DELETE(
         actorType: "owner",
         actorId: ctx.userId,
         eventType: "account.disconnected",
-        resourceType: "oura_connection",
-        resourceDetail: { connection_id: id, provider: "oura" },
+        resourceType: "connection",
+        resourceDetail: { connection_id: id, provider: deleted[0].provider },
         ipAddress: request.headers.get("x-forwarded-for") || "127.0.0.1",
       })
       .catch((err) => {
@@ -65,7 +69,7 @@ export async function DELETE(
     return NextResponse.json({
       data: {
         id: deleted[0].id,
-        provider: "oura",
+        provider: deleted[0].provider,
         disconnected_at: now,
       },
     });

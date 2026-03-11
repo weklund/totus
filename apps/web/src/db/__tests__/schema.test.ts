@@ -118,8 +118,11 @@ describe.skipIf(!canConnect)("database schema", () => {
   describe("table existence", () => {
     const expectedTables = [
       "users",
-      "oura_connections",
-      "health_data",
+      "provider_connections",
+      "health_data_daily",
+      "health_data_series",
+      "health_data_periods",
+      "metric_source_preferences",
       "share_grants",
       "audit_events",
     ];
@@ -130,6 +133,13 @@ describe.skipIf(!canConnect)("database schema", () => {
         [tableName],
       );
       expect(result.rows).toHaveLength(1);
+    });
+
+    it("oura_connections table no longer exists", async () => {
+      const result = await pool.query(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'oura_connections'",
+      );
+      expect(result.rows).toHaveLength(0);
     });
   });
 
@@ -174,47 +184,59 @@ describe.skipIf(!canConnect)("database schema", () => {
   });
 
   // =========================================================================
-  // oura_connections table
+  // provider_connections table
   // =========================================================================
 
-  describe("oura_connections table", () => {
+  describe("provider_connections table", () => {
     it("has correct columns", async () => {
-      const columns = await getTableColumns("oura_connections");
+      const columns = await getTableColumns("provider_connections");
       const colMap = Object.fromEntries(
         columns.map((c: Record<string, unknown>) => [c.column_name, c]),
       );
 
       expect(colMap.id.data_type).toBe("uuid");
       expect(colMap.user_id.data_type).toBe("character varying");
-      expect(colMap.access_token_enc.data_type).toBe("bytea");
-      expect(colMap.refresh_token_enc.data_type).toBe("bytea");
+      expect(colMap.provider.data_type).toBe("character varying");
+      expect(colMap.auth_type.data_type).toBe("character varying");
+      expect(colMap.auth_enc.data_type).toBe("bytea");
       expect(colMap.token_expires_at.data_type).toBe(
         "timestamp with time zone",
       );
+      expect(colMap.status.data_type).toBe("character varying");
+      expect(colMap.status.is_nullable).toBe("NO");
+      expect(colMap.daily_cursor.data_type).toBe("character varying");
+      expect(colMap.series_cursor.data_type).toBe("character varying");
+      expect(colMap.periods_cursor.data_type).toBe("character varying");
       expect(colMap.sync_status.data_type).toBe("character varying");
       expect(colMap.sync_status.is_nullable).toBe("NO");
+      expect(colMap.sync_error.data_type).toBe("text");
+      expect(colMap.created_at.data_type).toBe("timestamp with time zone");
+      expect(colMap.updated_at.data_type).toBe("timestamp with time zone");
     });
 
-    it("has UNIQUE constraint on user_id", async () => {
-      const indexes = await getTableIndexes("oura_connections");
+    it("has UNIQUE constraint on (user_id, provider)", async () => {
+      const indexes = await getTableIndexes("provider_connections");
       const uq = indexes.find(
         (i: Record<string, string>) =>
-          i.indexname === "uq_oura_connections_user",
+          i.indexname === "uq_provider_connections_user_provider",
       );
       expect(uq).toBeDefined();
       expect(uq.indexdef).toContain("UNIQUE");
+      expect(uq.indexdef).toContain("user_id");
+      expect(uq.indexdef).toContain("provider");
     });
 
-    it("has CHECK constraint on sync_status", async () => {
-      const checks = await getCheckConstraints("oura_connections");
-      const syncCheck = checks.find(
-        (c: Record<string, string>) => c.conname === "chk_oura_sync_status",
+    it("has CHECK constraint on status/sync combo", async () => {
+      const checks = await getCheckConstraints("provider_connections");
+      const comboCheck = checks.find(
+        (c: Record<string, string>) =>
+          c.conname === "chk_valid_status_sync_combo",
       );
-      expect(syncCheck).toBeDefined();
+      expect(comboCheck).toBeDefined();
     });
 
     it("has FK to users with CASCADE", async () => {
-      const fks = await getForeignKeys("oura_connections");
+      const fks = await getForeignKeys("provider_connections");
       const userFk = fks.find((f: Record<string, string>) =>
         f.definition.includes("REFERENCES users(id)"),
       );
@@ -222,31 +244,24 @@ describe.skipIf(!canConnect)("database schema", () => {
       expect(userFk.definition).toContain("ON DELETE CASCADE");
     });
 
-    it("rejects invalid sync_status values", async () => {
-      // Insert a test user first
-      await pool.query(
-        "INSERT INTO users (id, display_name, kms_key_arn) VALUES ('test_sync_check', 'Test', 'arn:test') ON CONFLICT DO NOTHING",
+    it("has correct indexes", async () => {
+      const indexes = await getTableIndexes("provider_connections");
+      const indexNames = indexes.map(
+        (i: Record<string, string>) => i.indexname,
       );
-
-      await expect(
-        pool.query(
-          `INSERT INTO oura_connections (user_id, access_token_enc, refresh_token_enc, token_expires_at, sync_status)
-           VALUES ('test_sync_check', '\\x01', '\\x01', now() + interval '1 hour', 'invalid_status')`,
-        ),
-      ).rejects.toThrow(/check/i);
-
-      // Cleanup
-      await pool.query("DELETE FROM users WHERE id = 'test_sync_check'");
+      expect(indexNames).toContain("idx_provider_connections_user_id");
+      expect(indexNames).toContain("idx_provider_connections_active_sync");
+      expect(indexNames).toContain("idx_provider_connections_token_expiry");
     });
   });
 
   // =========================================================================
-  // health_data table
+  // health_data_daily table (renamed from health_data)
   // =========================================================================
 
-  describe("health_data table", () => {
+  describe("health_data_daily table", () => {
     it("has correct columns", async () => {
-      const columns = await getTableColumns("health_data");
+      const columns = await getTableColumns("health_data_daily");
       const colMap = Object.fromEntries(
         columns.map((c: Record<string, unknown>) => [c.column_name, c]),
       );
@@ -262,10 +277,10 @@ describe.skipIf(!canConnect)("database schema", () => {
     });
 
     it("has UNIQUE constraint on (user_id, metric_type, date, source)", async () => {
-      const indexes = await getTableIndexes("health_data");
+      const indexes = await getTableIndexes("health_data_daily");
       const uq = indexes.find(
         (i: Record<string, string>) =>
-          i.indexname === "uq_health_data_user_metric_date_source",
+          i.indexname === "uq_health_data_daily_user_metric_date_source",
       );
       expect(uq).toBeDefined();
       expect(uq.indexdef).toContain("user_id");
@@ -275,16 +290,16 @@ describe.skipIf(!canConnect)("database schema", () => {
     });
 
     it("has composite indexes", async () => {
-      const indexes = await getTableIndexes("health_data");
+      const indexes = await getTableIndexes("health_data_daily");
       const indexNames = indexes.map(
         (i: Record<string, string>) => i.indexname,
       );
-      expect(indexNames).toContain("idx_health_data_user_metric_date");
-      expect(indexNames).toContain("idx_health_data_user_metric_summary");
+      expect(indexNames).toContain("idx_health_data_daily_user_metric_date");
+      expect(indexNames).toContain("idx_health_data_daily_user_metric_summary");
     });
 
     it("has FK to users with CASCADE", async () => {
-      const fks = await getForeignKeys("health_data");
+      const fks = await getForeignKeys("health_data_daily");
       const userFk = fks.find((f: Record<string, string>) =>
         f.definition.includes("REFERENCES users(id)"),
       );
@@ -299,20 +314,189 @@ describe.skipIf(!canConnect)("database schema", () => {
 
       // Insert first row
       await pool.query(
-        `INSERT INTO health_data (user_id, metric_type, date, value_encrypted, source)
+        `INSERT INTO health_data_daily (user_id, metric_type, date, value_encrypted, source)
          VALUES ('test_hd_unique', 'sleep_score', '2026-01-01', '\\x01', 'oura')`,
       );
 
       // Insert duplicate should fail
       await expect(
         pool.query(
-          `INSERT INTO health_data (user_id, metric_type, date, value_encrypted, source)
+          `INSERT INTO health_data_daily (user_id, metric_type, date, value_encrypted, source)
            VALUES ('test_hd_unique', 'sleep_score', '2026-01-01', '\\x02', 'oura')`,
         ),
       ).rejects.toThrow(/unique|duplicate/i);
 
       // Cleanup
       await pool.query("DELETE FROM users WHERE id = 'test_hd_unique'");
+    });
+  });
+
+  // =========================================================================
+  // health_data_series table (partitioned)
+  // =========================================================================
+
+  describe("health_data_series table", () => {
+    it("is partitioned by range on recorded_at", async () => {
+      const result = await pool.query(
+        `SELECT partstrat FROM pg_partitioned_table
+         WHERE partrelid = 'health_data_series'::regclass`,
+      );
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].partstrat).toBe("r"); // range
+    });
+
+    it("has monthly partitions from 2024-01 through 2027-12", async () => {
+      const result = await pool.query(
+        `SELECT tablename FROM pg_tables
+         WHERE schemaname = 'public' AND tablename LIKE 'health_data_series_20%'
+         ORDER BY tablename`,
+      );
+      // 4 years * 12 months = 48 partitions
+      expect(result.rows.length).toBe(48);
+      expect(result.rows[0].tablename).toBe("health_data_series_2024_01");
+      expect(result.rows[result.rows.length - 1].tablename).toBe(
+        "health_data_series_2027_12",
+      );
+    });
+
+    it("has a default partition", async () => {
+      const result = await pool.query(
+        `SELECT tablename FROM pg_tables
+         WHERE schemaname = 'public' AND tablename = 'health_data_series_default'`,
+      );
+      expect(result.rows).toHaveLength(1);
+    });
+
+    it("has composite PK (id, recorded_at)", async () => {
+      const indexes = await getTableIndexes("health_data_series");
+      const pk = indexes.find(
+        (i: Record<string, string>) =>
+          i.indexname === "health_data_series_pkey",
+      );
+      expect(pk).toBeDefined();
+      expect(pk.indexdef).toContain("id");
+      expect(pk.indexdef).toContain("recorded_at");
+    });
+
+    it("has UNIQUE constraint on (user_id, metric_type, recorded_at, source)", async () => {
+      const indexes = await getTableIndexes("health_data_series");
+      const uq = indexes.find(
+        (i: Record<string, string>) =>
+          i.indexname === "uq_series_user_metric_time_source",
+      );
+      expect(uq).toBeDefined();
+    });
+  });
+
+  // =========================================================================
+  // health_data_periods table
+  // =========================================================================
+
+  describe("health_data_periods table", () => {
+    it("has correct columns including generated duration_sec", async () => {
+      const columns = await getTableColumns("health_data_periods");
+      const colMap = Object.fromEntries(
+        columns.map((c: Record<string, unknown>) => [c.column_name, c]),
+      );
+
+      expect(colMap.id.data_type).toBe("bigint");
+      expect(colMap.user_id.data_type).toBe("character varying");
+      expect(colMap.event_type.data_type).toBe("character varying");
+      expect(colMap.subtype.data_type).toBe("character varying");
+      expect(colMap.started_at.data_type).toBe("timestamp with time zone");
+      expect(colMap.ended_at.data_type).toBe("timestamp with time zone");
+      expect(colMap.duration_sec.data_type).toBe("integer");
+      expect(colMap.metadata_enc.data_type).toBe("bytea");
+      expect(colMap.source.data_type).toBe("character varying");
+    });
+
+    it("has CHECK constraint (ended_at > started_at)", async () => {
+      const checks = await getCheckConstraints("health_data_periods");
+      const endCheck = checks.find(
+        (c: Record<string, string>) =>
+          c.conname === "chk_period_end_after_start",
+      );
+      expect(endCheck).toBeDefined();
+    });
+
+    it("has UNIQUE constraint on (user_id, event_type, started_at, source)", async () => {
+      const indexes = await getTableIndexes("health_data_periods");
+      const uq = indexes.find(
+        (i: Record<string, string>) =>
+          i.indexname === "uq_periods_user_type_start_source",
+      );
+      expect(uq).toBeDefined();
+    });
+
+    it("has GIST index for overlap queries", async () => {
+      const indexes = await getTableIndexes("health_data_periods");
+      const gist = indexes.find(
+        (i: Record<string, string>) =>
+          i.indexname === "idx_periods_user_timerange",
+      );
+      expect(gist).toBeDefined();
+      expect(gist.indexdef).toContain("USING gist");
+    });
+
+    it("has FK to users with CASCADE", async () => {
+      const fks = await getForeignKeys("health_data_periods");
+      const userFk = fks.find((f: Record<string, string>) =>
+        f.definition.includes("REFERENCES users(id)"),
+      );
+      expect(userFk).toBeDefined();
+      expect(userFk.definition).toContain("ON DELETE CASCADE");
+    });
+  });
+
+  // =========================================================================
+  // metric_source_preferences table
+  // =========================================================================
+
+  describe("metric_source_preferences table", () => {
+    it("has correct columns", async () => {
+      const columns = await getTableColumns("metric_source_preferences");
+      const colMap = Object.fromEntries(
+        columns.map((c: Record<string, unknown>) => [c.column_name, c]),
+      );
+
+      expect(colMap.user_id.data_type).toBe("character varying");
+      expect(colMap.metric_type.data_type).toBe("character varying");
+      expect(colMap.provider.data_type).toBe("character varying");
+      expect(colMap.updated_at.data_type).toBe("timestamp with time zone");
+    });
+
+    it("has composite PK on (user_id, metric_type)", async () => {
+      const indexes = await getTableIndexes("metric_source_preferences");
+      const pk = indexes.find(
+        (i: Record<string, string>) =>
+          i.indexname === "metric_source_preferences_pkey",
+      );
+      expect(pk).toBeDefined();
+      expect(pk.indexdef).toContain("user_id");
+      expect(pk.indexdef).toContain("metric_type");
+    });
+
+    it("has FK to users with CASCADE", async () => {
+      const fks = await getForeignKeys("metric_source_preferences");
+      const userFk = fks.find((f: Record<string, string>) =>
+        f.definition.includes("REFERENCES users(id)"),
+      );
+      expect(userFk).toBeDefined();
+      expect(userFk.definition).toContain("ON DELETE CASCADE");
+    });
+  });
+
+  // =========================================================================
+  // btree_gist extension
+  // =========================================================================
+
+  describe("btree_gist extension", () => {
+    it("is enabled", async () => {
+      const result = await pool.query(
+        "SELECT extname FROM pg_extension WHERE extname = 'btree_gist'",
+      );
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0].extname).toBe("btree_gist");
     });
   });
 
@@ -496,16 +680,16 @@ describe.skipIf(!canConnect)("database schema", () => {
         [testUserId],
       );
 
-      // Create oura connection
+      // Create provider connection
       await pool.query(
-        `INSERT INTO oura_connections (user_id, access_token_enc, refresh_token_enc, token_expires_at)
-         VALUES ($1, '\\x01', '\\x01', now() + interval '1 hour')`,
+        `INSERT INTO provider_connections (user_id, provider, auth_type, auth_enc, token_expires_at)
+         VALUES ($1, 'oura', 'oauth2', '\\x01', now() + interval '1 hour')`,
         [testUserId],
       );
 
       // Create health data
       await pool.query(
-        `INSERT INTO health_data (user_id, metric_type, date, value_encrypted, source)
+        `INSERT INTO health_data_daily (user_id, metric_type, date, value_encrypted, source)
          VALUES ($1, 'sleep_score', '2026-01-01', '\\x01', 'oura')`,
         [testUserId],
       );
@@ -525,10 +709,10 @@ describe.skipIf(!canConnect)("database schema", () => {
       );
     });
 
-    it("deleting a user cascades to oura_connections", async () => {
+    it("deleting a user cascades to provider_connections", async () => {
       // Verify child records exist before deletion
       const connBefore = await pool.query(
-        "SELECT COUNT(*) AS cnt FROM oura_connections WHERE user_id = $1",
+        "SELECT COUNT(*) AS cnt FROM provider_connections WHERE user_id = $1",
         [testUserId],
       );
       expect(parseInt(connBefore.rows[0].cnt)).toBe(1);
@@ -538,15 +722,15 @@ describe.skipIf(!canConnect)("database schema", () => {
 
       // Verify child records are gone
       const connAfter = await pool.query(
-        "SELECT COUNT(*) AS cnt FROM oura_connections WHERE user_id = $1",
+        "SELECT COUNT(*) AS cnt FROM provider_connections WHERE user_id = $1",
         [testUserId],
       );
       expect(parseInt(connAfter.rows[0].cnt)).toBe(0);
     });
 
-    it("deleting a user cascades to health_data", async () => {
+    it("deleting a user cascades to health_data_daily", async () => {
       const hdAfter = await pool.query(
-        "SELECT COUNT(*) AS cnt FROM health_data WHERE user_id = $1",
+        "SELECT COUNT(*) AS cnt FROM health_data_daily WHERE user_id = $1",
         [testUserId],
       );
       expect(parseInt(hdAfter.rows[0].cnt)).toBe(0);
@@ -581,35 +765,50 @@ describe.skipIf(!canConnect)("database schema", () => {
   });
 
   // =========================================================================
-  // OURA connections UNIQUE enforcement
+  // provider_connections UNIQUE enforcement
   // =========================================================================
 
-  describe("oura_connections unique user_id enforcement", () => {
-    const testUserId = "test_oura_unique";
+  describe("provider_connections unique (user_id, provider) enforcement", () => {
+    const testUserId = "test_pc_unique";
 
     afterAll(async () => {
       await pool.query("DELETE FROM users WHERE id = $1", [testUserId]);
     });
 
-    it("rejects duplicate user_id in oura_connections", async () => {
+    it("rejects duplicate (user_id, provider) in provider_connections", async () => {
       await pool.query(
         "INSERT INTO users (id, display_name, kms_key_arn) VALUES ($1, 'Test', 'arn:test') ON CONFLICT DO NOTHING",
         [testUserId],
       );
 
       await pool.query(
-        `INSERT INTO oura_connections (user_id, access_token_enc, refresh_token_enc, token_expires_at)
-         VALUES ($1, '\\x01', '\\x01', now() + interval '1 hour')`,
+        `INSERT INTO provider_connections (user_id, provider, auth_type, auth_enc, token_expires_at)
+         VALUES ($1, 'oura', 'oauth2', '\\x01', now() + interval '1 hour')`,
         [testUserId],
       );
 
       await expect(
         pool.query(
-          `INSERT INTO oura_connections (user_id, access_token_enc, refresh_token_enc, token_expires_at)
-           VALUES ($1, '\\x02', '\\x02', now() + interval '2 hours')`,
+          `INSERT INTO provider_connections (user_id, provider, auth_type, auth_enc, token_expires_at)
+           VALUES ($1, 'oura', 'oauth2', '\\x02', now() + interval '2 hours')`,
           [testUserId],
         ),
       ).rejects.toThrow(/unique|duplicate/i);
+    });
+
+    it("allows different providers for the same user", async () => {
+      // oura was already inserted above; dexcom should work
+      await pool.query(
+        `INSERT INTO provider_connections (user_id, provider, auth_type, auth_enc, token_expires_at)
+         VALUES ($1, 'dexcom', 'oauth2', '\\x01', now() + interval '1 hour')`,
+        [testUserId],
+      );
+
+      const result = await pool.query(
+        "SELECT COUNT(*) AS cnt FROM provider_connections WHERE user_id = $1",
+        [testUserId],
+      );
+      expect(parseInt(result.rows[0].cnt)).toBeGreaterThanOrEqual(2);
     });
   });
 });

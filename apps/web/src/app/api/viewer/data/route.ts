@@ -18,7 +18,7 @@ import { NextResponse } from "next/server";
 import { and, between, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
-import { healthData, auditEvents, shareGrants } from "@/db/schema";
+import { healthDataDaily, auditEvents, shareGrants } from "@/db/schema";
 import { getRequestContext } from "@/lib/auth/request-context";
 import { enforcePermissions, PermissionError } from "@/lib/auth/permissions";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
@@ -236,22 +236,22 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     // Build database query conditions
     const conditions = [
-      eq(healthData.userId, ctx.userId),
-      inArray(healthData.metricType, effectiveMetrics),
-      between(healthData.date, effectiveStart, effectiveEnd),
+      eq(healthDataDaily.userId, ctx.userId),
+      inArray(healthDataDaily.metricType, effectiveMetrics),
+      between(healthDataDaily.date, effectiveStart, effectiveEnd),
     ];
 
     // Fetch encrypted data
     const rows = await db
       .select({
-        metricType: healthData.metricType,
-        date: healthData.date,
-        valueEncrypted: healthData.valueEncrypted,
-        source: healthData.source,
+        metricType: healthDataDaily.metricType,
+        date: healthDataDaily.date,
+        valueEncrypted: healthDataDaily.valueEncrypted,
+        source: healthDataDaily.source,
       })
-      .from(healthData)
+      .from(healthDataDaily)
       .where(and(...conditions))
-      .orderBy(healthData.metricType, healthData.date);
+      .orderBy(healthDataDaily.metricType, healthDataDaily.date);
 
     // Decrypt values
     const encryption = createEncryptionProvider();
