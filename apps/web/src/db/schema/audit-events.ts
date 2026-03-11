@@ -40,7 +40,7 @@ export const auditEvents = pgTable(
   (table) => [
     check(
       "chk_audit_actor_type",
-      sql`${table.actorType} IN ('owner', 'viewer', 'system')`,
+      sql`${table.actorType} IN ('owner', 'viewer', 'system', 'api_key')`,
     ),
     index("idx_audit_events_owner_created").on(table.ownerId, table.createdAt),
     index("idx_audit_events_grant_created")

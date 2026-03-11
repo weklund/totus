@@ -7,9 +7,10 @@ import type { RequestContext } from "@/lib/auth/request-context";
  * Unified auth middleware for Totus.
  *
  * Checks auth in this order:
- * 1. __session cookie (owner auth via mock/Clerk) -> role='owner'
- * 2. totus_viewer cookie (viewer JWT) -> role='viewer'
- * 3. No auth -> unauthenticated
+ * 1. Authorization: Bearer tot_live_... header (API key auth) -> role='owner'
+ * 2. __session cookie (owner auth via mock/Clerk) -> role='owner'
+ * 3. totus_viewer cookie (viewer JWT) -> role='viewer'
+ * 4. No auth -> unauthenticated
  *
  * Produces a RequestContext object stored in the x-request-context header.
  *
@@ -22,6 +23,7 @@ import type { RequestContext } from "@/lib/auth/request-context";
 const SESSION_COOKIE = "__session";
 const VIEWER_COOKIE = "totus_viewer";
 const REQUEST_CONTEXT_HEADER = "x-request-context";
+const API_KEY_HEADER = "x-api-key-token";
 const JWT_ISSUER = "totus-mock-auth";
 
 // ─── Public routes (no auth required) ───────────────────────────────────────
@@ -228,10 +230,31 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // ── Step 1: Determine auth context ────────────────────────────────────
 
   let context: RequestContext;
+  let apiKeyToken: string | null = null;
 
-  // 1. Check __session cookie (owner auth)
-  const sessionCookie = request.cookies.get(SESSION_COOKIE);
-  if (sessionCookie?.value) {
+  // 1. Check Authorization: Bearer header (API key auth)
+  // The Bearer token is passed through to route handlers for DB validation.
+  // Middleware can't do DB lookups (Edge Runtime doesn't support node-postgres).
+  const authHeader = request.headers.get("authorization");
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
+
+  if (bearerToken && bearerToken.startsWith("tot_live_")) {
+    // Mark as "pending API key" — route handlers will validate via DB
+    // Set context as a placeholder that indicates API key auth is pending.
+    // The raw token is passed in a separate header for route-level validation.
+    apiKeyToken = bearerToken;
+    context = {
+      role: "owner",
+      userId: "__api_key_pending__",
+      permissions: "full",
+      authMethod: "api_key",
+    };
+  }
+  // 2. Check __session cookie (owner auth)
+  else if (request.cookies.get(SESSION_COOKIE)?.value) {
+    const sessionCookie = request.cookies.get(SESSION_COOKIE)!;
     const userId = await verifyOwnerSession(sessionCookie.value);
     if (userId) {
       context = {
@@ -249,7 +272,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       };
     }
   }
-  // 2. Check totus_viewer cookie (viewer auth)
+  // 3. Check totus_viewer cookie (viewer auth)
   else {
     const viewerCookie = request.cookies.get(VIEWER_COOKIE);
     if (viewerCookie?.value) {
@@ -275,7 +298,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
         };
       }
     }
-    // 3. No auth
+    // 4. No auth
     else {
       context = {
         role: "unauthenticated",
@@ -348,6 +371,11 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(REQUEST_CONTEXT_HEADER, JSON.stringify(context));
+
+  // Pass raw API key token through for route-level DB validation
+  if (apiKeyToken) {
+    requestHeaders.set(API_KEY_HEADER, apiKeyToken);
+  }
 
   const response = NextResponse.next({
     request: {

@@ -25,6 +25,9 @@ export {
   generalRateLimiter,
   validationRateLimiter,
   healthDataRateLimiter,
+  apiKeyGeneralRateLimiter,
+  apiKeyReadRateLimiter,
+  apiKeyWriteRateLimiter,
   type RateLimitConfig,
   type RateLimitResult,
 } from "./rate-limit";

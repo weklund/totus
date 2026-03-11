@@ -10,6 +10,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { PermissionError } from "@/lib/auth/permissions";
 
 /**
  * Standard API error class.
@@ -68,6 +69,18 @@ export function createErrorResponse(error: unknown): NextResponse {
     if (error.details && error.details.length > 0) {
       body.error.details = error.details;
     }
+
+    return NextResponse.json(body, { status: error.statusCode });
+  }
+
+  // Handle PermissionError (from enforceScope, enforcePermissions)
+  if (error instanceof PermissionError) {
+    const body: ErrorResponseBody = {
+      error: {
+        code: error.code,
+        message: error.message,
+      },
+    };
 
     return NextResponse.json(body, { status: error.statusCode });
   }

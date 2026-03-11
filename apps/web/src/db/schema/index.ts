@@ -12,6 +12,7 @@ export { healthDataPeriods } from "./health-data-periods";
 export { metricSourcePreferences } from "./metric-source-preferences";
 export { shareGrants } from "./share-grants";
 export { auditEvents } from "./audit-events";
+export { apiKeys } from "./api-keys";
 
 // Legacy aliases for backward compatibility during migration
 // These re-export the new names under the old names so existing imports still work.

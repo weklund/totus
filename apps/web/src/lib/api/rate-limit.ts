@@ -219,3 +219,32 @@ export const healthDataRateLimiter = new RateLimiter({
   limit: 30,
   windowMs: 60_000,
 });
+
+// ─── API key-specific rate limiters ─────────────────────────────────────────
+
+/**
+ * General rate limiter for API key requests.
+ * 300 requests per minute per API key (short_token).
+ */
+export const apiKeyGeneralRateLimiter = new RateLimiter({
+  limit: 300,
+  windowMs: 60_000,
+});
+
+/**
+ * Rate limiter for health data reads via API key.
+ * 60 requests per minute per API key.
+ */
+export const apiKeyReadRateLimiter = new RateLimiter({
+  limit: 60,
+  windowMs: 60_000,
+});
+
+/**
+ * Rate limiter for write operations via API key.
+ * 10 requests per minute per API key.
+ */
+export const apiKeyWriteRateLimiter = new RateLimiter({
+  limit: 10,
+  windowMs: 60_000,
+});

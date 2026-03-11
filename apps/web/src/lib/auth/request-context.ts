@@ -19,7 +19,7 @@ export interface ViewerPermissions {
 /**
  * Unified request context object.
  *
- * - role='owner': authenticated user via __session cookie
+ * - role='owner': authenticated user via __session cookie or API key
  * - role='viewer': authenticated viewer via totus_viewer JWT cookie
  * - role='unauthenticated': no valid auth present
  */
@@ -28,7 +28,11 @@ export interface RequestContext {
   userId?: string;
   grantId?: string;
   permissions: ViewerPermissions | "full";
-  authMethod: "session" | "viewer_jwt" | "none";
+  authMethod: "session" | "viewer_jwt" | "api_key" | "none";
+  /** Present only when authMethod='api_key' */
+  apiKeyId?: string;
+  /** Scopes granted by the API key. Present only when authMethod='api_key' */
+  scopes?: string[];
 }
 
 /**
@@ -63,6 +67,24 @@ export function createViewerContext(
       dataEnd,
     },
     authMethod: "viewer_jwt",
+  };
+}
+
+/**
+ * Create an API key owner request context.
+ */
+export function createApiKeyContext(
+  userId: string,
+  apiKeyId: string,
+  scopes: string[],
+): RequestContext {
+  return {
+    role: "owner",
+    userId,
+    permissions: "full",
+    authMethod: "api_key",
+    apiKeyId,
+    scopes,
   };
 }
 

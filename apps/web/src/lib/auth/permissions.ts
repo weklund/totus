@@ -4,6 +4,8 @@
  * enforcePermissions takes a RequestContext and a requested scope,
  * and returns either a narrowed scope (possibly unchanged) or throws an error.
  *
+ * enforceScope checks that an API key has the required scope.
+ *
  * Key design decisions (from architecture-design.md):
  * 1. The API narrows, not rejects, when possible.
  * 2. Date range clamping happens automatically.
@@ -152,4 +154,34 @@ function maxDate(a: string, b: string): string {
  */
 function minDate(a: string, b: string): string {
   return a <= b ? a : b;
+}
+
+/**
+ * Enforce that an API key has the required scope.
+ *
+ * For session-authenticated requests, this is a no-op (sessions have full access).
+ * For API key-authenticated requests, checks that the required scope is in the key's scopes.
+ *
+ * @param ctx - The request context from middleware
+ * @param requiredScope - The scope required for this operation
+ * @throws PermissionError if the API key lacks the required scope
+ */
+export function enforceScope(ctx: RequestContext, requiredScope: string): void {
+  // Only enforce scopes for API key auth
+  if (ctx.authMethod !== "api_key") return;
+
+  if (!ctx.scopes || !ctx.scopes.includes(requiredScope)) {
+    throw new PermissionError(
+      "INSUFFICIENT_SCOPES",
+      `API key does not have the required scope: ${requiredScope}`,
+      403,
+    );
+  }
+}
+
+/**
+ * Check if the request is authenticated via API key.
+ */
+export function isApiKeyAuth(ctx: RequestContext): boolean {
+  return ctx.authMethod === "api_key";
 }

@@ -35,11 +35,36 @@ export {
   getRequestContext,
   createOwnerContext,
   createViewerContext,
+  createApiKeyContext,
   createUnauthenticatedContext,
   REQUEST_CONTEXT_HEADER,
 } from "./request-context";
 export type { RequestContext, ViewerPermissions } from "./request-context";
 
 // Permissions
-export { enforcePermissions, PermissionError } from "./permissions";
+export {
+  enforcePermissions,
+  enforceScope,
+  isApiKeyAuth,
+  PermissionError,
+} from "./permissions";
 export type { RequestedScope, EffectiveScope } from "./permissions";
+
+// API key resolution for route handlers
+export { resolveApiKeyAuth, getResolvedContext } from "./resolve-api-key";
+
+// API keys
+export {
+  generateApiKey,
+  parseApiKey,
+  hashLongToken,
+  verifyLongToken,
+  validateScopes,
+  isScopeSubset,
+  VALID_SCOPES,
+  DEFAULT_EXPIRES_IN_DAYS,
+  MAX_EXPIRES_IN_DAYS,
+  MIN_EXPIRES_IN_DAYS,
+  MAX_ACTIVE_KEYS_PER_USER,
+} from "./api-keys";
+export type { GeneratedApiKey, ParsedApiKey, ApiKeyScope } from "./api-keys";
