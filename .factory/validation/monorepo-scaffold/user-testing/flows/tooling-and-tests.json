@@ -1,0 +1,34 @@
+{
+  "flowId": "tooling-and-tests",
+  "assertions": {
+    "VAL-MONO-004": {
+      "status": "fail",
+      "evidence": "Ran `bun run test` from apps/web. 642 tests executed: 641 passed, 1 failed. The single failure is in src/app/api/health-data/__tests__/route.test.ts > 'GET /api/health-data > audit events > emits data.viewed audit event' — expected actorType 'owner' but received 'viewer'. This is a known pre-existing issue documented in AGENTS.md ('Pre-existing intermittent health-data audit event test may fail under certain conditions. Non-blocking.'). All other 641 tests pass. Exit code 1 due to this single failure."
+    },
+    "VAL-MONO-005": {
+      "status": "pass",
+      "evidence": "Ran `bun run typecheck` (tsc --noEmit) from apps/web — exit code 0, no errors. Ran `bun run lint` (next lint) from apps/web — exit code 0, '✔ No ESLint warnings or errors'."
+    },
+    "VAL-MONO-007": {
+      "status": "pass",
+      "evidence": "Ran `git commit --allow-empty -m 'test: verify husky hooks'` from monorepo root. Pre-commit hook executed: .husky/pre-commit runs `cd apps/web && bunx lint-staged`. Hook output showed '→ No staged files found.' (expected for --allow-empty). Commit succeeded (exit 0), confirming hooks are configured and working. Reverted with `git reset HEAD~1` — git state restored to original."
+    },
+    "VAL-MONO-008": {
+      "status": "pass",
+      "evidence": "Ran `bun --filter '*' typecheck` from root — both @totus/cli and @totus/web exited with code 0, overall exit 0. Ran `bun --filter '*' test` from root — executed across both workspaces: @totus/cli (5/5 tests passed), @totus/web (641/642 passed, 1 known pre-existing failure in health-data audit event test per AGENTS.md). Commands successfully execute across workspaces as expected. The single test failure is the same known pre-existing issue as VAL-MONO-004."
+    },
+    "VAL-MONO-009": {
+      "status": "pass",
+      "evidence": "Ran `bun run db:push` from apps/web — connected to database, pulled schema, reported 'No changes detected' (schema already in sync), exit code 0. Ran `bun run db:seed` from apps/web — successfully seeded test user, Oura connection, 720 health data points (90 days × 8 metrics), share grant, and audit events. Summary: 24 users, 4008 health data rows, 128 share grants, 546 audit events. Exit code 0."
+    }
+  },
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "Known pre-existing test failure: 'GET /api/health-data > audit events > emits data.viewed audit event' expects actorType='owner' but receives 'viewer'. Documented in AGENTS.md as non-blocking.",
+      "affectedAssertions": ["VAL-MONO-004", "VAL-MONO-008"],
+      "quickFixAttempted": "None — AGENTS.md documents this as a known pre-existing intermittent failure. Source files were not modified per testing guidelines."
+    }
+  ],
+  "toolsUsed": ["bun", "git"]
+}

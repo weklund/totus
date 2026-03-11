@@ -1,0 +1,31 @@
+{
+  "flowId": "structure-and-deps",
+  "assertions": {
+    "VAL-MONO-001": {
+      "status": "pass",
+      "evidence": "Root package.json has \"workspaces\": [\"apps/*\", \"packages/*\"]. bun install --dry-run exits 0 and resolves both @totus/web (workspace:apps/web) and @totus/cli (workspace:packages/cli) as workspace dependencies."
+    },
+    "VAL-MONO-002": {
+      "status": "pass",
+      "evidence": "apps/web/ exists with package.json (name: @totus/web), src/, next.config.ts, tsconfig.json, vitest.config.ts, drizzle/, .next/ build cache. Dev server running on port 3000 (confirmed via lsof). Initial curl to http://localhost:3000/api/health returned HTTP 200 (exit code 0). Subsequent requests timed out — server became unresponsive during testing but structural requirements and initial health check are satisfied."
+    },
+    "VAL-MONO-003": {
+      "status": "pass",
+      "evidence": "packages/cli/ contains package.json with name @totus/cli, type module, bin entry {\"totus\": \"./dist/index.ts\"}, tsconfig.json, vitest.config.ts. src/ directory has index.ts entry point (Commander.js program with name 'totus') and __tests__/ directory."
+    },
+    "VAL-MONO-006": {
+      "status": "pass",
+      "evidence": "docker ps shows totus-db container Up 32 hours (healthy) with port 0.0.0.0:5432->5432/tcp. Dev server process running on port 3000 (node PID 58697 listening on IPv6 *:3000). Initial health endpoint check returned HTTP 200, confirming dev server connected to PostgreSQL successfully."
+    }
+  },
+  "frictions": [
+    {
+      "description": "Dev server on port 3000 became unresponsive after the first successful health check (HTTP 200). Subsequent curl requests with --max-time 5-10s all timed out with exit code 28. Server process was still listening (confirmed via lsof) but not serving responses. This did not prevent structural validation but could affect other flow validators testing API endpoints.",
+      "resolved": false,
+      "resolution": null,
+      "affectedAssertions": ["VAL-MONO-002", "VAL-MONO-006"]
+    }
+  ],
+  "blockers": [],
+  "toolsUsed": ["cat", "ls", "curl", "docker", "lsof", "bun"]
+}
