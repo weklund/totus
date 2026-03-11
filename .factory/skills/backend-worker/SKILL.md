@@ -12,22 +12,33 @@ NOTE: Startup and cleanup are handled by `worker-base`. This skill defines the W
 Use for features that involve:
 
 - Drizzle ORM schema definitions and migrations
-- API route handlers (Next.js App Router)
+- API route handlers (Next.js App Router) in apps/web/
 - Service layer functions (HealthDataService, ShareService, etc.)
 - Auth middleware and permission enforcement
 - Encryption, token generation, and security utilities
 - Zod validation schemas
 - Database seeding and utilities
+- CLI commands and MCP server tools in packages/cli/
+- Inngest background job functions
+- Provider adapter implementations
 
 ## Work Procedure
 
-1. **Read the feature description and design docs.** The primary reference for backend work is `/docs/api-database-lld.md`. Cross-reference with `/docs/architecture-design.md` for auth and permission patterns. Read the feature's `expectedBehavior` and `verificationSteps` carefully.
+1. **Read the feature description and design docs.** The primary references are:
+   - `/docs/api-database-lld.md` — Schema, API endpoints, provider system
+   - `/docs/integrations-pipeline-lld.md` — Provider adapters, sync pipeline, Inngest
+   - `/docs/cli-mcp-server-lld.md` — CLI commands, MCP tools, API key system
+   - `/docs/architecture-design.md` — Auth and permission patterns
+     Read the feature's `expectedBehavior` and `verificationSteps` carefully.
 
 2. **Read existing code.** Before implementing, understand what already exists:
-   - Check `src/db/schema/` for existing table definitions
-   - Check `src/lib/` for existing utilities (auth, encryption, etc.)
-   - Check `src/app/api/` for existing route handlers
+   - Check `apps/web/src/db/schema/` for existing table definitions
+   - Check `apps/web/src/lib/` for existing utilities (auth, encryption, etc.)
+   - Check `apps/web/src/app/api/` for existing route handlers
+   - Check `packages/cli/src/` for CLI/MCP code
    - Check `.factory/library/` for architecture notes from previous workers
+   - Check `.factory/research/` for technology research (Inngest, MCP SDK, etc.)
+   - **IMPORTANT:** After monorepo conversion, the Next.js app is in `apps/web/`. Run tests with `cd apps/web && bun run test`. For CLI, run from `packages/cli/`.
 
 3. **Write tests FIRST (red).** Before implementing anything:
    - Create test file(s) for the feature

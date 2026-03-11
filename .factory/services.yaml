@@ -1,27 +1,31 @@
 commands:
   install: bun install
-  typecheck: bun run typecheck
-  build: bun run build
-  test: bun run test
-  lint: bun run lint
-  format: bun run format
-  dev: bun dev
-  db:generate: bun run db:generate
-  db:push: bun run db:push
-  db:seed: bun run db:seed
-  db:studio: bun run db:studio
+  typecheck: bun --filter '*' typecheck
+  build: bun --filter '*' build
+  test: bun --filter '@totus/web' test
+  test-all: bun --filter '*' test
+  lint: bun --filter '@totus/web' lint
+  db-push: cd apps/web && bun run db:push
+  db-seed: cd apps/web && bun run db:seed
 
 services:
   postgres:
     start: docker compose up -d
-    stop: docker compose down
-    healthcheck: docker compose exec -T db pg_isready -U totus
+    stop: docker compose stop
+    healthcheck: docker exec totus-db pg_isready -U totus
     port: 5432
     depends_on: []
 
   web:
-    start: bun dev --port 3000
-    stop: lsof -ti :3000 | xargs kill
-    healthcheck: curl -sf http://localhost:3000
+    start: cd apps/web && PORT=3000 bun run dev
+    stop: lsof -ti :3000 | xargs kill 2>/dev/null || true
+    healthcheck: curl -sf http://localhost:3000/api/health
     port: 3000
     depends_on: [postgres]
+
+  inngest:
+    start: npx --ignore-scripts=false inngest-cli@latest dev -u http://localhost:3000/api/inngest
+    stop: lsof -ti :8288 | xargs kill 2>/dev/null || true
+    healthcheck: curl -sf http://localhost:8288/v0/health
+    port: 8288
+    depends_on: [web]

@@ -1,43 +1,21 @@
 #!/bin/bash
 set -e
 
-cd /Users/weseklund/Projects/totus
+# Install dependencies from root (Bun workspaces)
+cd "$(git rev-parse --show-toplevel)"
+bun install
 
-# Install dependencies (idempotent — bun install is fast if node_modules is current)
-if [ -f "package.json" ]; then
-  bun install
+# Ensure PostgreSQL is running
+docker compose up -d
+sleep 2
+
+# Push schema (from apps/web after monorepo conversion, or root before)
+if [ -d "apps/web" ]; then
+  cd apps/web
+  bun run db:push 2>/dev/null || echo "db:push skipped (may need schema changes first)"
+  cd ../..
+else
+  bun run db:push 2>/dev/null || echo "db:push skipped"
 fi
 
-# Start PostgreSQL if not already running
-if ! docker compose exec -T db pg_isready -U totus 2>/dev/null; then
-  echo "Starting PostgreSQL via Docker Compose..."
-  docker compose up -d
-  # Wait for PostgreSQL to be ready
-  echo "Waiting for PostgreSQL..."
-  for i in $(seq 1 30); do
-    if docker compose exec -T db pg_isready -U totus 2>/dev/null; then
-      echo "PostgreSQL is ready."
-      break
-    fi
-    sleep 1
-  done
-fi
-
-# Copy .env.example to .env.local if not exists
-if [ -f ".env.example" ] && [ ! -f ".env.local" ]; then
-  cp .env.example .env.local
-  echo "Created .env.local from .env.example"
-fi
-
-# Ensure pgcrypto extension is enabled
-if docker compose exec -T db pg_isready -U totus 2>/dev/null; then
-  docker compose exec -T db psql -U totus -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;" 2>/dev/null || true
-fi
-
-# Apply database schema if drizzle is configured
-if [ -f "drizzle.config.ts" ] && [ -f "package.json" ]; then
-  echo "Applying database schema..."
-  bun run db:push 2>/dev/null || echo "db:push not yet available (expected during scaffold)"
-fi
-
-echo "Init complete."
+echo "Init complete"

@@ -25,9 +25,10 @@ Use for features that involve:
 1. **Read the feature description and design docs.** The primary reference for frontend work is `/docs/web-ui-lld.md`. Cross-reference with the architecture design for the unified viewer pattern. Read the feature's `expectedBehavior` and `verificationSteps` carefully.
 
 2. **Read existing code.** Before implementing, understand what exists:
-   - Check `src/components/` for existing components and patterns
-   - Check `src/hooks/` for existing data fetching hooks
-   - Check `src/lib/` for utilities (view-context, api-client, cn, etc.)
+   - Check `apps/web/src/components/` for existing components and patterns
+   - Check `apps/web/src/hooks/` for existing data fetching hooks
+   - Check `apps/web/src/lib/` for utilities (view-context, api-client, cn, etc.)
+   - **IMPORTANT:** After monorepo conversion, the Next.js app is in `apps/web/`. Run tests with `cd apps/web && bun run test`.
    - Check `src/app/` for existing page layouts
    - Check `.factory/library/` for notes from previous workers
 

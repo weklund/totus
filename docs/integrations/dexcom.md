@@ -10,6 +10,23 @@
 
 ---
 
+## Scope: G6 / G7 Only — Stelo Not Covered
+
+**This integration covers Dexcom G6 and G7 prescription CGM devices only.** Dexcom's OTC product, **Stelo**, does not use the standard Dexcom API v3 and is explicitly not supported through this integration.
+
+|                              | Dexcom G6 / G7                    | Stelo                                                                               |
+| ---------------------------- | --------------------------------- | ----------------------------------------------------------------------------------- |
+| **Target user**              | Diabetics (prescription)          | Wellness / non-diabetic (OTC)                                                       |
+| **API access**               | Standard Dexcom API v3            | No public API — direct partnership only                                             |
+| **Dexcom Share**             | Supported                         | Not supported                                                                       |
+| **Developer portal**         | developer.dexcom.com (self-serve) | No developer portal                                                                 |
+| **Reading frequency**        | Every 5 minutes                   | Every 15 minutes                                                                    |
+| **Third-party integrations** | Standard OAuth2                   | Custom partnerships (Oura, Levels, Nutrisense, Apple Health, Google Health Connect) |
+
+**Totus's target user is far more likely to own a Stelo than a G7.** Supporting Stelo requires a separate direct partnership with Dexcom — contact Dexcom's Digital Health Partner program. If approved, Stelo would be a distinct provider (`id: "stelo"`) with 15-minute reading intervals and `seriesMetrics: ["glucose"]` in the same normalized format. See `docs/integrations/nutrisense.md` for an alternative path to wellness CGM data.
+
+---
+
 ## Access & Partnership
 
 Dexcom provides self-serve OAuth2 developer access through their developer portal. No partnership agreement is required to start development. Production access (real patient data, not sandbox) requires a Dexcom app review and approval before going live with end users.
@@ -118,3 +135,4 @@ const dexcomConfig: ProviderConfig = {
 - **No revoke endpoint.** When a user disconnects, delete the `provider_connections` row. There is no API call to invalidate the tokens on Dexcom's side; they expire naturally.
 - **Sensor gaps.** CGM sensors require warmup (~2 hours) and occasional recalibration. Expect gaps in the series data; these are normal and should not trigger sync errors.
 - **Scale at 10% penetration.** A Dexcom user generates ~288 series rows/day — the highest frequency of any current provider. See `docs/data-scale-analysis.md` for storage implications.
+- **Stelo is not covered.** Dexcom's OTC Stelo biosensor does not expose data through the Dexcom API v3. It requires a direct Dexcom Digital Health Partner agreement. Stelo generates ~96 series rows/day (15-min intervals). See the Stelo note in the header section and `docs/integrations/nutrisense.md` for the wellness CGM landscape.

@@ -7,21 +7,20 @@ Environment variables, external dependencies, and setup notes.
 
 ---
 
-## Environment Variables
+## Environment Variables (.env.local in apps/web/)
 
-See `.env.example` for the full list. Key variables:
+- `DATABASE_URL` — PostgreSQL connection string (see docker-compose.yml for dev credentials)
+- `NEXT_PUBLIC_USE_MOCK_AUTH=true`
+- `MOCK_AUTH_SECRET=changeme`
+- `VIEWER_JWT_SECRET=changeme`
+- `VIEWER_JWT_SECRET_PREVIOUS=changeme`
+- `ENCRYPTION_KEY=<32-byte hex>` (generate with `openssl rand -hex 32`)
+- `NEXT_PUBLIC_APP_URL=http://localhost:3000`
+- `OURA_CLIENT_ID=your-oura-client-id`
+- `OURA_CLIENT_SECRET=your-oura-client-secret`
 
-- `DATABASE_URL` — PostgreSQL connection string (see .env.example for local dev value)
-- `NEXT_PUBLIC_USE_MOCK_AUTH=true` — Enables mock Clerk auth layer
-- `MOCK_AUTH_SECRET` — HMAC secret for mock auth JWTs (dev only)
-- `VIEWER_JWT_SECRET` — HMAC secret for viewer session JWTs
-- `VIEWER_JWT_SECRET_PREVIOUS` — Previous secret for rotation
-- `ENCRYPTION_KEY` — Local dev encryption key (32 bytes, hex-encoded)
-- `NEXT_PUBLIC_APP_URL` — Application base URL (local: `http://localhost:3000`)
+## Known Quirks
 
-## Platform Notes
-
-- macOS 14.x (Sonoma), Apple Silicon
-- Node.js v23.11.0, Bun 1.2.14
-- Docker via OrbStack
-- 11 CPU cores, ~18GB RAM
+- Bun re-adds `packageManager` field to package.json on install. Remove before committing.
+- PostgreSQL accessed via docker exec (no host psql). See AGENTS.md for connection details.
+- Drizzle-kit push/pull may get confused by partitioned tables. Use migrate only for partition DDL.

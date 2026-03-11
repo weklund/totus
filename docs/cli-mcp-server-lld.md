@@ -1,10 +1,10 @@
 # Totus MVP Low-Level Design: CLI and MCP Server
 
-### Version 1.0 — March 2026
+### Version 1.1 — March 2026
 
 ### Author: Architecture Team
 
-### Status: Approved — All open questions resolved (March 2026)
+### Status: Updated — Multi-provider CLI surface and MCP schema corrections (March 2026)
 
 ---
 
@@ -712,7 +712,12 @@ totus
 │
 ├── connections
 │   ├── list             List data source connections
-│   └── sync <id>        Trigger a data sync
+│   └── sync             Trigger a data sync (one connection or all)
+│
+├── preferences
+│   ├── list             List source preferences per metric
+│   ├── set <metric> <source>  Set preferred source for a metric
+│   └── delete <metric>  Remove preference, revert to auto-resolution
 │
 ├── keys
 │   ├── list             List API keys
@@ -782,21 +787,71 @@ List available metric types for the authenticated user.
 **Maps to:** `GET /api/health-data/types`
 **Required scope:** `health:read`
 
+Default output shows the resolved source for each metric (the winner of source resolution) and a `Sources` count so users can see where multiple providers overlap.
+
 ```
 $ totus metrics list
 
-Metric Type        Label                       Unit    Category         Source  Data Points  Date Range
-────────────────── ─────────────────────────── ─────── ──────────────── ─────── ──────────── ─────────────────────
-sleep_score        Sleep Score                 score   sleep            oura    784          2024-01-15 → 2026-03-08
-hrv                Heart Rate Variability      ms      cardiovascular   oura    784          2024-01-15 → 2026-03-08
-rhr                Resting Heart Rate          bpm     cardiovascular   apple   420          2025-06-01 → 2026-03-08
-steps              Steps                       steps   activity         oura    784          2024-01-15 → 2026-03-08
+Metric Type        Label                       Unit    Category         Source   Sources  Data Points  Date Range
+────────────────── ─────────────────────────── ─────── ──────────────── ──────── ──────── ──────────── ─────────────────────
+sleep_score        Sleep Score                 score   sleep            oura     1        784          2024-01-15 → 2026-03-08
+hrv                Heart Rate Variability      ms      cardiovascular   whoop    2        420          2025-06-01 → 2026-03-08
+rhr                Resting Heart Rate          bpm     cardiovascular   whoop    2        420          2025-06-01 → 2026-03-08
+steps              Steps                       steps   activity         oura     1        784          2024-01-15 → 2026-03-08
+```
+
+`Sources > 1` means multiple providers have data for that metric. Use `--all-sources` to expand to one row per provider, or `totus preferences list` to inspect and manage which source is authoritative.
+
+**`--all-sources` expanded output:**
+
+```
+$ totus metrics list --all-sources
+
+Metric Type   Label                   Unit  Category   Source   Preferred  Data Points  Date Range
+───────────── ─────────────────────── ───── ────────── ──────── ────────── ──────────── ─────────────────────
+hrv           Heart Rate Variability  ms    cardio     whoop    yes (set)  420          2025-06-01 → 2026-03-08
+hrv           Heart Rate Variability  ms    cardio     oura     no         784          2024-01-15 → 2026-03-08
+rhr           Resting Heart Rate      bpm   cardio     whoop    yes (auto) 420          2025-06-01 → 2026-03-08
+rhr           Resting Heart Rate      bpm   cardio     oura     no         784          2024-01-15 → 2026-03-08
+```
+
+`Preferred: yes (set)` — explicit user preference via `totus preferences set`.
+`Preferred: yes (auto)` — auto-resolved (most recent data wins); no explicit preference.
+
+**JSON output** includes `sources` array and `resolved_source` per metric — no annotation hacks:
+
+```json
+{
+  "metrics": [
+    {
+      "metric_type": "hrv",
+      "label": "Heart Rate Variability",
+      "unit": "ms",
+      "category": "cardiovascular",
+      "resolved_source": "whoop",
+      "preference": "explicit",
+      "sources": [
+        {
+          "provider": "whoop",
+          "data_points": 420,
+          "date_range": { "start": "2025-06-01", "end": "2026-03-08" }
+        },
+        {
+          "provider": "oura",
+          "data_points": 784,
+          "date_range": { "start": "2024-01-15", "end": "2026-03-08" }
+        }
+      ]
+    }
+  ]
+}
 ```
 
 **Flags:**
 
 - `--output <format>`: `table` (default in TTY), `json`, `csv`
-- `--category <cat>`: Filter by category (e.g., `sleep`, `cardiovascular`)
+- `--category <cat>`: Filter by category (`sleep`, `cardiovascular`, `activity`, `body`, `readiness`, `nutrition`)
+- `--all-sources`: Expand to one row per `(metric_type, source)`; shows preference and conflict detail
 
 ---
 
@@ -829,16 +884,19 @@ Date         Value  Source
 
 **Required flags:**
 
-- `--metrics <types>`: Comma-separated metric type IDs
+- `--metrics <types>`: Comma-separated metric type IDs. Run `totus metrics list` to see available IDs.
 - `--start <date>`: Start date (YYYY-MM-DD)
 - `--end <date>`: End date (YYYY-MM-DD)
 
 **Optional flags:**
 
 - `--resolution <res>`: `daily` (default), `weekly`, `monthly`
+- `--source <provider>`: Filter to a specific provider (e.g., `oura`, `whoop`, `garmin`). Bypasses source resolution and returns only rows from the specified provider. Errors if the provider ID is not found in `GET /api/connections`.
 - `--output <format>`: `table`, `json`, `csv`
 
 **JSON output (when piped or `--output json`):**
+
+The CLI transforms the API response into this shape. `source` on each point reflects the resolved provider (or the `--source` filter value if used).
 
 ```json
 {
@@ -851,7 +909,8 @@ Date         Value  Source
   "query": {
     "start": "2026-02-01",
     "end": "2026-03-01",
-    "resolution": "daily"
+    "resolution": "daily",
+    "source": null
   }
 }
 ```
@@ -870,7 +929,7 @@ $ totus metrics summary
 
 Health Data Summary
   Total data points:    4,720
-  Connected sources:    oura, apple_health
+  Connected sources:    oura, whoop
   Active shares:        2
   Earliest data:        2024-01-15
   Latest data:          2026-03-08
@@ -879,6 +938,39 @@ Health Data Summary
     sleep (8)           cardiovascular (4)    body (1)
     readiness (1)       activity (3)
 ```
+
+With `--verbose`, expands to show per-source breakdown and any metrics with conflicting sources:
+
+```
+$ totus metrics summary --verbose
+
+Health Data Summary
+  Total data points:    4,720
+  Connected sources:    oura, whoop
+  Active shares:        2
+  Earliest data:        2024-01-15
+  Latest data:          2026-03-08
+
+  Metrics:              18 types across 5 categories
+    sleep (8)           cardiovascular (4)    body (1)
+    readiness (1)       activity (3)
+
+  By source:
+    oura        14 metrics    3,920 points    2024-01-15 → 2026-03-08
+    whoop        6 metrics      800 points    2025-06-01 → 2026-03-08
+
+  Source conflicts (2 metrics have data from multiple providers):
+    hrv           resolved → whoop (explicit preference)
+    rhr           resolved → whoop (auto: most recent)
+
+  Run "totus metrics list --all-sources" to see full source detail.
+  Run "totus preferences list" to manage source preferences.
+```
+
+**Flags:**
+
+- `--verbose`, `-v`: Show per-source breakdown and conflict summary
+- `--output <format>`: `table` (default in TTY), `json`
 
 ---
 
@@ -1043,7 +1135,218 @@ $ totus keys create --name "Cursor MCP" --scopes health:read,shares:read
 
 ---
 
-#### 8.5.12 `totus mcp-server`
+#### 8.5.12 `totus connections list`
+
+List all data source connections for the authenticated user.
+
+**Maps to:** `GET /api/connections`
+**Required scope:** `connections:read`
+
+```
+$ totus connections list
+
+Provider   Status     Last Sync              Next Sync              Metrics  Connection ID
+─────────── ────────── ────────────────────── ────────────────────── ──────── ────────────────────────────────────────
+oura        connected  2026-03-11 06:00 UTC   2026-03-11 12:00 UTC   14       a1b2c3d4-e5f6-...
+whoop       connected  2026-03-11 05:45 UTC   2026-03-11 11:45 UTC    6       b2c3d4e5-f6a7-...
+garmin      expired    2026-02-14 08:00 UTC   —                       13       c3d4e5f6-a7b8-...
+```
+
+`Metrics` shows the count of metric types this connection contributes. Use `--verbose` to expand to the full metric list per connection.
+
+```
+$ totus connections list --verbose
+
+oura (connected)
+  Connection ID:  a1b2c3d4-e5f6-7890-abcd-ef1234567890
+  Last sync:      2026-03-11 06:00 UTC
+  Next sync:      2026-03-11 12:00 UTC
+  Metrics (14):   sleep_score, sleep_duration, sleep_efficiency, hrv, rhr,
+                  respiratory_rate, body_temperature_deviation, readiness_score,
+                  activity_score, steps, active_calories, total_calories, spo2,
+                  heart_rate (series)
+
+whoop (connected)
+  Connection ID:  b2c3d4e5-f6a7-8901-bcde-f12345678901
+  Last sync:      2026-03-11 05:45 UTC
+  Next sync:      2026-03-11 11:45 UTC
+  Metrics (6):    hrv, rhr, respiratory_rate, sleep_duration, sleep_efficiency,
+                  readiness_score
+
+garmin (expired)
+  Connection ID:  c3d4e5f6-a7b8-9012-cdef-123456789012
+  Last sync:      2026-02-14 08:00 UTC
+  Next sync:      — (reconnect required)
+  ⚠ Token expired. Reconnect at https://app.totus.health/dashboard/settings
+```
+
+**Flags:**
+
+- `--verbose`, `-v`: Expand to show metric list per connection
+- `--output <format>`: `table` (default in TTY), `json`, `csv`
+
+**JSON output shape:**
+
+```json
+{
+  "connections": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "provider": "oura",
+      "status": "connected",
+      "last_synced_at": "2026-03-11T06:00:00Z",
+      "next_sync_at": "2026-03-11T12:00:00Z",
+      "metric_count": 14,
+      "metrics": ["sleep_score", "hrv", "..."]
+    }
+  ]
+}
+```
+
+---
+
+#### 8.5.13 `totus connections sync`
+
+Trigger a data sync for one or all connections.
+
+**Maps to:** `POST /api/connections/{connectionId}/sync` (single) or `POST /api/connections/sync-all` (all)
+**Required scope:** `connections:write`
+
+**Single connection:**
+
+```
+$ totus connections sync a1b2c3d4-e5f6-7890-abcd-ef1234567890
+
+✓ Sync triggered for oura
+  Job ID: 9f8e7d6c-...
+  Status: queued
+  Run "totus connections list" to check progress.
+```
+
+**All active connections:**
+
+```
+$ totus connections sync --all
+
+✓ Sync triggered for 2 connections
+  oura    → queued (job: 9f8e7d6c-...)
+  whoop   → queued (job: 8e7d6c5b-...)
+  garmin  → skipped (status: expired)
+
+  Run "totus connections list" to check progress.
+```
+
+Expired or disconnected connections are skipped with a note; they do not cause a non-zero exit code.
+
+**Usage:**
+
+```
+totus connections sync <id>    # sync one connection by ID
+totus connections sync --all   # sync all active connections
+```
+
+Omitting both `<id>` and `--all` is an error:
+
+```
+✗ Error: Specify a connection ID or use --all.
+  Run "totus connections list" to find connection IDs.
+```
+
+**Flags:**
+
+- `--all`: Sync all connections with `status = connected`. Skips expired/disconnected.
+- `--output <format>`: `table` (default in TTY), `json`
+
+---
+
+#### 8.5.14 `totus preferences list`
+
+List all user-set source preferences.
+
+**Maps to:** `GET /api/metric-preferences`
+**Required scope:** `health:read`
+
+```
+$ totus preferences list
+
+Metric Type   Preferred Source  Set By  Since
+───────────── ───────────────── ─────── ─────────────────────
+hrv           whoop             user    2026-03-01 14:22 UTC
+rhr           whoop             user    2026-03-01 14:22 UTC
+```
+
+When no preferences are set:
+
+```
+$ totus preferences list
+
+No source preferences set. Totus uses auto-resolution (most recent data wins).
+Run "totus preferences set <metric_type> <source>" to pin a metric to a specific provider.
+```
+
+**Flags:**
+
+- `--output <format>`: `table` (default in TTY), `json`, `csv`
+
+---
+
+#### 8.5.15 `totus preferences set <metric_type> <source>`
+
+Pin a metric type to a specific data source.
+
+**Maps to:** `PUT /api/metric-preferences/{metricType}`
+**Required scope:** `health:write`
+
+```
+$ totus preferences set hrv whoop
+
+✓ Preference set: hrv → whoop
+  Totus will now use whoop as the source for hrv data.
+  Run "totus metrics get --metrics hrv ..." to verify.
+```
+
+Validates that `<source>` matches an active connection's `provider` field. Errors helpfully if invalid:
+
+```
+$ totus preferences set hrv dexcom
+
+✗ Error: No active connection for provider "dexcom".
+  Connected providers: oura, whoop
+  Run "totus connections list" to see your connections.
+```
+
+**Arguments:**
+
+- `<metric_type>`: A valid metric type ID (e.g., `hrv`, `sleep_score`). Run `totus metrics list` to see available IDs.
+- `<source>`: A connected provider ID (e.g., `oura`, `whoop`, `garmin`). Run `totus connections list` to see active providers.
+
+---
+
+#### 8.5.16 `totus preferences delete <metric_type>`
+
+Remove a source preference for a metric, reverting to auto-resolution.
+
+**Maps to:** `DELETE /api/metric-preferences/{metricType}`
+**Required scope:** `health:write`
+
+```
+$ totus preferences delete hrv
+
+✓ Preference cleared: hrv
+  Totus will now use auto-resolution for hrv (most recent data source wins).
+```
+
+If no preference exists, exits cleanly (idempotent):
+
+```
+$ totus preferences delete hrv
+
+  No preference set for hrv. Nothing to remove.
+```
+
+---
+
+#### 8.5.17 `totus mcp-server`
 
 Start the MCP Server in stdio mode. This is the entry point for AI clients.
 
@@ -1136,13 +1439,15 @@ Query health metrics for a date range. Queries the `health_data_daily` table by 
 ```
 {
   metrics: z.array(z.string()).min(1).max(10)
-    .describe("Metric type IDs (e.g., ['sleep_score', 'hrv'])"),
-  start_date: z.string()
-    .describe("Start date (YYYY-MM-DD)"),
-  end_date: z.string()
-    .describe("End date (YYYY-MM-DD)"),
+    .describe("Metric type IDs to query (e.g., ['sleep_score', 'hrv']). Call list_available_metrics first to get exact IDs for this user."),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD")
+    .describe("Start date in YYYY-MM-DD format"),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Must be YYYY-MM-DD")
+    .describe("End date in YYYY-MM-DD format. Must be >= start_date."),
   resolution: z.enum(["daily", "weekly", "monthly"]).optional()
-    .describe("Aggregation level. Default: daily")
+    .describe("Aggregation level. Default: daily"),
+  source: z.string().optional()
+    .describe("Filter to a specific provider (e.g., 'oura', 'whoop', 'garmin'). Omit to use the user's source resolution preferences. Use list_connections to see available provider IDs.")
 }
 ```
 
@@ -1175,21 +1480,21 @@ hrv (ms):
 
 #### 9.2.2 `list_available_metrics`
 
-List all metric types the user has data for.
+List all metric types the user has data for. Call this before `get_health_data` when the exact metric IDs are unknown.
 
 **Input Schema:**
 
 ```
 {
-  category: z.string().optional()
-    .describe("Filter by category (e.g., 'sleep', 'cardiovascular')")
+  category: z.enum(["sleep", "cardiovascular", "activity", "body", "readiness", "nutrition"]).optional()
+    .describe("Filter by category. Omit to return all categories.")
 }
 ```
 
 **Maps to:** `GET /api/health-data/types`
 **Required scope:** `health:read`
 
-**Response:** Text listing of metrics with labels, units, date ranges, and data point counts.
+**Response:** Text listing of metrics with labels, units, date ranges, data point counts, and resolved source. When a metric has multiple sources, the response notes the resolved source and the count of available providers.
 
 ---
 
@@ -1322,14 +1627,111 @@ Trigger a data sync for a connected source.
 
 #### 9.2.9 `list_connections`
 
-List connected data sources (from the `provider_connections` table).
+List all connected data sources. Use this to discover provider IDs for `trigger_sync` and `get_health_data`'s `source` parameter.
 
 **Input Schema:** `{}` (no parameters)
 
 **Maps to:** `GET /api/connections`
 **Required scope:** `connections:read`
 
-**Response:** List of connections with provider name, status, and last sync timestamp. Supports multiple providers (Oura, Apple Health, etc.).
+**Response format:**
+
+```
+Connected Data Sources
+
+oura (connected)
+  ID: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+  Last synced: 2026-03-11T06:00:00Z
+  Metrics: 14 types (sleep_score, hrv, rhr, steps, ...)
+
+whoop (connected)
+  ID: b2c3d4e5-f6a7-8901-bcde-f12345678901
+  Last synced: 2026-03-11T05:45:00Z
+  Metrics: 6 types (hrv, rhr, respiratory_rate, ...)
+
+garmin (expired)
+  ID: c3d4e5f6-a7b8-9012-cdef-123456789012
+  Last synced: 2026-02-14T08:00:00Z
+  ⚠ Token expired — user must reconnect via the Totus web app.
+```
+
+**Output type:** `ConnectionListItem[]`
+
+```typescript
+type ConnectionListItem = {
+  id: string; // UUID — use as connection_id in trigger_sync
+  provider: string; // e.g., "oura", "whoop", "garmin"
+  status: "connected" | "expired" | "disconnected" | "syncing" | "error";
+  last_synced_at: string | null; // ISO 8601 UTC
+  next_sync_at: string | null; // ISO 8601 UTC; null if expired
+  metric_count: number;
+  metrics: string[]; // metric_type IDs this connection provides
+};
+```
+
+---
+
+#### 9.2.10 `list_metric_preferences`
+
+List the user's source preferences — which provider is authoritative for each metric when multiple providers overlap. Call this before suggesting source changes to understand the current configuration.
+
+**Input Schema:** `{}` (no parameters)
+
+**Maps to:** `GET /api/metric-preferences`
+**Required scope:** `health:read`
+
+**Response format:**
+
+```
+Source Preferences
+
+hrv    → whoop   (explicit user preference, set 2026-03-01)
+rhr    → whoop   (explicit user preference, set 2026-03-01)
+
+2 preferences set. All other metrics use auto-resolution (most recent source wins).
+```
+
+---
+
+#### 9.2.11 `set_metric_preference`
+
+Pin a metric to a specific data source. Use when the user wants a specific provider's data to be authoritative for a metric where multiple sources overlap. Always call `list_connections` first to confirm the provider ID is valid and connected.
+
+**Input Schema:**
+
+```
+{
+  metric_type: z.string()
+    .describe("The metric type ID to set a preference for (e.g., 'hrv', 'rhr'). Call list_available_metrics to get valid IDs."),
+  source: z.string()
+    .describe("The provider ID to prefer (e.g., 'oura', 'whoop', 'garmin'). Must match an active connection. Call list_connections to get valid provider IDs."),
+}
+```
+
+**Maps to:** `PUT /api/metric-preferences/{metricType}`
+**Required scope:** `health:write`
+
+**Response:** Confirmation of the new preference with before/after state.
+
+---
+
+#### 9.2.12 `delete_metric_preference`
+
+Remove a source preference for a metric, reverting to auto-resolution (most recent data wins). This is idempotent — calling it when no preference exists returns success.
+
+**Input Schema:**
+
+```
+{
+  metric_type: z.string()
+    .describe("The metric type ID to clear the preference for (e.g., 'hrv'). Call list_metric_preferences to see what preferences exist.")
+}
+```
+
+**Maps to:** `DELETE /api/metric-preferences/{metricType}`
+**Required scope:** `health:write`
+
+**Response:** Confirmation that auto-resolution is now active for the metric.
 
 ---
 
@@ -1406,8 +1808,8 @@ Compare two or more metrics over time to find correlations.
 
 ```
 {
-  metrics: z.string()
-    .describe("Comma-separated metric types to compare (e.g., 'hrv,sleep_score,steps')"),
+  metrics: z.array(z.string()).min(2)
+    .describe("Metric type IDs to compare — minimum 2 required (e.g., ['hrv', 'sleep_score', 'steps']). Call list_available_metrics to get valid IDs."),
   period: z.enum(["last_30_days", "last_90_days", "last_180_days"])
     .describe("Comparison period")
 }
@@ -1829,9 +2231,11 @@ Exit code: 1.
 - [ ] Config management (`~/.config/totus/config.json`)
 - [ ] Output formatters (table, JSON, CSV, auto-detect TTY)
 - [ ] Auth commands: `login`, `logout`, `status`, `token`
-- [ ] Health data commands: `metrics list`, `metrics get`, `metrics summary`
+- [ ] Health data commands: `metrics list` (with `--all-sources` flag), `metrics get` (with `--source` flag), `metrics summary` (with `--verbose` flag)
 - [ ] Share commands: `shares list`, `shares get`, `shares create`, `shares revoke`
 - [ ] Audit command: `audit list`
+- [ ] Connection commands: `connections list` (with `--verbose`), `connections sync <id>` and `connections sync --all`
+- [ ] Preferences commands: `preferences list`, `preferences set <metric> <source>`, `preferences delete <metric>`
 - [ ] Key management commands: `keys list`, `keys create`, `keys revoke`
 - [ ] Profile and export commands
 - [ ] Unit tests for all commands
@@ -1839,7 +2243,7 @@ Exit code: 1.
 ### Phase 3: MCP Server
 
 - [ ] MCP Server setup (`@modelcontextprotocol/sdk`, stdio transport)
-- [ ] 9 MCP tools (health data, metrics, shares, audit, profile, connections, sync)
+- [ ] 12 MCP tools: `get_health_data` (with `source` param), `list_available_metrics`, `create_share`, `list_shares`, `revoke_share`, `get_audit_log`, `get_profile`, `trigger_sync`, `list_connections`, `list_metric_preferences`, `set_metric_preference`, `delete_metric_preference`
 - [ ] 3 MCP resources (metrics, profile, shares)
 - [ ] 4 MCP prompts (sleep analysis, comparison, share prep, health summary)
 - [ ] Error handling and status reporting
