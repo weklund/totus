@@ -54,3 +54,14 @@ Architectural decisions, patterns discovered during implementation.
 - POST /api/connections/[provider]/sync dispatches `integration/sync.manual` event (not inline sync)
 - OAuth callback dispatches `integration/sync.initial` event for historical backfill
 - Mock Inngest client in tests: `vi.mock("@/inngest/client", ...)` to avoid needing dev server
+
+## CLI Patterns
+
+- **Libraries**: chalk v5 (ESM-only), cli-table3, csv-stringify/sync for output formatting
+- **Commander.js v14** with @commander-js/extra-typings for type-safe option parsing
+- **CommandLike duck-typing**: `command-helpers.ts` defines a `CommandLike` interface (`parent?`, `opts()`) to work around @commander-js/extra-typings strict generics when sharing action callback logic across commands
+- **API key resolution**: `--api-key` flag > `TOTUS_API_KEY` env > config file (`~/.config/totus/config.json`)
+- **Output format auto-detection**: table for TTY, JSON for piped output, overridable with `--output`
+- **Exit codes**: 0=success, 1=error, 2=auth, 3=permission
+- **Note**: `--verbose` global flag conflicts with Commander.js internals; `metrics summary` uses `--detailed` instead of `--verbose` as a workaround
+- **No lint config** for CLI package yet — only `typecheck` and `test` scripts exist

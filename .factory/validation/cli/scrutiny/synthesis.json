@@ -1,0 +1,59 @@
+{
+  "milestone": "cli",
+  "round": 1,
+  "status": "pass",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "bun --filter '@totus/web' test && bun --filter '@totus/cli' test",
+      "exitCode": 0,
+      "notes": "CLI: 143/143 tests pass. Web: 963/964 pass — 1 failure is known pre-existing intermittent audit event test (documented in AGENTS.md as non-blocking)"
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "bun --filter '*' typecheck",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "bun --filter '@totus/web' lint",
+      "exitCode": 0,
+      "notes": "CLI package has no lint script configured yet"
+    }
+  },
+  "reviewsSummary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "failedFeatures": []
+  },
+  "blockingIssues": [],
+  "appliedUpdates": [
+    {
+      "target": "library",
+      "description": "Added 'CLI Patterns' section to .factory/library/architecture.md documenting: chalk v5, cli-table3, csv-stringify libraries; CommandLike duck-typing pattern for @commander-js/extra-typings workaround; API key resolution order; output format auto-detection; exit codes; --verbose/--detailed naming deviation; and lint gap",
+      "sourceFeature": "cli-core, cli-data-commands"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add note under Coding Conventions: 'CLI `metrics summary` uses `--detailed` flag (not `--verbose`) due to Commander.js conflict with the global `-v/--verbose` flag. The LLD still references `--verbose` — consider updating docs/cli-mcp-server-lld.md to match.'",
+      "evidence": "Both cli-core and cli-data-commands workers encountered this conflict. cli-data-commands worker renamed the flag and documented the deviation in their handoff.",
+      "isSystemic": false
+    },
+    {
+      "target": "skills",
+      "suggestion": "Backend-worker skill step 5 says 'bun run lint — zero warnings' as a verification step, but the CLI package (packages/cli) has no lint script. Either add an ESLint config to packages/cli or update the skill to say 'bun run lint if lint script exists'. Workers currently skip lint silently for CLI work.",
+      "evidence": "cli-core review noted packages/cli/package.json has no 'lint' script. services.yaml lint command only covers @totus/web.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Worker correctly added 'test-cli: bun --filter @totus/cli test' command to .factory/services.yaml",
+      "reason": "already-documented — this was correctly applied by the worker during implementation, no additional action needed"
+    }
+  ],
+  "previousRound": null
+}
