@@ -628,7 +628,7 @@ describe("GET /api/health-data/types", () => {
       expect(sleepScore).toBeDefined();
       expect(sleepScore.label).toBe("Sleep Score");
       expect(sleepScore.unit).toBe("score");
-      expect(sleepScore.category).toBe("Sleep");
+      expect(sleepScore.category).toBe("sleep");
       expect(sleepScore.date_range.start).toBe("2026-01-10");
       expect(sleepScore.date_range.end).toBe("2026-01-20");
       expect(sleepScore.count).toBe(3);

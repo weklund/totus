@@ -9,7 +9,7 @@ const MOCK_METRICS: HealthDataType[] = [
     metric_type: "sleep_score",
     label: "Sleep Score",
     unit: "score",
-    category: "Sleep",
+    category: "sleep",
     source: "oura",
     date_range: { start: "2026-01-01", end: "2026-03-01" },
     count: 90,
@@ -18,7 +18,7 @@ const MOCK_METRICS: HealthDataType[] = [
     metric_type: "hrv",
     label: "Heart Rate Variability",
     unit: "ms",
-    category: "Cardio",
+    category: "cardiovascular",
     source: "oura",
     date_range: { start: "2026-01-01", end: "2026-03-01" },
     count: 90,
@@ -27,7 +27,7 @@ const MOCK_METRICS: HealthDataType[] = [
     metric_type: "rhr",
     label: "Resting Heart Rate",
     unit: "bpm",
-    category: "Cardio",
+    category: "cardiovascular",
     source: "oura",
     date_range: { start: "2026-01-01", end: "2026-03-01" },
     count: 90,
@@ -36,7 +36,7 @@ const MOCK_METRICS: HealthDataType[] = [
     metric_type: "steps",
     label: "Steps",
     unit: "steps",
-    category: "Activity",
+    category: "activity",
     source: "oura",
     date_range: { start: "2026-01-01", end: "2026-03-01" },
     count: 90,
@@ -45,7 +45,7 @@ const MOCK_METRICS: HealthDataType[] = [
     metric_type: "readiness_score",
     label: "Readiness Score",
     unit: "score",
-    category: "Activity",
+    category: "recovery",
     source: "oura",
     date_range: { start: "2026-01-01", end: "2026-03-01" },
     count: 90,
@@ -62,9 +62,9 @@ describe("MetricSelector", () => {
       />,
     );
 
-    expect(screen.getByText("Sleep")).toBeInTheDocument();
-    expect(screen.getByText("Cardio")).toBeInTheDocument();
-    expect(screen.getByText("Activity")).toBeInTheDocument();
+    expect(screen.getByText("sleep")).toBeInTheDocument();
+    expect(screen.getByText("cardiovascular")).toBeInTheDocument();
+    expect(screen.getByText("activity")).toBeInTheDocument();
     expect(screen.getByText("Sleep Score")).toBeInTheDocument();
     expect(screen.getByText("Heart Rate Variability")).toBeInTheDocument();
     expect(screen.getByText("Steps")).toBeInTheDocument();

@@ -7,10 +7,13 @@ import type { HealthDataType } from "@/hooks/useHealthDataTypes";
 import type { MetricCategory } from "@/config/metrics";
 
 const CATEGORY_ORDER: MetricCategory[] = [
-  "Sleep",
-  "Cardio",
-  "Activity",
-  "Body",
+  "sleep",
+  "cardiovascular",
+  "activity",
+  "body",
+  "metabolic",
+  "recovery",
+  "nutrition",
 ];
 
 interface MetricSelectorProps {
