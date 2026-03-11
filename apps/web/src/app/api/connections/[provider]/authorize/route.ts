@@ -1,13 +1,13 @@
 /**
- * GET /api/connections/oura/authorize — Initiate Oura OAuth2 flow.
+ * GET /api/connections/:provider/authorize — Initiate OAuth flow for any provider.
  *
- * Generates an OAuth state JWT (signed with jose, contains userId, nonce, exp),
- * builds the Oura authorization URL, and returns it. In mock mode, the
- * authorize_url points to the mock callback endpoint.
+ * Reads provider config from the registry, builds the OAuth authorization URL
+ * with a state JWT containing provider + userId. In mock/dev mode, the URL
+ * points directly to the callback with a mock code.
  *
  * Auth: Owner (session required)
  *
- * See: /docs/api-database-lld.md Section 7.2.2
+ * See: /docs/integrations-pipeline-lld.md §8.1
  */
 
 import { NextResponse } from "next/server";
@@ -18,6 +18,7 @@ import { db } from "@/db";
 import { providerConnections } from "@/db/schema";
 import { getRequestContext } from "@/lib/auth/request-context";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
+import { getProvider, isValidProvider } from "@/config/providers";
 
 /**
  * Get the OAuth state signing secret.
@@ -33,7 +34,10 @@ function getStateSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-export async function GET(request: Request): Promise<NextResponse> {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ provider: string }> },
+): Promise<NextResponse> {
   try {
     const ctx = getRequestContext(request);
 
@@ -41,14 +45,34 @@ export async function GET(request: Request): Promise<NextResponse> {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
 
-    // Check if user already has an Oura connection
+    const { provider } = await params;
+
+    // Validate provider
+    if (!isValidProvider(provider)) {
+      throw new ApiError(
+        "VALIDATION_ERROR",
+        `Unknown provider: ${provider}`,
+        400,
+      );
+    }
+
+    const providerConfig = getProvider(provider);
+    if (!providerConfig) {
+      throw new ApiError(
+        "VALIDATION_ERROR",
+        `Provider not configured: ${provider}`,
+        400,
+      );
+    }
+
+    // Check if user already has a connection for this provider
     const existing = await db
       .select({ id: providerConnections.id })
       .from(providerConnections)
       .where(
         and(
           eq(providerConnections.userId, ctx.userId),
-          eq(providerConnections.provider, "oura"),
+          eq(providerConnections.provider, provider),
         ),
       )
       .limit(1);
@@ -56,15 +80,16 @@ export async function GET(request: Request): Promise<NextResponse> {
     if (existing.length > 0) {
       throw new ApiError(
         "CONFLICT",
-        "Oura is already connected. Disconnect first to re-authorize.",
+        `${providerConfig.displayName} is already connected. Disconnect first to re-authorize.`,
         409,
       );
     }
 
-    // Generate OAuth state JWT
+    // Generate OAuth state JWT with provider info
     const nonce = randomBytes(16).toString("hex");
     const stateJwt = await new SignJWT({
       userId: ctx.userId,
+      provider,
       nonce,
     })
       .setProtectedHeader({ alg: "HS256" })
@@ -74,13 +99,15 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     // Build authorization URL
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const clientId = process.env.OURA_CLIENT_ID || "";
-    const redirectUri = `${appUrl}/api/connections/oura/callback`;
+    const redirectUri = `${appUrl}/api/connections/${provider}/callback`;
 
-    // In mock mode (no real client ID), point to mock callback directly
+    // Determine if we're in mock mode
+    const providerClientId =
+      process.env[`${provider.toUpperCase()}_CLIENT_ID`] || "";
     const isMockMode =
-      !clientId ||
-      clientId === "your-oura-client-id" ||
+      !providerClientId ||
+      providerClientId.startsWith("your-") ||
+      providerClientId.startsWith("test-") ||
       process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
 
     let authorizeUrl: string;
@@ -91,18 +118,26 @@ export async function GET(request: Request): Promise<NextResponse> {
       mockUrl.searchParams.set("code", "mock_auth_code");
       mockUrl.searchParams.set("state", stateJwt);
       authorizeUrl = mockUrl.toString();
-    } else {
-      // Real Oura OAuth
-      const oauthUrl = new URL("https://cloud.ouraring.com/oauth/authorize");
-      oauthUrl.searchParams.set("client_id", clientId);
+    } else if (providerConfig.auth.authorizeUrl) {
+      // Real OAuth
+      const oauthUrl = new URL(providerConfig.auth.authorizeUrl);
+      oauthUrl.searchParams.set("client_id", providerClientId);
       oauthUrl.searchParams.set("redirect_uri", redirectUri);
       oauthUrl.searchParams.set("response_type", "code");
       oauthUrl.searchParams.set("state", stateJwt);
-      oauthUrl.searchParams.set(
-        "scope",
-        "daily heartrate workout tag session sleep spo2",
-      );
+      if (providerConfig.auth.scopes.length > 0) {
+        oauthUrl.searchParams.set(
+          "scope",
+          providerConfig.auth.scopes.join(" "),
+        );
+      }
       authorizeUrl = oauthUrl.toString();
+    } else {
+      throw new ApiError(
+        "INTERNAL_ERROR",
+        `Provider ${provider} does not support OAuth authorization`,
+        500,
+      );
     }
 
     return NextResponse.json({

@@ -35,17 +35,31 @@ const PUBLIC_PATHS = [
   "/api/auth/session",
   "/api/viewer/validate",
   "/api/health",
-  "/api/connections/oura/callback",
 ];
+
+/**
+ * Pattern for generic provider OAuth callback paths.
+ * Matches /api/connections/{provider}/callback
+ */
+const PROVIDER_CALLBACK_PATTERN = /^\/api\/connections\/[a-z]+\/callback$/;
 
 /**
  * Check if a path is public (no auth required).
  */
 function isPublicPath(pathname: string): boolean {
   // Exact match or prefix match for public paths
-  return PUBLIC_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(p + "/"),
-  );
+  if (
+    PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))
+  ) {
+    return true;
+  }
+
+  // Generic provider OAuth callbacks are public (no auth required)
+  if (PROVIDER_CALLBACK_PATTERN.test(pathname)) {
+    return true;
+  }
+
+  return false;
 }
 
 /**

@@ -81,7 +81,16 @@ export async function POST(
 
     const connection = connections[0];
 
-    // Reject if already syncing
+    // Reject if connection is expired — user must re-authenticate
+    if (connection.status === "expired") {
+      throw new ApiError(
+        "FORBIDDEN",
+        "Connection has expired. Please re-authenticate with the provider.",
+        403,
+      );
+    }
+
+    // Reject if already syncing (409 SYNC_IN_PROGRESS)
     if (connection.syncStatus === "syncing") {
       throw new ApiError(
         "CONFLICT",
@@ -122,8 +131,8 @@ export async function POST(
             metricType: metric.id,
             date: dateStr,
             valueEncrypted: encrypted,
-            source: "oura",
-            sourceId: `oura_${metric.id}_${dateStr}`,
+            source: connection.provider,
+            sourceId: `${connection.provider}_${metric.id}_${dateStr}`,
           });
         }
       }
@@ -154,7 +163,7 @@ export async function POST(
           resourceType: "connection",
           resourceDetail: {
             connection_id: id,
-            provider: "oura",
+            provider: connection.provider,
             days_synced: SYNC_DAYS,
             metrics_synced: SYNC_METRICS.length,
             rows_upserted: rows.length,
