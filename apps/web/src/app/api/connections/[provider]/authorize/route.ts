@@ -16,7 +16,7 @@ import { randomBytes } from "crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { providerConnections } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
+import { getResolvedContext } from "@/lib/auth/resolve-api-key";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
 import { getProvider, isValidProvider } from "@/config/providers";
 
@@ -39,7 +39,7 @@ export async function GET(
   { params }: { params: Promise<{ provider: string }> },
 ): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);

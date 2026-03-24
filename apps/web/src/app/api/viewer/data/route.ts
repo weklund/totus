@@ -19,7 +19,7 @@ import { and, between, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { healthDataDaily, auditEvents, shareGrants } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
+import { getResolvedContext } from "@/lib/auth/resolve-api-key";
 import { enforcePermissions, PermissionError } from "@/lib/auth/permissions";
 import { createErrorResponse, ApiError } from "@/lib/api/errors";
 import { createEncryptionProvider } from "@/lib/encryption";
@@ -109,7 +109,7 @@ function aggregatePoints(
 
 export async function GET(request: Request): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
 
     // Auth check: must be owner or viewer
     if (ctx.role === "unauthenticated" || !ctx.userId) {

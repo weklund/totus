@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import type { RequestContext } from "@/lib/auth/request-context";
 
 /**
  * Unified auth middleware for Totus.
+ *
+ * When NEXT_PUBLIC_USE_MOCK_AUTH=true, uses mock JWT verification.
+ * When false, uses Clerk's clerkMiddleware() for session verification.
  *
  * Checks auth in this order:
  * 1. Authorization: Bearer tot_live_... header (API key auth) -> role='owner'
@@ -19,6 +23,8 @@ import type { RequestContext } from "@/lib/auth/request-context";
  * - /api/* owner-only routes return 401 if unauthenticated
  * - Public routes are always accessible
  */
+
+const useMockAuth = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
 
 const SESSION_COOKIE = "__session";
 const VIEWER_COOKIE = "totus_viewer";
@@ -119,9 +125,9 @@ function getViewerSecretPrevious(): Uint8Array | null {
 // ─── Auth verification ──────────────────────────────────────────────────────
 
 /**
- * Verify the owner session cookie and extract userId.
+ * Verify the mock owner session cookie and extract userId.
  */
-async function verifyOwnerSession(
+async function verifyMockOwnerSession(
   sessionToken: string,
 ): Promise<string | null> {
   const secret = getSessionSecret();
@@ -203,19 +209,44 @@ function extractViewerClaims(
 function addSecurityHeaders(response: NextResponse): void {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "no-referrer");
   response.headers.set(
     "Strict-Transport-Security",
     "max-age=63072000; includeSubDomains; preload",
   );
+  // T-11: Strict CSP — no unsafe-inline/unsafe-eval for script-src.
+  // 'strict-dynamic' allows scripts loaded by trusted scripts (e.g., Next.js chunks).
+  // style-src keeps 'unsafe-inline' because Next.js/Tailwind injects styles at runtime.
+  // connect-src allows Clerk and Inngest communication in production.
   response.headers.set(
     "Content-Security-Policy",
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:;",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'strict-dynamic'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.dev https://*.inngest.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; "),
   );
 }
 
-// ─── Middleware ──────────────────────────────────────────────────────────────
+// ─── Shared middleware logic ─────────────────────────────────────────────────
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+/**
+ * Core middleware logic shared between mock and Clerk modes.
+ *
+ * @param request - The incoming request
+ * @param ownerUserId - The authenticated owner userId (from mock JWT or Clerk), or null
+ * @returns The middleware response
+ */
+async function coreMiddleware(
+  request: NextRequest,
+  ownerUserId: string | null,
+): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // Skip static files and Next.js internals
@@ -242,8 +273,6 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
 
   if (bearerToken && bearerToken.startsWith("tot_live_")) {
     // Mark as "pending API key" — route handlers will validate via DB
-    // Set context as a placeholder that indicates API key auth is pending.
-    // The raw token is passed in a separate header for route-level validation.
     apiKeyToken = bearerToken;
     context = {
       role: "owner",
@@ -252,25 +281,14 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       authMethod: "api_key",
     };
   }
-  // 2. Check __session cookie (owner auth)
-  else if (request.cookies.get(SESSION_COOKIE)?.value) {
-    const sessionCookie = request.cookies.get(SESSION_COOKIE)!;
-    const userId = await verifyOwnerSession(sessionCookie.value);
-    if (userId) {
-      context = {
-        role: "owner",
-        userId,
-        permissions: "full",
-        authMethod: "session",
-      };
-    } else {
-      // Invalid session cookie — treat as unauthenticated
-      context = {
-        role: "unauthenticated",
-        permissions: "full",
-        authMethod: "none",
-      };
-    }
+  // 2. Check owner session (userId already resolved by caller)
+  else if (ownerUserId) {
+    context = {
+      role: "owner",
+      userId: ownerUserId,
+      permissions: "full",
+      authMethod: "session",
+    };
   }
   // 3. Check totus_viewer cookie (viewer auth)
   else {
@@ -370,6 +388,10 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // ── Step 3: Attach context to request headers ─────────────────────────
 
   const requestHeaders = new Headers(request.headers);
+  // Defense-in-depth: strip any externally-supplied context headers before setting
+  // our middleware-verified values. Prevents header injection attacks (T-01).
+  requestHeaders.delete(REQUEST_CONTEXT_HEADER);
+  requestHeaders.delete(API_KEY_HEADER);
   requestHeaders.set(REQUEST_CONTEXT_HEADER, JSON.stringify(context));
 
   // Pass raw API key token through for route-level DB validation
@@ -388,6 +410,51 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   addSecurityHeaders(response);
 
   return response;
+}
+
+// ─── Mock auth middleware ────────────────────────────────────────────────────
+
+/**
+ * Mock auth middleware: verifies the __session cookie with jose and
+ * delegates to the core middleware logic.
+ */
+async function mockMiddleware(request: NextRequest): Promise<NextResponse> {
+  let ownerUserId: string | null = null;
+
+  const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
+  if (sessionCookie) {
+    ownerUserId = await verifyMockOwnerSession(sessionCookie);
+  }
+
+  return coreMiddleware(request, ownerUserId);
+}
+
+// ─── Clerk auth middleware ──────────────────────────────────────────────────
+
+/**
+ * Clerk auth middleware: uses Clerk's clerkMiddleware() to verify
+ * the session, then delegates to the core middleware logic.
+ *
+ * Clerk handles token verification internally. We extract the userId
+ * from the auth object and pass it to coreMiddleware, which handles
+ * API key auth, viewer JWT auth, route protection, and security headers.
+ */
+const clerkMw = clerkMiddleware(async (auth, request) => {
+  const { userId } = await auth();
+  return coreMiddleware(request, userId);
+});
+
+// ─── Export ─────────────────────────────────────────────────────────────────
+
+export async function middleware(request: NextRequest): Promise<NextResponse> {
+  if (useMockAuth) {
+    return mockMiddleware(request);
+  }
+  // clerkMiddleware returns NextMiddleware; invoke it and coerce the result.
+  // Our coreMiddleware always returns a NextResponse, so the result is always
+  // a NextResponse, but clerkMiddleware's type signature is wider.
+  const result = await clerkMw(request, {} as never);
+  return (result as NextResponse) ?? NextResponse.next();
 }
 
 /**

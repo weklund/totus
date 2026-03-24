@@ -18,7 +18,7 @@ import { z } from "zod";
 import { cookies } from "next/headers";
 import { db } from "@/db";
 import { users, auditEvents } from "@/db/schema";
-import { getRequestContext } from "@/lib/auth/request-context";
+import { getResolvedContext } from "@/lib/auth/resolve-api-key";
 import { createErrorResponse, ApiError, validateRequest } from "@/lib/api";
 import { SESSION_COOKIE_CONFIG } from "@/lib/auth/mock-auth";
 
@@ -36,7 +36,7 @@ const deleteAccountSchema = z.object({
 
 export async function DELETE(request: Request): Promise<NextResponse> {
   try {
-    const ctx = getRequestContext(request);
+    const ctx = await getResolvedContext(request);
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);

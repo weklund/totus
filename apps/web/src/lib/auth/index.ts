@@ -3,19 +3,73 @@
  *
  * Exports auth(), useAuth(), session helpers, and viewer token system.
  * When NEXT_PUBLIC_USE_MOCK_AUTH=true, uses mock auth layer.
- * When false, would use real Clerk (not yet implemented).
+ * When false, uses real Clerk authentication.
  */
 
-export { mockAuth as auth } from "./mock-auth";
-export {
-  createSessionToken,
-  SESSION_COOKIE_CONFIG,
-  verifySessionToken,
+import type { AuthResult } from "./mock-auth";
+import { mockAuth } from "./mock-auth";
+import { clerkAuth } from "./clerk-auth";
+import {
+  createSessionToken as mockCreateSessionToken,
+  verifySessionToken as mockVerifySessionToken,
+  SESSION_COOKIE_CONFIG as mockSessionCookieConfig,
 } from "./mock-auth";
-export type { AuthResult } from "./mock-auth";
-export { MockAuthProvider, useAuth } from "./mock-auth-provider";
+import { clerkCreateSessionToken, clerkVerifySessionToken } from "./clerk-auth";
 
-// Viewer token system
+const useMockAuth = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
+
+// ─── Server-side auth (conditional on NEXT_PUBLIC_USE_MOCK_AUTH) ─────────────
+
+/**
+ * Server-side auth function.
+ * Uses mock auth when NEXT_PUBLIC_USE_MOCK_AUTH=true, Clerk otherwise.
+ */
+export const auth: () => Promise<AuthResult> = useMockAuth
+  ? mockAuth
+  : clerkAuth;
+
+/**
+ * Create a session token (mock auth only).
+ * Throws when using Clerk — Clerk manages its own sessions.
+ */
+export const createSessionToken: (userId: string) => Promise<string> =
+  useMockAuth ? mockCreateSessionToken : clerkCreateSessionToken;
+
+/**
+ * Verify a session token (mock auth only).
+ * Throws when using Clerk — Clerk manages its own sessions.
+ */
+export const verifySessionToken: (token: string) => Promise<string | null> =
+  useMockAuth ? mockVerifySessionToken : clerkVerifySessionToken;
+
+/**
+ * Session cookie configuration (mock auth only).
+ * When using Clerk, this config is unused — Clerk manages its own cookies.
+ */
+export const SESSION_COOKIE_CONFIG = mockSessionCookieConfig;
+
+export type { AuthResult } from "./mock-auth";
+
+// ─── Client-side auth (conditional on NEXT_PUBLIC_USE_MOCK_AUTH) ─────────────
+
+export { AuthProvider } from "./auth-provider";
+
+// Re-export useAuth conditionally: mock or Clerk
+// Using a re-export wrapper to allow tree-shaking at build time.
+import { useAuth as mockUseAuth } from "./mock-auth-provider";
+import { useAuth as clerkUseAuth } from "./clerk-auth-provider";
+
+/**
+ * useAuth() hook — provides { userId, isSignedIn, isLoaded, signOut }.
+ * Uses mock auth when NEXT_PUBLIC_USE_MOCK_AUTH=true, Clerk otherwise.
+ */
+export const useAuth = useMockAuth ? mockUseAuth : clerkUseAuth;
+
+// Keep MockAuthProvider export for backward compatibility
+export { MockAuthProvider } from "./mock-auth-provider";
+
+// ─── Viewer token system (shared, independent of auth backend) ───────────────
+
 export {
   generateShareToken,
   hashToken,
@@ -30,7 +84,8 @@ export type {
   ViewerJwtPayload,
 } from "./viewer";
 
-// Request context
+// ─── Request context (shared) ────────────────────────────────────────────────
+
 export {
   getRequestContext,
   createOwnerContext,
@@ -41,7 +96,8 @@ export {
 } from "./request-context";
 export type { RequestContext, ViewerPermissions } from "./request-context";
 
-// Permissions
+// ─── Permissions (shared) ────────────────────────────────────────────────────
+
 export {
   enforcePermissions,
   enforceScope,
@@ -50,14 +106,16 @@ export {
 } from "./permissions";
 export type { RequestedScope, EffectiveScope } from "./permissions";
 
-// API key resolution for route handlers
+// ─── API key resolution for route handlers (shared) ──────────────────────────
+
 export {
   resolveApiKeyAuth,
   getResolvedContext,
   checkApiKeyRateLimit,
 } from "./resolve-api-key";
 
-// API keys
+// ─── API keys (shared) ──────────────────────────────────────────────────────
+
 export {
   generateApiKey,
   parseApiKey,
