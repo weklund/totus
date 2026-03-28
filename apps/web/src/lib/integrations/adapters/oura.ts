@@ -190,10 +190,12 @@ function buildDateRange(cursor: string | null): {
     return { startDate: cursor, endDate };
   }
 
-  const config = getProvider("oura");
-  const windowDays = config?.sync.historicalWindowDays ?? 30;
+  // Cap initial backfill to 30 days for serverless environments (Vercel).
+  // The full historicalWindowDays (3650) would exceed function timeout/memory.
+  // TODO: Implement chunked backfill for full history.
+  const MAX_INITIAL_DAYS = 30;
   const start = new Date();
-  start.setDate(start.getDate() - windowDays);
+  start.setDate(start.getDate() - MAX_INITIAL_DAYS);
   return { startDate: formatDate(start), endDate };
 }
 
@@ -211,10 +213,11 @@ function buildDatetimeRange(cursor: string | null): {
     return { startDatetime: new Date(cursor).toISOString(), endDatetime };
   }
 
-  const config = getProvider("oura");
-  const windowDays = config?.sync.historicalWindowDays ?? 30;
+  // Cap initial backfill to 7 days for series (high-frequency intraday data).
+  // TODO: Implement chunked backfill for full history.
+  const MAX_INITIAL_SERIES_DAYS = 7;
   const start = new Date();
-  start.setDate(start.getDate() - windowDays);
+  start.setDate(start.getDate() - MAX_INITIAL_SERIES_DAYS);
   return { startDatetime: start.toISOString(), endDatetime };
 }
 
