@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Heart } from "lucide-react";
+import { SignUp } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,11 +17,26 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+const useMockAuth = process.env.NEXT_PUBLIC_USE_MOCK_AUTH === "true";
+
 /**
- * Sign-up page with registration form.
- * Calls the mock auth API and redirects to /dashboard on success.
+ * Sign-up page.
+ * When mock auth is enabled, shows a custom registration form.
+ * When Clerk is active, renders Clerk's <SignUp /> component.
  */
 export default function SignUpPage() {
+  if (!useMockAuth) {
+    return (
+      <div className="bg-muted/50 flex min-h-screen items-center justify-center px-4">
+        <SignUp fallbackRedirectUrl="/dashboard" signInUrl="/sign-in" />
+      </div>
+    );
+  }
+
+  return <MockSignUpForm />;
+}
+
+function MockSignUpForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
