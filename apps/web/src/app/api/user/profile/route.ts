@@ -25,6 +25,7 @@ import {
   checkApiKeyRateLimit,
 } from "@/lib/auth/resolve-api-key";
 import { createErrorResponse, ApiError, validateRequest } from "@/lib/api";
+import { ensureUser } from "@/lib/auth/ensure-user";
 
 // ─── Validation Schemas ─────────────────────────────────────────────────────
 
@@ -57,7 +58,10 @@ export async function GET(request: Request): Promise<NextResponse> {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
 
-    // Fetch user
+    // Ensure user exists in our DB (auto-provisions on first Clerk login)
+    await ensureUser(ctx.userId);
+
+    // Fetch full user record with all fields
     const [user] = await db
       .select()
       .from(users)
