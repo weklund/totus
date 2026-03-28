@@ -65,62 +65,47 @@ export const syncManual = inngest.createFunction(
       return { skipped: true, reason: "connection-not-found" };
     }
 
-    // Each sync step fetches authEnc from DB internally to avoid
-    // serializing large encrypted blobs through Inngest step boundaries.
-    const dailyCursor = await step.run("sync-daily", async () => {
+    // Run all sync + idle in a single step to avoid Inngest output_too_large.
+    await step.run("sync-all", async () => {
       const [conn] = await db
-        .select({ authEnc: providerConnections.authEnc })
+        .select({
+          authEnc: providerConnections.authEnc,
+          dailyCursor: providerConnections.dailyCursor,
+          seriesCursor: providerConnections.seriesCursor,
+          periodsCursor: providerConnections.periodsCursor,
+        })
         .from(providerConnections)
         .where(eq(providerConnections.id, connectionId));
-      if (!conn) return connMeta.dailyCursor;
-      return syncDailyData(
+      if (!conn) return;
+
+      const dc = await syncDailyData(
         connectionId,
         userId,
         provider,
         conn.authEnc,
-        connMeta.dailyCursor,
+        conn.dailyCursor,
       );
-    });
-
-    const seriesCursor = await step.run("sync-series", async () => {
-      const [conn] = await db
-        .select({ authEnc: providerConnections.authEnc })
-        .from(providerConnections)
-        .where(eq(providerConnections.id, connectionId));
-      if (!conn) return connMeta.seriesCursor;
-      return syncSeriesData(
+      const sc = await syncSeriesData(
         connectionId,
         userId,
         provider,
         conn.authEnc,
-        connMeta.seriesCursor,
+        conn.seriesCursor,
       );
-    });
-
-    const periodsCursor = await step.run("sync-periods", async () => {
-      const [conn] = await db
-        .select({ authEnc: providerConnections.authEnc })
-        .from(providerConnections)
-        .where(eq(providerConnections.id, connectionId));
-      if (!conn) return connMeta.periodsCursor;
-      return syncPeriodData(
+      const pc = await syncPeriodData(
         connectionId,
         userId,
         provider,
         conn.authEnc,
-        connMeta.periodsCursor,
+        conn.periodsCursor,
       );
-    });
-
-    // Mark idle with updated cursors
-    await step.run("mark-idle", async () => {
-      return markSyncIdle(connectionId, {
-        dailyCursor,
-        seriesCursor,
-        periodsCursor,
+      await markSyncIdle(connectionId, {
+        dailyCursor: dc,
+        seriesCursor: sc,
+        periodsCursor: pc,
       });
     });
 
-    return { success: true, connectionId, provider };
+    return { success: true };
   },
 );
