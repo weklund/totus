@@ -43,49 +43,48 @@ export const syncInitial = inngest.createFunction(
 
     if (claimed === 0) return { skipped: true, reason: "already-syncing" };
 
-    // Fetch the connection (cursors should be null for initial sync)
-    const connection = await step.run("fetch-connection", async () => {
+    // Verify connection exists (no authEnc — avoid large step output)
+    const connMeta = await step.run("fetch-connection", async () => {
       const [conn] = await db
-        .select()
+        .select({ id: providerConnections.id })
         .from(providerConnections)
         .where(eq(providerConnections.id, connectionId))
         .limit(1);
       return conn ?? null;
     });
 
-    if (!connection) {
+    if (!connMeta) {
       return { skipped: true, reason: "connection-not-found" };
     }
 
-    // Initial sync: cursors are null, adapters start from historicalWindowDays
+    // Initial sync: cursors are null, adapters start from historicalWindowDays.
+    // Each sync step fetches authEnc from DB internally to avoid
+    // serializing large encrypted blobs through Inngest step boundaries.
     const dailyCursor = await step.run("sync-daily", async () => {
-      return syncDailyData(
-        connectionId,
-        userId,
-        provider,
-        connection.authEnc,
-        null, // Start from beginning
-      );
+      const [conn] = await db
+        .select({ authEnc: providerConnections.authEnc })
+        .from(providerConnections)
+        .where(eq(providerConnections.id, connectionId));
+      if (!conn) return null;
+      return syncDailyData(connectionId, userId, provider, conn.authEnc, null);
     });
 
     const seriesCursor = await step.run("sync-series", async () => {
-      return syncSeriesData(
-        connectionId,
-        userId,
-        provider,
-        connection.authEnc,
-        null,
-      );
+      const [conn] = await db
+        .select({ authEnc: providerConnections.authEnc })
+        .from(providerConnections)
+        .where(eq(providerConnections.id, connectionId));
+      if (!conn) return null;
+      return syncSeriesData(connectionId, userId, provider, conn.authEnc, null);
     });
 
     const periodsCursor = await step.run("sync-periods", async () => {
-      return syncPeriodData(
-        connectionId,
-        userId,
-        provider,
-        connection.authEnc,
-        null,
-      );
+      const [conn] = await db
+        .select({ authEnc: providerConnections.authEnc })
+        .from(providerConnections)
+        .where(eq(providerConnections.id, connectionId));
+      if (!conn) return null;
+      return syncPeriodData(connectionId, userId, provider, conn.authEnc, null);
     });
 
     // Mark idle with initial cursors
