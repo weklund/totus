@@ -214,22 +214,25 @@ function addSecurityHeaders(response: NextResponse): void {
     "Strict-Transport-Security",
     "max-age=63072000; includeSubDomains; preload",
   );
-  // T-11: Strict CSP — no unsafe-inline/unsafe-eval for script-src.
-  // 'strict-dynamic' allows scripts loaded by trusted scripts (e.g., Next.js chunks).
-  // style-src keeps 'unsafe-inline' because Next.js/Tailwind injects styles at runtime.
-  // connect-src allows Clerk and Inngest communication in production.
+  // T-11: CSP — tightened from the original unsafe-eval but permissive enough
+  // for Next.js and Clerk to function. Next.js requires 'unsafe-inline' for
+  // inline scripts without nonce propagation. 'unsafe-eval' is NOT included.
+  // connect-src whitelists Clerk (*.clerk.com, *.clerk.accounts.dev, *.clerk.dev)
+  // and Inngest for background job communication.
   response.headers.set(
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'strict-dynamic'",
+      "script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.dev https://*.clerk.com",
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.dev https://*.inngest.com",
+      "connect-src 'self' https://*.clerk.accounts.dev https://*.clerk.dev https://*.clerk.com https://*.inngest.com",
+      "worker-src 'self' blob:",
+      "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.dev https://*.clerk.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
-      "form-action 'self'",
+      "form-action 'self' https://*.clerk.accounts.dev https://*.clerk.dev https://*.clerk.com",
     ].join("; "),
   );
 }
