@@ -281,11 +281,24 @@ export class OuraAdapter implements ProviderAdapter {
     });
 
     if (!response.ok) {
+      const retryAfter = response.headers.get("Retry-After");
+      const bodyText = await response.text().catch(() => "");
+
+      // Log all non-OK responses for diagnostics
+      console.warn(
+        `Oura API ${response.status} ${response.statusText} for ${path}: ${bodyText.slice(0, 200)}`,
+      );
+
+      // Non-fatal errors: return null (treated as "no data" by fetchAllPages)
       // 404 = endpoint not available for this user/device (e.g., no SpO2 sensor)
-      if (response.status === 404) {
+      // 403 = scope not granted or feature not available for user's subscription
+      if (response.status === 404 || response.status === 403) {
         return null as T;
       }
-      const retryAfter = response.headers.get("Retry-After");
+
+      // 429 = rate limited — throw with retry-after so Inngest can retry
+      // 401 = token expired — throw so sync-helpers can mark connection expired
+      // 5xx = server error — throw for Inngest retry
       throw new OuraApiError(
         response.status,
         response.statusText,
@@ -528,7 +541,21 @@ export class OuraAdapter implements ProviderAdapter {
 
     const dateParams = { start_date: startDate, end_date: endDate };
 
-    // Fetch all needed endpoints in parallel
+    // Fetch all needed endpoints in parallel. Each is wrapped in a try/catch
+    // so one failing endpoint doesn't abort the entire sync.
+    const safeFetch = async <T>(
+      path: string,
+      shouldFetch: boolean,
+    ): Promise<{ data: T[]; nextToken: string | null } | null> => {
+      if (!shouldFetch) return null;
+      try {
+        return await this.fetchAllPages<T>(path, auth, dateParams);
+      } catch (err) {
+        console.warn(`Oura fetch failed for ${path}:`, err);
+        return null;
+      }
+    };
+
     const [
       dailySleepResult,
       sleepResult,
@@ -536,41 +563,26 @@ export class OuraAdapter implements ProviderAdapter {
       activityResult,
       spo2Result,
     ] = await Promise.all([
-      dailySleepMetrics.length > 0
-        ? this.fetchAllPages<OuraDailySleep>(
-            "/v2/usercollection/daily_sleep",
-            auth,
-            dateParams,
-          )
-        : null,
-      sleepMetrics.length > 0
-        ? this.fetchAllPages<OuraSleepRecord>(
-            "/v2/usercollection/sleep",
-            auth,
-            dateParams,
-          )
-        : null,
-      readinessMetrics.length > 0
-        ? this.fetchAllPages<OuraDailyReadiness>(
-            "/v2/usercollection/daily_readiness",
-            auth,
-            dateParams,
-          )
-        : null,
-      activityMetrics.length > 0
-        ? this.fetchAllPages<OuraDailyActivity>(
-            "/v2/usercollection/daily_activity",
-            auth,
-            dateParams,
-          )
-        : null,
-      spo2Metrics.length > 0
-        ? this.fetchAllPages<OuraDailySpo2>(
-            "/v2/usercollection/daily_spo2",
-            auth,
-            dateParams,
-          )
-        : null,
+      safeFetch<OuraDailySleep>(
+        "/v2/usercollection/daily_sleep",
+        dailySleepMetrics.length > 0,
+      ),
+      safeFetch<OuraSleepRecord>(
+        "/v2/usercollection/sleep",
+        sleepMetrics.length > 0,
+      ),
+      safeFetch<OuraDailyReadiness>(
+        "/v2/usercollection/daily_readiness",
+        readinessMetrics.length > 0,
+      ),
+      safeFetch<OuraDailyActivity>(
+        "/v2/usercollection/daily_activity",
+        activityMetrics.length > 0,
+      ),
+      safeFetch<OuraDailySpo2>(
+        "/v2/usercollection/daily_spo2",
+        spo2Metrics.length > 0,
+      ),
     ]);
 
     // ── Process daily_sleep endpoint ──
@@ -868,22 +880,29 @@ export class OuraAdapter implements ProviderAdapter {
       end_datetime: endDatetime,
     };
 
-    // Fetch endpoints in parallel
+    // Fetch endpoints in parallel with per-endpoint error handling
+    const safeFetchSeries = async <T>(
+      path: string,
+      shouldFetch: boolean,
+    ): Promise<{ data: T[]; nextToken: string | null } | null> => {
+      if (!shouldFetch) return null;
+      try {
+        return await this.fetchAllPages<T>(path, auth, datetimeParams);
+      } catch (err) {
+        console.warn(`Oura series fetch failed for ${path}:`, err);
+        return null;
+      }
+    };
+
     const [heartRateResult, spo2Result] = await Promise.all([
-      validMetrics.includes("heart_rate")
-        ? this.fetchAllPages<OuraHeartRate>(
-            "/v2/usercollection/heartrate",
-            auth,
-            datetimeParams,
-          )
-        : null,
-      validMetrics.includes("spo2_interval")
-        ? this.fetchAllPages<OuraSpo2Reading>(
-            "/v2/usercollection/spo2",
-            auth,
-            datetimeParams,
-          )
-        : null,
+      safeFetchSeries<OuraHeartRate>(
+        "/v2/usercollection/heartrate",
+        validMetrics.includes("heart_rate"),
+      ),
+      safeFetchSeries<OuraSpo2Reading>(
+        "/v2/usercollection/spo2",
+        validMetrics.includes("spo2_interval"),
+      ),
     ]);
 
     // ── Process heart rate series ──
@@ -939,22 +958,29 @@ export class OuraAdapter implements ProviderAdapter {
     const dateParams = { start_date: startDate, end_date: endDate };
     const periods: PeriodEvent[] = [];
 
-    // Fetch endpoints in parallel
+    // Fetch endpoints in parallel with per-endpoint error handling
+    const safeFetchPeriod = async <T>(
+      path: string,
+      shouldFetch: boolean,
+    ): Promise<{ data: T[]; nextToken: string | null } | null> => {
+      if (!shouldFetch) return null;
+      try {
+        return await this.fetchAllPages<T>(path, auth, dateParams);
+      } catch (err) {
+        console.warn(`Oura period fetch failed for ${path}:`, err);
+        return null;
+      }
+    };
+
     const [sleepResult, workoutResult] = await Promise.all([
-      validTypes.includes("sleep_stage")
-        ? this.fetchAllPages<OuraSleepRecord>(
-            "/v2/usercollection/sleep",
-            auth,
-            dateParams,
-          )
-        : null,
-      validTypes.includes("workout")
-        ? this.fetchAllPages<OuraWorkout>(
-            "/v2/usercollection/workout",
-            auth,
-            dateParams,
-          )
-        : null,
+      safeFetchPeriod<OuraSleepRecord>(
+        "/v2/usercollection/sleep",
+        validTypes.includes("sleep_stage"),
+      ),
+      safeFetchPeriod<OuraWorkout>(
+        "/v2/usercollection/workout",
+        validTypes.includes("workout"),
+      ),
     ]);
 
     // ── Parse sleep stages from all sleep sessions ──
