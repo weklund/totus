@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/auth/server";
 import { ViewContextProvider } from "@/lib/view-context";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import type { ViewContextValue } from "@/types/view-context";

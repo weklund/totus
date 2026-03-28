@@ -23,7 +23,11 @@ import { db } from "@/db";
 import { shareGrants, auditEvents, users } from "@/db/schema";
 import { createErrorResponse, ApiError, validateRequest } from "@/lib/api";
 import { validationRateLimiter, createRateLimitResponse } from "@/lib/api";
-import { hashToken, issueViewerJwt, VIEWER_COOKIE_CONFIG } from "@/lib/auth";
+import {
+  hashToken,
+  issueViewerJwt,
+  VIEWER_COOKIE_CONFIG,
+} from "@/lib/auth/viewer";
 
 // ─── Validation Schema ──────────────────────────────────────────────────────
 
