@@ -281,6 +281,10 @@ export class OuraAdapter implements ProviderAdapter {
     });
 
     if (!response.ok) {
+      // 404 = endpoint not available for this user/device (e.g., no SpO2 sensor)
+      if (response.status === 404) {
+        return null as T;
+      }
       const retryAfter = response.headers.get("Retry-After");
       throw new OuraApiError(
         response.status,
@@ -306,11 +310,14 @@ export class OuraAdapter implements ProviderAdapter {
     const params = { ...baseParams };
 
     while (true) {
-      const response = await this.ouraGet<OuraPaginatedResponse<T>>(
+      const response = await this.ouraGet<OuraPaginatedResponse<T> | null>(
         path,
         auth,
         params,
       );
+
+      // null = 404, endpoint not available for this user/device
+      if (!response) break;
 
       if (response.data) {
         allData.push(...response.data);
