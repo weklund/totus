@@ -187,7 +187,12 @@ function buildDateRange(cursor: string | null): {
   const endDate = formatDate(today);
 
   if (cursor) {
-    return { startDate: cursor, endDate };
+    // Back up by correctionWindowDays (3) to catch Oura's retroactive
+    // reprocessing of sleep scores, HRV, and readiness.
+    const correctionDays = getProvider("oura")?.sync.correctionWindowDays ?? 3;
+    const cursorDate = new Date(cursor);
+    cursorDate.setDate(cursorDate.getDate() - correctionDays);
+    return { startDate: formatDate(cursorDate), endDate };
   }
 
   // Cap initial backfill to 30 days for serverless environments (Vercel).
@@ -853,7 +858,8 @@ export class OuraAdapter implements ProviderAdapter {
       }
     }
 
-    return { points, nextCursor: null };
+    // Set cursor to today so next sync only fetches new data
+    return { points, nextCursor: endDate };
   }
 
   async fetchSeriesData(
@@ -935,7 +941,8 @@ export class OuraAdapter implements ProviderAdapter {
       }
     }
 
-    return { readings, nextCursor: null };
+    // Set cursor to now so next sync only fetches new data
+    return { readings, nextCursor: endDatetime };
   }
 
   async fetchPeriods(
@@ -1056,7 +1063,8 @@ export class OuraAdapter implements ProviderAdapter {
       }
     }
 
-    return { periods, nextCursor: null };
+    // Set cursor to today so next sync only fetches new data
+    return { periods, nextCursor: endDate };
   }
 
   // ─── Helper: longest sleep per day ──────────────────────
