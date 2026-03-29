@@ -18,6 +18,7 @@
     "db:seed": "dotenv -e .env.local -- tsx src/db/seed.ts"
   },
   "dependencies": {
+    "@totus/design-system": "workspace:*",
     "@clerk/nextjs": "^7.0.6",
     "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-query": "^5.90.21",

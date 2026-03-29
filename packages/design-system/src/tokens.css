@@ -1,0 +1,45 @@
+/**
+ * Totus Design System — Brand Tokens
+ * Raw CSS custom properties. No framework dependency.
+ * Import this in any CSS file to access the Totus brand values.
+ */
+
+:root {
+  /* ── Colors ── */
+  --totus-ocean: #1e5b7b;
+  --totus-ocean-rgb: 30 91 123;
+  --totus-emerald: #2fa87b;
+  --totus-emerald-rgb: 47 168 123;
+  --totus-coral: #e8845a;
+  --totus-coral-rgb: 232 132 90;
+  --totus-ink: #1a2332;
+  --totus-ink-rgb: 26 35 50;
+  --totus-slate: #64748b;
+  --totus-mist: #e2e8f0;
+  --totus-cloud: #f8f9fb;
+  --totus-white: #ffffff;
+
+  /* Tints (for hover/subtle backgrounds) */
+  --totus-ocean-tint: #e8f2f8;
+  --totus-emerald-tint: #e8f4f0;
+  --totus-coral-tint: #fdf0eb;
+
+  /* ── Typography ── */
+  --totus-font-sans: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --totus-font-mono: 'DM Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  /* ── Border radius ── */
+  --totus-radius: 0.5rem;       /* 8px  — cards, containers */
+  --totus-radius-sm: 0.375rem;  /* 6px  — inputs, default buttons */
+  --totus-radius-pill: 1.5rem;  /* 24px — CTA pill buttons */
+  --totus-radius-badge: 0.25rem; /* 4px — badges, tags */
+  --totus-radius-icon: 0.875rem; /* 14px — app icon */
+
+  /* ── Shadows (Ocean-tinted) ── */
+  --totus-shadow-sm: 0 1px 3px rgb(var(--totus-ocean-rgb) / 0.06),
+    0 4px 12px rgb(var(--totus-ocean-rgb) / 0.06);
+  --totus-shadow-md: 0 4px 16px rgb(var(--totus-ocean-rgb) / 0.10),
+    0 1px 4px rgb(var(--totus-ocean-rgb) / 0.06);
+  --totus-shadow-lg: 0 8px 32px rgb(var(--totus-ocean-rgb) / 0.14),
+    0 2px 8px rgb(var(--totus-ocean-rgb) / 0.08);
+}

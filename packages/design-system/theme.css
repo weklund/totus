@@ -1,0 +1,35 @@
+/**
+ * Totus Design System — Tailwind CSS v4 Theme
+ * Registers Totus brand tokens as Tailwind utility classes.
+ *
+ * Usage in globals.css:
+ *   @import "@totus/design-system/tokens.css";
+ *   @import "@totus/design-system/theme.css";
+ *
+ * Then use utilities like: text-brand-ocean, bg-brand-emerald, shadow-brand-sm
+ */
+
+@import "./tokens.css";
+
+@theme {
+  /* Brand colors → Tailwind utilities: bg-brand-*, text-brand-*, border-brand-* */
+  --color-brand-ocean: var(--totus-ocean);
+  --color-brand-emerald: var(--totus-emerald);
+  --color-brand-coral: var(--totus-coral);
+  --color-brand-ink: var(--totus-ink);
+  --color-brand-slate: var(--totus-slate);
+  --color-brand-mist: var(--totus-mist);
+  --color-brand-cloud: var(--totus-cloud);
+  --color-brand-ocean-tint: var(--totus-ocean-tint);
+  --color-brand-emerald-tint: var(--totus-emerald-tint);
+  --color-brand-coral-tint: var(--totus-coral-tint);
+
+  /* Fonts → Tailwind utilities: font-sans (overrides default), font-mono */
+  --font-sans: var(--totus-font-sans);
+  --font-mono: var(--totus-font-mono);
+
+  /* Shadows → Tailwind utilities: shadow-brand-sm, shadow-brand-md, shadow-brand-lg */
+  --shadow-brand-sm: var(--totus-shadow-sm);
+  --shadow-brand-md: var(--totus-shadow-md);
+  --shadow-brand-lg: var(--totus-shadow-lg);
+}
