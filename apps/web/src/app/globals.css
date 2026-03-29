@@ -116,115 +116,71 @@
 
 @layer base {
   :root {
-    /* ── Totus light theme ── */
-    --background: var(--totus-cloud);
-    --foreground: var(--totus-ink);
+    /* ── Semantic tokens from @totus/design-system ──
+       These flip automatically in .dark via tokens.css,
+       so most dark-mode overrides are no longer needed here. */
+    --background: var(--totus-background);
+    --foreground: var(--totus-text);
 
-    --card: var(--totus-white);
-    --card-foreground: var(--totus-ink);
+    --card: var(--totus-surface);
+    --card-foreground: var(--totus-text);
 
-    --popover: var(--totus-white);
-    --popover-foreground: var(--totus-ink);
+    --popover: var(--totus-surface);
+    --popover-foreground: var(--totus-text);
 
-    --primary: var(--totus-ocean);
-    --primary-foreground: var(--totus-white);
+    --primary: var(--totus-primary);
+    --primary-foreground: var(--totus-primary-foreground);
 
     --secondary: var(--totus-emerald-tint);
-    --secondary-foreground: var(--totus-ink);
+    --secondary-foreground: var(--totus-text);
 
-    --muted: var(--totus-cloud);
-    --muted-foreground: var(--totus-slate);
+    --muted: var(--totus-surface-muted);
+    --muted-foreground: var(--totus-text-muted);
 
-    --accent: var(--totus-emerald);
-    --accent-foreground: var(--totus-white);
+    --accent: var(--totus-success);
+    --accent-foreground: var(--totus-success-foreground);
 
     --destructive: oklch(0.577 0.245 27.325);
     --destructive-foreground: var(--totus-white);
 
-    --border: var(--totus-mist);
-    --input: var(--totus-mist);
-    --ring: var(--totus-ocean);
+    --border: var(--totus-border-color);
+    --input: var(--totus-border-color);
+    --ring: var(--totus-primary);
 
     /* ── Chart colors ── */
     --chart-1: var(--totus-emerald);
-    --chart-2: var(--totus-ocean);
+    --chart-2: var(--totus-primary);
     --chart-3: var(--totus-coral);
-    --chart-4: var(--totus-slate);
-    --chart-5: var(--totus-ink);
+    --chart-4: var(--totus-text-muted);
+    --chart-5: var(--totus-text);
 
     --radius: var(--totus-radius);
 
     /* ── Sidebar ── */
-    --sidebar-background: var(--totus-white);
-    --sidebar-foreground: var(--totus-ink);
-    --sidebar-primary: var(--totus-ocean);
-    --sidebar-primary-foreground: var(--totus-white);
+    --sidebar-background: var(--totus-surface);
+    --sidebar-foreground: var(--totus-text);
+    --sidebar-primary: var(--totus-primary);
+    --sidebar-primary-foreground: var(--totus-primary-foreground);
     --sidebar-accent: var(--totus-emerald-tint);
-    --sidebar-accent-foreground: var(--totus-ink);
-    --sidebar-border: var(--totus-mist);
-    --sidebar-ring: var(--totus-ocean);
+    --sidebar-accent-foreground: var(--totus-text);
+    --sidebar-border: var(--totus-border-color);
+    --sidebar-ring: var(--totus-primary);
 
     /* ── Chart chrome ── */
-    --chart-grid: var(--totus-mist);
-    --chart-axis-label: var(--totus-slate);
-    --chart-tooltip-bg: var(--totus-white);
-    --chart-tooltip-border: var(--totus-mist);
-    --chart-tooltip-text: var(--totus-ink);
+    --chart-grid: var(--totus-border-color);
+    --chart-axis-label: var(--totus-text-muted);
+    --chart-tooltip-bg: var(--totus-surface);
+    --chart-tooltip-border: var(--totus-border-color);
+    --chart-tooltip-text: var(--totus-text);
   }
 
   .dark {
-    /* ── Totus dark theme ── */
-    --background: #0f1824;
-    --foreground: var(--totus-cloud);
-
-    --card: var(--totus-ink);
-    --card-foreground: var(--totus-cloud);
-
-    --popover: var(--totus-ink);
-    --popover-foreground: var(--totus-cloud);
-
-    --primary: #5ba3c9;
-    --primary-foreground: #0f1824;
-
-    --secondary: #1e2d3d;
-    --secondary-foreground: var(--totus-cloud);
-
-    --muted: #1e2d3d;
-    --muted-foreground: #94a3b8;
-
-    --accent: var(--totus-emerald);
-    --accent-foreground: var(--totus-white);
-
+    /* Only overrides that don't map to a design-system semantic token.
+       Everything else (primary, background, text, border, etc.) flips
+       automatically via @totus/design-system/tokens.css .dark block. */
+    --secondary: var(--totus-surface-muted);
+    --sidebar-accent: var(--totus-surface-muted);
     --destructive: oklch(0.396 0.141 25.723);
-    --destructive-foreground: var(--totus-white);
-
-    --border: #2a3a4a;
-    --input: #2a3a4a;
-    --ring: #5ba3c9;
-
-    /* ── Chart colors (dark) ── */
-    --chart-1: var(--totus-emerald);
-    --chart-2: #5ba3c9;
-    --chart-3: var(--totus-coral);
-    --chart-4: #94a3b8;
-    --chart-5: var(--totus-cloud);
-
-    /* ── Sidebar (dark) ── */
-    --sidebar-background: var(--totus-ink);
-    --sidebar-foreground: var(--totus-cloud);
-    --sidebar-primary: #5ba3c9;
-    --sidebar-primary-foreground: #0f1824;
-    --sidebar-accent: #1e2d3d;
-    --sidebar-accent-foreground: var(--totus-cloud);
-    --sidebar-border: #2a3a4a;
-    --sidebar-ring: #5ba3c9;
-
-    /* ── Chart chrome (dark) ── */
-    --chart-grid: #2a3a4a;
-    --chart-axis-label: #94a3b8;
-    --chart-tooltip-bg: var(--totus-ink);
-    --chart-tooltip-border: #2a3a4a;
-    --chart-tooltip-text: var(--totus-cloud);
   }
 }
 

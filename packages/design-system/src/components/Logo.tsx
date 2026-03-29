@@ -33,6 +33,7 @@ export function SignalBars({ height = 28, variant = 'color', className }: Signal
     // In dark mode (.dark ancestor): bars use white opacity progression.
     return (
       <svg
+        data-totus-logo
         width={width}
         height={height}
         viewBox="0 0 36 28"
@@ -98,7 +99,7 @@ interface LogoProps {
  */
 export function Logo({ height = 28, variant = 'color', wordmark = true, className }: LogoProps) {
   // Gap between icon and wordmark derived from spacing scale (space-2 = 8px is ~30% of 28px default)
-  const gapPx = parseInt(spacing['2'], 10) * 16; // 0.5rem → ~8px
+  const gapPx = parseFloat(spacing['2']) * 16; // 0.5rem → 8px
   const wordmarkSize = Math.round(height * 0.8);
 
   const wordmarkColor =
