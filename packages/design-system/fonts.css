@@ -1,7 +1,0 @@
-/**
- * Totus Design System — Fonts
- * Imports DM Sans and DM Mono from Google Fonts.
- * Import this once at the top of your root CSS file.
- */
-
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400&display=swap');

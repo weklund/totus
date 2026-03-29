@@ -6,13 +6,18 @@
  *   @import "@totus/design-system/tokens.css";
  *   @import "@totus/design-system/theme.css";
  *
- * Then use utilities like: text-brand-ocean, bg-brand-emerald, shadow-brand-sm
+ * Utilities this enables:
+ *   bg-brand-ocean, text-brand-emerald, border-brand-coral
+ *   bg-semantic-background, text-semantic-text-muted
+ *   font-sans (DM Sans), font-mono (DM Mono)
+ *   shadow-brand-sm / md / lg
+ *   space-totus-4 (via spacing utilities)
  */
 
 @import "./tokens.css";
 
 @theme {
-  /* Brand colors → Tailwind utilities: bg-brand-*, text-brand-*, border-brand-* */
+  /* ── Appearance colors → bg-brand-*, text-brand-*, border-brand-* ── */
   --color-brand-ocean: var(--totus-ocean);
   --color-brand-emerald: var(--totus-emerald);
   --color-brand-coral: var(--totus-coral);
@@ -24,11 +29,25 @@
   --color-brand-emerald-tint: var(--totus-emerald-tint);
   --color-brand-coral-tint: var(--totus-coral-tint);
 
-  /* Fonts → Tailwind utilities: font-sans (overrides default), font-mono */
+  /* ── Semantic colors → bg-semantic-primary, text-semantic-text-muted, etc. ── */
+  --color-semantic-primary: var(--totus-primary);
+  --color-semantic-primary-fg: var(--totus-primary-foreground);
+  --color-semantic-cta: var(--totus-cta);
+  --color-semantic-cta-fg: var(--totus-cta-foreground);
+  --color-semantic-success: var(--totus-success);
+  --color-semantic-danger: var(--totus-danger);
+  --color-semantic-background: var(--totus-background);
+  --color-semantic-surface: var(--totus-surface);
+  --color-semantic-surface-muted: var(--totus-surface-muted);
+  --color-semantic-text: var(--totus-text);
+  --color-semantic-text-muted: var(--totus-text-muted);
+  --color-semantic-border: var(--totus-border-color);
+
+  /* ── Fonts → font-sans (overrides Tailwind default), font-mono ── */
   --font-sans: var(--totus-font-sans);
   --font-mono: var(--totus-font-mono);
 
-  /* Shadows → Tailwind utilities: shadow-brand-sm, shadow-brand-md, shadow-brand-lg */
+  /* ── Shadows → shadow-brand-sm / md / lg ── */
   --shadow-brand-sm: var(--totus-shadow-sm);
   --shadow-brand-md: var(--totus-shadow-md);
   --shadow-brand-lg: var(--totus-shadow-lg);

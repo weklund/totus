@@ -4,9 +4,9 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
-    "./tokens.css": "./tokens.css",
-    "./fonts.css": "./fonts.css",
-    "./theme.css": "./theme.css"
+    "./tokens.css": "./src/tokens.css",
+    "./fonts.css": "./src/fonts.css",
+    "./theme.css": "./src/theme.css"
   },
   "peerDependencies": {
     "react": ">=18",
