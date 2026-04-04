@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
-import type { NextMiddleware } from "next/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import type { RequestContext } from "@/lib/auth/request-context";
 
 /**
@@ -443,21 +443,10 @@ async function mockMiddleware(request: NextRequest): Promise<NextResponse> {
  * from the auth object and pass it to coreMiddleware, which handles
  * API key auth, viewer JWT auth, route protection, and security headers.
  */
-// Lazily initialized to avoid importing @clerk/nextjs/server when using mock auth.
-// Clerk's module-level initialization can fail in environments where Clerk
-// env vars are not configured (e.g. Preview deploys using mock auth).
-let clerkMw: NextMiddleware | null = null;
-
-async function getClerkMiddleware(): Promise<NextMiddleware> {
-  if (!clerkMw) {
-    const { clerkMiddleware } = await import("@clerk/nextjs/server");
-    clerkMw = clerkMiddleware(async (auth, request) => {
-      const { userId } = await auth();
-      return coreMiddleware(request, userId);
-    }) as NextMiddleware;
-  }
-  return clerkMw;
-}
+const clerkMw = clerkMiddleware(async (auth, request) => {
+  const { userId } = await auth();
+  return coreMiddleware(request, userId);
+});
 
 // ─── Export ─────────────────────────────────────────────────────────────────
 
@@ -468,8 +457,7 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // clerkMiddleware returns NextMiddleware; invoke it and coerce the result.
   // Our coreMiddleware always returns a NextResponse, so the result is always
   // a NextResponse, but clerkMiddleware's type signature is wider.
-  const mw = await getClerkMiddleware();
-  const result = await mw(request, {} as never);
+  const result = await clerkMw(request, {} as never);
   return (result as NextResponse) ?? NextResponse.next();
 }
 
