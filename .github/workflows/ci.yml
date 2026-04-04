@@ -85,6 +85,11 @@ jobs:
         run: |
           psql "$DATABASE_URL" -f docker/init/01-extensions.sql
           psql "$DATABASE_URL" -f apps/web/drizzle/0001_audit_immutability.sql
+          # drizzle-kit push creates these as regular tables; drop them so the
+          # migration can recreate them with partitioning, GIST indexes, etc.
+          psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS health_data_series CASCADE;"
+          psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS health_data_periods CASCADE;"
+          psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS metric_source_preferences CASCADE;"
           psql "$DATABASE_URL" -f apps/web/drizzle/0002_multi_provider_schema.sql
 
       - name: Run tests
