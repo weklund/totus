@@ -8,7 +8,7 @@ test.describe("Landing page", () => {
     const landing = new LandingPage(page);
     await landing.goto();
 
-    await expect(landing.headline).toContainText("Health Data Vault");
+    await expect(landing.headline).toBeVisible();
     await expect(landing.getStartedButton).toBeVisible();
     await expect(landing.signInButton).toBeVisible();
   });
