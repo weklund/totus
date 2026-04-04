@@ -81,6 +81,12 @@ jobs:
       - name: Push database schema
         run: cd apps/web && bunx drizzle-kit push
 
+      - name: Apply custom SQL migrations
+        run: |
+          psql "$DATABASE_URL" -f docker/init/01-extensions.sql
+          psql "$DATABASE_URL" -f apps/web/drizzle/0001_audit_immutability.sql
+          psql "$DATABASE_URL" -f apps/web/drizzle/0002_multi_provider_schema.sql
+
       - name: Run tests
         run: bun run --filter '*' test
 
