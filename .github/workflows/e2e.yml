@@ -11,7 +11,7 @@ jobs:
     # Only run on successful preview deployments
     if: >-
       github.event.deployment_status.state == 'success' &&
-      github.event.deployment_status.environment == 'Preview'
+      github.event.deployment_status.environment == 'Preview – totus-web'
     timeout-minutes: 15
     runs-on: ubuntu-latest
 
