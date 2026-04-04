@@ -18,14 +18,15 @@
     "db:seed": "dotenv -e .env.local -- tsx src/db/seed.ts"
   },
   "dependencies": {
-    "@totus/design-system": "workspace:*",
     "@clerk/nextjs": "^7.0.6",
     "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-query": "^5.90.21",
+    "@totus/design-system": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.45.1",
+    "framer-motion": "^12.38.0",
     "inngest": "3",
     "jose": "^6.2.1",
     "lucide-react": "^0.577.0",
