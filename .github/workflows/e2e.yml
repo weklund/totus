@@ -36,7 +36,7 @@ jobs:
         run: |
           echo "Waiting for $PLAYWRIGHT_BASE_URL to respond..."
           for i in $(seq 1 30); do
-            if curl -sf -o /dev/null "$PLAYWRIGHT_BASE_URL"; then
+            if curl -sf -o /dev/null -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" "$PLAYWRIGHT_BASE_URL"; then
               echo "Preview is ready!"
               exit 0
             fi
