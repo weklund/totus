@@ -17,6 +17,12 @@ coverage/
 # vercel
 .vercel
 
+# playwright
+e2e/.auth/
+test-results/
+blob-report/
+playwright-report/
+
 # misc
 *.pem
 .DS_Store

@@ -81,13 +81,42 @@ jobs:
       - name: Push database schema
         run: cd apps/web && bunx drizzle-kit push
 
+      - name: Apply custom SQL migrations
+        run: |
+          psql "$DATABASE_URL" -f docker/init/01-extensions.sql
+          psql "$DATABASE_URL" -f apps/web/drizzle/0001_audit_immutability.sql
+          # drizzle-kit push creates these as regular tables; drop them so the
+          # migration can recreate them with partitioning, GIST indexes, etc.
+          psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS health_data_series CASCADE;"
+          psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS health_data_periods CASCADE;"
+          psql "$DATABASE_URL" -c "DROP TABLE IF EXISTS metric_source_preferences CASCADE;"
+          psql "$DATABASE_URL" -f apps/web/drizzle/0002_multi_provider_schema.sql
+
       - name: Run tests
         run: bun run --filter '*' test
 
   build:
     name: Build
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: totus
+          POSTGRES_PASSWORD: totus
+          POSTGRES_DB: totus
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U totus"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
+      DATABASE_URL: postgresql://totus:totus@localhost:5432/totus
+      ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      MOCK_AUTH_SECRET: ci-mock-auth-secret
+      VIEWER_JWT_SECRET: ci-viewer-jwt-secret
       NEXT_PUBLIC_USE_MOCK_AUTH: "true"
       NEXT_PUBLIC_APP_URL: http://localhost:3000
     steps:
@@ -99,6 +128,9 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Push database schema
+        run: cd apps/web && bunx drizzle-kit push
 
       - name: Build all packages
         run: bun run --filter '*' build
