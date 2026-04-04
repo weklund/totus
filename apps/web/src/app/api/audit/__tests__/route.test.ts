@@ -349,8 +349,16 @@ describe("GET /api/audit", () => {
     });
 
     it("filters by date range", async () => {
+      // Use dynamic dates so the test works regardless of when it runs
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), 1)
+        .toISOString()
+        .slice(0, 10);
+      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+        .toISOString()
+        .slice(0, 10);
       const request = createAuthRequest(
-        `http://localhost:3000/api/audit?start=2026-03-01&end=2026-03-31`,
+        `http://localhost:3000/api/audit?start=${start}&end=${end}`,
         TEST_USER_ID,
       );
       const response = await auditGET(request);

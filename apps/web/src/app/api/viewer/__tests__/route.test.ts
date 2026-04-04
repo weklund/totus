@@ -34,7 +34,7 @@ let validatePOST: typeof import("../validate/route").POST;
 let viewerDataGET: typeof import("../data/route").GET;
 
 // Auth helpers
-let hashToken: typeof import("@/lib/auth").hashToken;
+let hashToken: typeof import("@/lib/auth/viewer").hashToken;
 
 // Encryption
 let createEncryptionProvider: typeof import("@/lib/encryption").createEncryptionProvider;
@@ -73,7 +73,7 @@ beforeAll(async () => {
   auditEvents = schema.auditEvents;
   healthData = schema.healthData;
 
-  const authModule = await import("@/lib/auth");
+  const authModule = await import("@/lib/auth/viewer");
   hashToken = authModule.hashToken;
 
   const encModule = await import("@/lib/encryption");
