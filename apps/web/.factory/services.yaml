@@ -8,6 +8,7 @@ commands:
   db_generate: cd /Users/weae1504/Projects/totus/apps/web && npm run db:generate
   db_push: cd /Users/weae1504/Projects/totus/apps/web && npm run db:push
   db_seed: cd /Users/weae1504/Projects/totus/apps/web && npm run db:seed
+  db_seed_dashboard: cd /Users/weae1504/Projects/totus/apps/web && npm run db:seed-dashboard
 
 services:
   postgres:
@@ -25,7 +26,7 @@ services:
     depends_on: [postgres]
 
   inngest:
-    start: npx inngest-cli dev --no-discovery --port 8288
+    start: cd /Users/weae1504/Projects/totus/apps/web && npx inngest-cli dev -u http://localhost:3100/api/inngest --port 8288
     stop: lsof -ti :8288 | xargs kill
     healthcheck: curl -sf http://localhost:8288
     port: 8288
