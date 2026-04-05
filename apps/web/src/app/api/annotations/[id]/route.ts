@@ -18,6 +18,7 @@ import {
   getResolvedContext,
   checkApiKeyRateLimit,
 } from "@/lib/auth/resolve-api-key";
+import { enforceScope } from "@/lib/auth/permissions";
 import { createErrorResponse, ApiError, validateRequest } from "@/lib/api";
 import { createEncryptionProvider } from "@/lib/encryption";
 
@@ -66,6 +67,11 @@ export async function PATCH(
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
+    }
+
+    // If authenticated via API key, require health:write scope
+    if (ctx.authMethod === "api_key") {
+      enforceScope(ctx, "health:write");
     }
 
     const { id: idStr } = await context.params;
@@ -227,6 +233,11 @@ export async function DELETE(
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
+    }
+
+    // If authenticated via API key, require health:write scope
+    if (ctx.authMethod === "api_key") {
+      enforceScope(ctx, "health:write");
     }
 
     const { id: idStr } = await context.params;

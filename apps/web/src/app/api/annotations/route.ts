@@ -17,6 +17,11 @@ import {
   getResolvedContext,
   checkApiKeyRateLimit,
 } from "@/lib/auth/resolve-api-key";
+import {
+  enforceScope,
+  enforcePermissions,
+  PermissionError,
+} from "@/lib/auth/permissions";
 import { createErrorResponse, ApiError, validateRequest } from "@/lib/api";
 import { createEncryptionProvider } from "@/lib/encryption";
 import { fetchMergedAnnotations } from "@/lib/dashboard/annotations";
@@ -76,6 +81,11 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     if (ctx.role !== "owner" || !ctx.userId) {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
+    }
+
+    // If authenticated via API key, require health:write scope
+    if (ctx.authMethod === "api_key") {
+      enforceScope(ctx, "health:write");
     }
 
     // Parse and validate body
@@ -181,6 +191,11 @@ export async function GET(request: Request): Promise<NextResponse> {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
 
+    // If authenticated via API key, require health:read scope
+    if (ctx.authMethod === "api_key") {
+      enforceScope(ctx, "health:read");
+    }
+
     // Parse query parameters
     const url = new URL(request.url);
     const queryParams = {
@@ -203,10 +218,10 @@ export async function GET(request: Request): Promise<NextResponse> {
       );
     }
 
-    const { start, end, event_type } = parsed.data;
+    const { start: rawStart, end: rawEnd, event_type } = parsed.data;
 
     // Validate end >= start
-    if (end < start) {
+    if (rawEnd < rawStart) {
       throw new ApiError(
         "VALIDATION_ERROR",
         "end must be on or after start",
@@ -215,17 +230,36 @@ export async function GET(request: Request): Promise<NextResponse> {
       );
     }
 
-    // Compute the datetime range for querying
-    const startDate = `${start}T00:00:00.000Z`;
-    const endDate = `${end}T23:59:59.999Z`;
-
-    // Determine viewer metrics for scoping
-    const encryption = createEncryptionProvider();
+    // Enforce permissions — clamp date range for viewers
+    let effectiveStart = rawStart;
+    let effectiveEnd = rawEnd;
     let viewerMetrics: string[] | undefined;
+
     if (ctx.role === "viewer") {
-      const permissions = ctx.permissions as ViewerPermissions;
-      viewerMetrics = permissions.allowedMetrics;
+      try {
+        const permissions = ctx.permissions as ViewerPermissions;
+        const scope = enforcePermissions(ctx, {
+          userId: ctx.userId,
+          metrics: permissions.allowedMetrics,
+          startDate: rawStart,
+          endDate: rawEnd,
+        });
+        effectiveStart = scope.startDate;
+        effectiveEnd = scope.endDate;
+        viewerMetrics = permissions.allowedMetrics;
+      } catch (error) {
+        if (error instanceof PermissionError) {
+          throw new ApiError(error.code, error.message, error.statusCode);
+        }
+        throw error;
+      }
     }
+
+    // Compute the datetime range for querying
+    const startDate = `${effectiveStart}T00:00:00.000Z`;
+    const endDate = `${effectiveEnd}T23:59:59.999Z`;
+
+    const encryption = createEncryptionProvider();
 
     // Fetch merged annotations (user + provider)
     let annotations = await fetchMergedAnnotations(
@@ -257,8 +291,8 @@ export async function GET(request: Request): Promise<NextResponse> {
         eventType: "data.viewed",
         resourceType: "annotation",
         resourceDetail: {
-          start,
-          end,
+          start: effectiveStart,
+          end: effectiveEnd,
           event_type: event_type ?? "all",
           count: annotations.length,
         },

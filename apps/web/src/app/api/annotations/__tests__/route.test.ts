@@ -1319,3 +1319,247 @@ describe("Viewer access control", () => {
     expect(response.status).toBe(401);
   });
 });
+
+// ─── API Key Scope Enforcement ───────────────────────────────────────────────
+
+function createApiKeyRequest(
+  url: string,
+  userId: string,
+  scopes: string[],
+  method: string = "GET",
+  body?: unknown,
+): Request {
+  const headers = new Headers({
+    "x-request-context": JSON.stringify({
+      role: "owner",
+      userId,
+      permissions: "full",
+      authMethod: "api_key",
+      apiKeyId: "test-api-key-id",
+      scopes,
+    }),
+    "Content-Type": "application/json",
+  });
+  const init: RequestInit = { method, headers };
+  if (body) {
+    init.body = JSON.stringify(body);
+  }
+  return new Request(url, init);
+}
+
+describe("API key scope enforcement on annotations", () => {
+  it("GET /api/annotations returns 403 without health:read scope", async () => {
+    const request = createApiKeyRequest(
+      "http://localhost:3000/api/annotations?start=2026-03-01&end=2026-03-31",
+      TEST_USER_ID,
+      ["shares:read"], // No health:read
+    );
+    const response = await listGET(request);
+    expect(response.status).toBe(403);
+
+    const body = await response.json();
+    expect(body.error.code).toBe("INSUFFICIENT_SCOPES");
+    expect(body.error.message).toContain("health:read");
+  });
+
+  it("GET /api/annotations succeeds with health:read scope", async () => {
+    await createAnnotation(TEST_USER_ID);
+
+    const request = createApiKeyRequest(
+      "http://localhost:3000/api/annotations?start=2026-03-28&end=2026-03-28",
+      TEST_USER_ID,
+      ["health:read"],
+    );
+    const response = await listGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.data.annotations).toHaveLength(1);
+  });
+
+  it("POST /api/annotations returns 403 without health:write scope", async () => {
+    const request = createApiKeyRequest(
+      "http://localhost:3000/api/annotations",
+      TEST_USER_ID,
+      ["health:read"], // No health:write
+      "POST",
+      validAnnotationBody(),
+    );
+    const response = await createPOST(request);
+    expect(response.status).toBe(403);
+
+    const body = await response.json();
+    expect(body.error.code).toBe("INSUFFICIENT_SCOPES");
+    expect(body.error.message).toContain("health:write");
+  });
+
+  it("POST /api/annotations succeeds with health:write scope", async () => {
+    const request = createApiKeyRequest(
+      "http://localhost:3000/api/annotations",
+      TEST_USER_ID,
+      ["health:write"],
+      "POST",
+      validAnnotationBody(),
+    );
+    const response = await createPOST(request);
+    expect(response.status).toBe(201);
+
+    const body = await response.json();
+    expect(body.data.id).toBeDefined();
+    expect(body.data.label).toBe("Late dinner");
+  });
+
+  it("PATCH /api/annotations/:id returns 403 without health:write scope", async () => {
+    const annotation = await createAnnotation(TEST_USER_ID);
+
+    const request = createApiKeyRequest(
+      `http://localhost:3000/api/annotations/${annotation.id}`,
+      TEST_USER_ID,
+      ["health:read"], // No health:write
+      "PATCH",
+      { label: "Updated" },
+    );
+    const response = await updatePATCH(request, {
+      params: Promise.resolve({ id: String(annotation.id) }),
+    });
+    expect(response.status).toBe(403);
+
+    const body = await response.json();
+    expect(body.error.code).toBe("INSUFFICIENT_SCOPES");
+    expect(body.error.message).toContain("health:write");
+  });
+
+  it("PATCH /api/annotations/:id succeeds with health:write scope", async () => {
+    const annotation = await createAnnotation(TEST_USER_ID);
+
+    const request = createApiKeyRequest(
+      `http://localhost:3000/api/annotations/${annotation.id}`,
+      TEST_USER_ID,
+      ["health:write"],
+      "PATCH",
+      { label: "Updated via API key" },
+    );
+    const response = await updatePATCH(request, {
+      params: Promise.resolve({ id: String(annotation.id) }),
+    });
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.data.label).toBe("Updated via API key");
+  });
+
+  it("DELETE /api/annotations/:id returns 403 without health:write scope", async () => {
+    const annotation = await createAnnotation(TEST_USER_ID);
+
+    const request = createApiKeyRequest(
+      `http://localhost:3000/api/annotations/${annotation.id}`,
+      TEST_USER_ID,
+      ["health:read"], // No health:write
+      "DELETE",
+    );
+    const response = await deleteDELETE(request, {
+      params: Promise.resolve({ id: String(annotation.id) }),
+    });
+    expect(response.status).toBe(403);
+
+    const body = await response.json();
+    expect(body.error.code).toBe("INSUFFICIENT_SCOPES");
+    expect(body.error.message).toContain("health:write");
+  });
+
+  it("DELETE /api/annotations/:id succeeds with health:write scope", async () => {
+    const annotation = await createAnnotation(TEST_USER_ID);
+
+    const request = createApiKeyRequest(
+      `http://localhost:3000/api/annotations/${annotation.id}`,
+      TEST_USER_ID,
+      ["health:write"],
+      "DELETE",
+    );
+    const response = await deleteDELETE(request, {
+      params: Promise.resolve({ id: String(annotation.id) }),
+    });
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.data.deleted).toBe(true);
+  });
+});
+
+// ─── Viewer Date Range Clamping ──────────────────────────────────────────────
+
+describe("Viewer date range clamping", () => {
+  it("clamps query date range to grant bounds", async () => {
+    // Create annotations in January and March
+    await createAnnotation(TEST_USER_ID, {
+      label: "January annotation",
+      occurred_at: "2026-01-15T12:00:00.000Z",
+    });
+    await createAnnotation(TEST_USER_ID, {
+      label: "March annotation",
+      occurred_at: "2026-03-15T12:00:00.000Z",
+    });
+
+    // Viewer grant only covers March
+    const request = createViewerRequest(
+      "http://localhost:3000/api/annotations?start=2026-01-01&end=2026-12-31",
+      TEST_USER_ID,
+      ["glucose"],
+      "2026-03-01", // dataStart
+      "2026-03-31", // dataEnd
+    );
+    const response = await listGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    // Should only see March annotation (January is outside clamped range)
+    // Note: viewer with glucose grant only sees meal annotations
+    expect(body.data.annotations).toHaveLength(1);
+    expect(body.data.annotations[0].label).toBe("March annotation");
+  });
+
+  it("returns 403 when query date range is completely outside grant bounds", async () => {
+    // Grant covers March only
+    const request = createViewerRequest(
+      "http://localhost:3000/api/annotations?start=2026-06-01&end=2026-06-30",
+      TEST_USER_ID,
+      ["glucose"],
+      "2026-03-01", // dataStart
+      "2026-03-31", // dataEnd
+    );
+    const response = await listGET(request);
+    expect(response.status).toBe(403);
+
+    const body = await response.json();
+    expect(body.error.code).toBe("FORBIDDEN");
+  });
+
+  it("returns annotations only within clamped date range when query partially overlaps grant", async () => {
+    // Create annotations at different dates
+    await createAnnotation(TEST_USER_ID, {
+      label: "Early March",
+      occurred_at: "2026-03-05T12:00:00.000Z",
+    });
+    await createAnnotation(TEST_USER_ID, {
+      label: "Late March",
+      occurred_at: "2026-03-25T12:00:00.000Z",
+    });
+
+    // Grant covers Mar 1–15 only; query covers all of March
+    const request = createViewerRequest(
+      "http://localhost:3000/api/annotations?start=2026-03-01&end=2026-03-31",
+      TEST_USER_ID,
+      ["glucose"],
+      "2026-03-01", // dataStart
+      "2026-03-15", // dataEnd — clamps query end to Mar 15
+    );
+    const response = await listGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    // Only "Early March" annotation should be visible (Mar 5 is within Mar 1–15)
+    // "Late March" is Mar 25, outside the clamped range
+    expect(body.data.annotations).toHaveLength(1);
+    expect(body.data.annotations[0].label).toBe("Early March");
+  });
+});
