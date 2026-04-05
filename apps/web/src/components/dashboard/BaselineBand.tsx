@@ -13,10 +13,17 @@ interface BaselineBandProps {
   yAxisId?: string;
 }
 
+/** Minimum data points for baseline band to render (VAL-CROSS-018). */
+const MIN_HISTORY_FOR_BAND = 14;
+
 /**
  * BaselineBand — Recharts ReferenceArea showing the personal normal range
  * (30-day avg ± 1 SD) as a shaded region at the metric's chart color
  * with 10% opacity.
+ *
+ * When the baseline's sample_count is below 14, the band is suppressed
+ * entirely to avoid rendering misleading normal ranges from insufficient
+ * history (VAL-CROSS-018).
  *
  * Must be rendered as a child of a Recharts chart component.
  *
@@ -27,6 +34,11 @@ export function BaselineBand({
   metricType,
   yAxisId,
 }: BaselineBandProps) {
+  // Suppress band when baseline history is insufficient (VAL-CROSS-018)
+  if (baseline.sample_count < MIN_HISTORY_FOR_BAND) {
+    return null;
+  }
+
   const color = getMetricColor(metricType);
 
   return (

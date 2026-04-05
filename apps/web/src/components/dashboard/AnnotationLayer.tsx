@@ -73,8 +73,32 @@ export function AnnotationLayer({
       .map((a) => {
         try {
           const ts = parseISO(a.occurred_at).getTime();
+
+          // For duration annotations (has ended_at), check if the event
+          // overlaps the visible range — even if occurred_at is before start.
+          const endedTs = a.ended_at
+            ? parseISO(a.ended_at).getTime()
+            : undefined;
+
           const pct = ((ts - startMs) / rangeMs) * 100;
-          if (pct < 0 || pct > 100) return null;
+
+          // Fully after the visible range → skip
+          if (pct > 100) return null;
+
+          // Before the visible range: clamp to left edge if the event
+          // spans into the window (VAL-CROSS-024), otherwise skip.
+          if (pct < 0) {
+            if (endedTs != null && endedTs > startMs) {
+              // Boundary-spanning annotation — render marker at chart start
+              return {
+                annotation: a,
+                pct: 0,
+                key: `${a.id ?? a.occurred_at}`,
+              };
+            }
+            return null;
+          }
+
           return { annotation: a, pct, key: `${a.id ?? a.occurred_at}` };
         } catch {
           return null;

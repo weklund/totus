@@ -55,6 +55,14 @@ interface TrendDetailViewProps {
   date: string;
   /** Metrics to display (comma-separated) */
   metrics?: string;
+  /** Active range preset in days (controlled from URL params) */
+  activePreset?: number;
+  /** Callback when range preset changes */
+  onPresetChange?: (days: number) => void;
+  /** Resolution toggle value (controlled from URL params) */
+  resolution?: "daily" | "weekly" | "monthly";
+  /** Callback when resolution/smoothing changes */
+  onResolutionChange?: (r: "daily" | "weekly" | "monthly") => void;
   /** Callback when date changes */
   onDateChange: (date: string) => void;
   /** Callback when view mode changes */
@@ -90,16 +98,22 @@ function epochToDateStr(ts: number): string {
 export function TrendDetailView({
   date,
   metrics,
+  activePreset: controlledPreset,
+  onPresetChange: controlledOnPresetChange,
+  resolution: controlledResolution,
+  onResolutionChange: controlledOnResolutionChange,
   onDateChange,
   onViewModeChange,
 }: TrendDetailViewProps) {
-  // Range preset state — default to 30D
-  const [activePreset, setActivePreset] = useState<number>(30);
+  // Fallback internal state when not controlled via URL params
+  const [internalPreset, setInternalPreset] = useState<number>(30);
+  const [internalResolution, setInternalResolution] = useState<
+    "daily" | "weekly" | "monthly"
+  >("weekly");
 
-  // Resolution toggle state — default to weekly (7-day avg)
-  const [resolution, setResolution] = useState<"daily" | "weekly" | "monthly">(
-    "weekly",
-  );
+  // Use controlled values from URL when available, otherwise internal state
+  const activePreset = controlledPreset ?? internalPreset;
+  const resolution = controlledResolution ?? internalResolution;
 
   // Compute date range from anchor date and preset
   const dateRange = useMemo(() => {
@@ -145,9 +159,27 @@ export function TrendDetailView({
   // Reference date for insight dismiss — use the start of the range
   const insightDate = trendData?.date_range?.start ?? dateRange.start;
 
-  const handlePresetChange = useCallback((days: number) => {
-    setActivePreset(days);
-  }, []);
+  const handlePresetChange = useCallback(
+    (days: number) => {
+      if (controlledOnPresetChange) {
+        controlledOnPresetChange(days);
+      } else {
+        setInternalPreset(days);
+      }
+    },
+    [controlledOnPresetChange],
+  );
+
+  const handleResolutionChange = useCallback(
+    (r: "daily" | "weekly" | "monthly") => {
+      if (controlledOnResolutionChange) {
+        controlledOnResolutionChange(r);
+      } else {
+        setInternalResolution(r);
+      }
+    },
+    [controlledOnResolutionChange],
+  );
 
   /** Navigate to Night view for the clicked date */
   const handleDateClick = useCallback(
@@ -198,7 +230,7 @@ export function TrendDetailView({
           activePreset={activePreset}
           onPresetChange={handlePresetChange}
           resolution={resolution}
-          onResolutionChange={setResolution}
+          onResolutionChange={handleResolutionChange}
         />
         <div
           className="text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-16"
@@ -225,7 +257,7 @@ export function TrendDetailView({
         activePreset={activePreset}
         onPresetChange={handlePresetChange}
         resolution={resolution}
-        onResolutionChange={setResolution}
+        onResolutionChange={handleResolutionChange}
       />
 
       {/* Insight cards (conditional) */}
@@ -398,7 +430,7 @@ function TrendMetricPanel({
       stddev_30d: baseline.stddev,
       upper: baseline.upper,
       lower: baseline.lower,
-      sample_count: 30,
+      sample_count: baseline.sample_count ?? 30,
     };
   }, [baseline]);
 

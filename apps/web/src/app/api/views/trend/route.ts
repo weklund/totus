@@ -346,7 +346,13 @@ export async function GET(request: Request): Promise<NextResponse> {
         raw: { dates: string[]; values: number[] };
         smoothed: { dates: string[]; values: number[] } | null;
         trend: TrendResult;
-        baseline: { avg: number; stddev: number; upper: number; lower: number };
+        baseline: {
+          avg: number;
+          stddev: number;
+          upper: number;
+          lower: number;
+          sample_count: number;
+        };
       }
     > = {};
 
@@ -389,8 +395,9 @@ export async function GET(request: Request): Promise<NextResponse> {
             stddev: baseline.stddev_30d,
             upper: baseline.upper,
             lower: baseline.lower,
+            sample_count: baseline.sample_count,
           }
-        : { avg: 0, stddev: 0, upper: 0, lower: 0 };
+        : { avg: 0, stddev: 0, upper: 0, lower: 0, sample_count: 0 };
 
       metricsResponse[metric] = {
         raw: { dates: rawDates, values: rawValues },

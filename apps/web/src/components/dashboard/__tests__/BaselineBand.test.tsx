@@ -45,4 +45,25 @@ describe("BaselineBand", () => {
     // hrv color from chart-utils is hsl(160, 70%, 45%)
     expect(area).toHaveAttribute("data-fill", "hsl(160, 70%, 45%)");
   });
+
+  // CROSS-018: suppress baseline band when sample_count < 14
+  it("returns null when sample_count < 14 (VAL-CROSS-018)", () => {
+    const insufficientBaseline = {
+      ...baseline,
+      sample_count: 10,
+    };
+    const { container } = render(
+      <BaselineBand baseline={insufficientBaseline} metricType="rhr" />,
+    );
+    expect(container.firstChild).toBeNull();
+  });
+
+  it("renders when sample_count = 14 (threshold boundary)", () => {
+    const thresholdBaseline = {
+      ...baseline,
+      sample_count: 14,
+    };
+    render(<BaselineBand baseline={thresholdBaseline} metricType="rhr" />);
+    expect(screen.getByTestId("reference-area")).toBeInTheDocument();
+  });
 });

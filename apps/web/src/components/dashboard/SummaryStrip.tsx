@@ -64,7 +64,7 @@ export function SummaryStrip({
           <div
             key={metricType}
             className={cn(
-              "flex min-w-[100px] flex-1 flex-col items-center px-3 py-2",
+              "flex min-w-[80px] flex-1 flex-col items-center px-2 py-2",
               i > 0 && "border-border border-l",
             )}
             data-testid="summary-metric"

@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { format, parseISO, isValid } from "date-fns";
+import { format, parseISO, isValid, subYears } from "date-fns";
 import { DateNavigation } from "./DateNavigation";
 import { NightDetailView } from "./NightDetailView";
 import { RecoveryDetailView } from "./RecoveryDetailView";
@@ -15,6 +15,12 @@ import type { ViewType } from "@/lib/dashboard/types";
  */
 const VALID_VIEWS = new Set<ViewType>(["night", "recovery", "trend"]);
 const DEFAULT_VIEW: ViewType = "night";
+
+/** Valid trend range presets (in days). */
+const VALID_RANGE_DAYS = new Set([7, 30, 90, 365]);
+
+/** Valid trend smoothing values. */
+const VALID_SMOOTHING = new Set(["daily", "weekly", "monthly"]);
 
 /**
  * Parse and validate a ViewType from a string.
@@ -46,12 +52,47 @@ function parseDateParam(value: string | null): string {
 }
 
 /**
- * Build the URL search string for the given view and date.
+ * Parse and validate a trend range preset from URL params.
+ * Falls back to 30 (30D default) for invalid values.
  */
-function buildSearchString(view: ViewType, date: string): string {
+function parseRangeParam(value: string | null): number {
+  if (value) {
+    const n = Number(value);
+    if (VALID_RANGE_DAYS.has(n)) return n;
+  }
+  return 30;
+}
+
+/**
+ * Parse and validate a trend smoothing value from URL params.
+ * Falls back to "weekly" (7-day avg) for invalid values.
+ */
+function parseSmoothingParam(
+  value: string | null,
+): "daily" | "weekly" | "monthly" {
+  if (value && VALID_SMOOTHING.has(value)) {
+    return value as "daily" | "weekly" | "monthly";
+  }
+  return "weekly";
+}
+
+/**
+ * Build the URL search string for the given view, date, and optional
+ * trend sub-state (range, smoothing). Trend sub-state is only included
+ * when view === "trend" so the URL stays clean for other views.
+ */
+function buildSearchString(
+  view: ViewType,
+  date: string,
+  trendState?: { range?: number; smoothing?: string },
+): string {
   const params = new URLSearchParams();
   params.set("view", view);
   params.set("date", date);
+  if (view === "trend" && trendState) {
+    if (trendState.range != null) params.set("range", String(trendState.range));
+    if (trendState.smoothing) params.set("smoothing", trendState.smoothing);
+  }
   return `/dashboard?${params.toString()}`;
 }
 
@@ -76,6 +117,10 @@ export function DashboardViewRouter() {
   const view = parseViewParam(searchParams.get("view"));
   const date = parseDateParam(searchParams.get("date"));
 
+  // Trend sub-state from URL params (range preset + smoothing resolution)
+  const trendRange = parseRangeParam(searchParams.get("range"));
+  const trendSmoothing = parseSmoothingParam(searchParams.get("smoothing"));
+
   // Recovery range state (3–7 days, default 5)
   const [recoveryRangeDays, setRecoveryRangeDays] = useState(5);
 
@@ -84,9 +129,14 @@ export function DashboardViewRouter() {
   // user-initiated view transitions.
   const handleViewModeChange = useCallback(
     (newView: ViewType) => {
-      router.push(buildSearchString(newView, date), { scroll: false });
+      // Preserve trend state when switching back to trend view
+      const ts =
+        newView === "trend"
+          ? { range: trendRange, smoothing: trendSmoothing }
+          : undefined;
+      router.push(buildSearchString(newView, date, ts), { scroll: false });
     },
-    [router, date],
+    [router, date, trendRange, trendSmoothing],
   );
 
   // Handle date changes — update URL.
@@ -94,9 +144,45 @@ export function DashboardViewRouter() {
   // user-initiated date changes.
   const handleDateChange = useCallback(
     (newDate: string) => {
-      router.push(buildSearchString(view, newDate), { scroll: false });
+      const ts =
+        view === "trend"
+          ? { range: trendRange, smoothing: trendSmoothing }
+          : undefined;
+      router.push(buildSearchString(view, newDate, ts), { scroll: false });
     },
-    [router, view],
+    [router, view, trendRange, trendSmoothing],
+  );
+
+  // Handle trend range preset changes — update URL.
+  const handleTrendRangeChange = useCallback(
+    (days: number) => {
+      router.push(
+        buildSearchString("trend", date, {
+          range: days,
+          smoothing: trendSmoothing,
+        }),
+        { scroll: false },
+      );
+    },
+    [router, date, trendSmoothing],
+  );
+
+  // Handle trend smoothing/resolution changes — update URL.
+  const handleTrendSmoothingChange = useCallback(
+    (smoothing: "daily" | "weekly" | "monthly") => {
+      router.push(
+        buildSearchString("trend", date, { range: trendRange, smoothing }),
+        { scroll: false },
+      );
+    },
+    [router, date, trendRange],
+  );
+
+  // Default earliest date — 1 year ago (reasonable default when actual earliest
+  // data date is not yet known). This prevents navigating into empty data territory.
+  const defaultMinDate = useMemo(
+    () => format(subYears(new Date(), 1), "yyyy-MM-dd"),
+    [],
   );
 
   // Compute recovery date range (recoveryRangeDays ending at selected date)
@@ -125,6 +211,7 @@ export function DashboardViewRouter() {
         viewMode={view}
         onViewModeChange={handleViewModeChange}
         viewModes={["night", "recovery", "trend"]}
+        minDate={defaultMinDate}
       />
 
       {view === "night" && (
@@ -149,6 +236,10 @@ export function DashboardViewRouter() {
       {view === "trend" && (
         <TrendDetailView
           date={date}
+          activePreset={trendRange}
+          onPresetChange={handleTrendRangeChange}
+          resolution={trendSmoothing}
+          onResolutionChange={handleTrendSmoothingChange}
           onDateChange={handleDateChange}
           onViewModeChange={handleViewModeChange}
         />

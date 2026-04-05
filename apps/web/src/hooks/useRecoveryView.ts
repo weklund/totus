@@ -21,6 +21,7 @@ export interface RecoveryViewBaseline {
   stddev: number;
   upper: number;
   lower: number;
+  sample_count?: number;
 }
 
 export interface RecoveryViewResponse {

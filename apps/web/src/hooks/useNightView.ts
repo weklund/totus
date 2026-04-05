@@ -22,6 +22,7 @@ export interface NightViewBaseline {
   stddev: number;
   upper: number;
   lower: number;
+  sample_count?: number;
 }
 
 export interface NightViewHypnogram {

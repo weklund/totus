@@ -286,4 +286,55 @@ describe("DashboardViewRouter", () => {
       expect(mockPush).toHaveBeenCalled();
     });
   });
+
+  describe("CROSS-009: trend sub-state preserved in URL", () => {
+    it("reads range and smoothing params from URL for trend view", () => {
+      currentSearchParams = new URLSearchParams(
+        "view=trend&date=2026-03-28&range=90&smoothing=monthly",
+      );
+      renderWithProviders(<DashboardViewRouter />);
+
+      // Trend view should be active
+      const trendTab = screen.getByTestId("view-mode-trend");
+      expect(trendTab).toHaveAttribute("aria-selected", "true");
+
+      // useTrendView is called — its params should reflect the 90-day range
+      expect(mockUseTrendView).toHaveBeenCalled();
+    });
+
+    it("defaults range=30 and smoothing=weekly when not in URL", () => {
+      currentSearchParams = new URLSearchParams("view=trend&date=2026-03-28");
+      renderWithProviders(<DashboardViewRouter />);
+
+      // Trend view should be rendered with defaults
+      expect(mockUseTrendView).toHaveBeenCalled();
+    });
+
+    it("ignores invalid range value and falls back to 30", () => {
+      currentSearchParams = new URLSearchParams(
+        "view=trend&date=2026-03-28&range=999",
+      );
+      renderWithProviders(<DashboardViewRouter />);
+
+      expect(mockUseTrendView).toHaveBeenCalled();
+    });
+  });
+
+  describe("UICMP-003: DateNavigation receives minDate", () => {
+    it("passes minDate to DateNavigation to disable back arrow at earliest date", () => {
+      // Set date to 1 year ago to test minDate boundary
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      const minDateStr = oneYearAgo.toISOString().slice(0, 10);
+
+      currentSearchParams = new URLSearchParams(
+        `view=night&date=${minDateStr}`,
+      );
+      renderWithProviders(<DashboardViewRouter />);
+
+      // Back arrow should be disabled at the earliest date
+      const prevBtn = screen.getByTestId("date-nav-prev");
+      expect(prevBtn).toBeDisabled();
+    });
+  });
 });

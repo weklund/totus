@@ -556,16 +556,30 @@ async function getDismissedTypes(
 
 /**
  * Convert the baselines Map to the response format matching LLD §8.2.
+ * Includes sample_count so the frontend can suppress baseline bands/deltas
+ * when history is insufficient (< 14 days, VAL-CROSS-018).
  */
 function baselinesMapToResponse(
   baselines: Map<string, BaselinePayload>,
 ): Record<
   string,
-  { avg: number; stddev: number; upper: number; lower: number }
+  {
+    avg: number;
+    stddev: number;
+    upper: number;
+    lower: number;
+    sample_count: number;
+  }
 > {
   const result: Record<
     string,
-    { avg: number; stddev: number; upper: number; lower: number }
+    {
+      avg: number;
+      stddev: number;
+      upper: number;
+      lower: number;
+      sample_count: number;
+    }
   > = {};
   for (const [metric, payload] of baselines) {
     result[metric] = {
@@ -573,6 +587,7 @@ function baselinesMapToResponse(
       stddev: payload.stddev_30d,
       upper: payload.upper,
       lower: payload.lower,
+      sample_count: payload.sample_count,
     };
   }
   return result;

@@ -136,7 +136,9 @@ export function DashboardShell({ displayName, children }: DashboardShellProps) {
         </div>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="max-w-screen flex-1 overflow-x-hidden overflow-y-auto p-6">
+          {children}
+        </main>
       </div>
     </div>
   );

@@ -81,7 +81,7 @@ export function NightDetailView({
         stddev_30d: b.stddev,
         upper: b.upper,
         lower: b.lower,
-        sample_count: 30, // Approximate — API doesn't return sample_count
+        sample_count: b.sample_count ?? 30,
       };
     }
     return map;
