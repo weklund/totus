@@ -11,11 +11,17 @@ import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import type {
-  BaselinePayload,
   CorrelationResult,
   Insight,
   TrendResult,
 } from "@/lib/dashboard/types";
+
+export interface TrendViewBaseline {
+  avg: number;
+  stddev: number;
+  upper: number;
+  lower: number;
+}
 
 export interface TrendMetricData {
   raw: {
@@ -27,7 +33,7 @@ export interface TrendMetricData {
     values: number[];
   } | null;
   trend: TrendResult;
-  baseline: BaselinePayload | null;
+  baseline: TrendViewBaseline;
 }
 
 export interface TrendViewResponse {

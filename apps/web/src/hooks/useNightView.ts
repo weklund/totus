@@ -10,16 +10,27 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import type {
-  Annotation,
-  BaselinePayload,
-  Insight,
-  SummaryMetric,
-} from "@/lib/dashboard/types";
+import type { Annotation, Insight, SummaryMetric } from "@/lib/dashboard/types";
 
 export interface NightViewSeries {
   timestamps: string[];
   values: number[];
+}
+
+export interface NightViewBaseline {
+  avg: number;
+  stddev: number;
+  upper: number;
+  lower: number;
+}
+
+export interface NightViewHypnogram {
+  stages: Array<{
+    stage: string;
+    start: string;
+    end: string;
+  }>;
+  total_duration_hr: number;
 }
 
 export interface NightViewResponse {
@@ -32,13 +43,9 @@ export interface NightViewResponse {
     insights: Insight[];
     annotations: Annotation[];
     series: Record<string, NightViewSeries>;
-    hypnogram: Array<{
-      stage: string;
-      start: string;
-      end: string;
-    }>;
+    hypnogram: NightViewHypnogram | null;
     summary: Record<string, SummaryMetric>;
-    baselines: Record<string, BaselinePayload>;
+    baselines: Record<string, NightViewBaseline>;
   };
 }
 

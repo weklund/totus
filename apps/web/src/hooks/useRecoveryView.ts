@@ -10,16 +10,17 @@
 import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { api } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import type {
-  Annotation,
-  BaselinePayload,
-  Insight,
-  SummaryMetric,
-} from "@/lib/dashboard/types";
+import type { Annotation, Insight, SummaryMetric } from "@/lib/dashboard/types";
 
 export interface RecoveryDailyEntry {
-  date: string;
   metrics: Record<string, SummaryMetric>;
+}
+
+export interface RecoveryViewBaseline {
+  avg: number;
+  stddev: number;
+  upper: number;
+  lower: number;
 }
 
 export interface RecoveryViewResponse {
@@ -31,7 +32,7 @@ export interface RecoveryViewResponse {
     triggering_event: Annotation | null;
     insights: Insight[];
     daily: Record<string, RecoveryDailyEntry>;
-    baselines: Record<string, BaselinePayload>;
+    baselines: Record<string, RecoveryViewBaseline>;
     sparklines: Record<string, { dates: string[]; values: number[] }>;
     annotations: Annotation[];
   };
