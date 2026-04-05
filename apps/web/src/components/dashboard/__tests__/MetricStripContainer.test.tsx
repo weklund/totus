@@ -46,7 +46,7 @@ describe("MetricStripContainer", () => {
     );
   });
 
-  it("formatXAxis returns HH:mm in time mode (default)", () => {
+  it("formatXAxis returns h a format in time mode (default)", () => {
     function Consumer() {
       const ctx = useTimeAxis();
       if (!ctx) return <div>no context</div>;
@@ -66,9 +66,9 @@ describe("MetricStripContainer", () => {
       </MetricStripContainer>,
     );
 
-    // Exact format depends on timezone but should contain time-like output
+    // Should be 12-hour format like "10 PM", "12 AM", etc.
     const text = screen.getByTestId("formatted").textContent!;
-    expect(text).toMatch(/\d{2}:\d{2}/);
+    expect(text).toMatch(/\d{1,2}\s*(AM|PM)/);
   });
 
   it("formatXAxis returns MMM d in date mode", () => {
@@ -146,7 +146,7 @@ describe("MetricStripContainer", () => {
     );
 
     const text = screen.getByTestId("formatted-numeric").textContent!;
-    expect(text).toMatch(/\d{2}:\d{2}/);
+    expect(text).toMatch(/\d{1,2}\s*(AM|PM)/);
   });
 
   it("formatXAxis handles numeric epoch ms in date mode", () => {

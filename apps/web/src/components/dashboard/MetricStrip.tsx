@@ -194,11 +194,7 @@ export function MetricStrip({
             <XAxis
               dataKey="timestamp"
               tickFormatter={tickFormatter}
-              tick={
-                expanded
-                  ? { fontSize: 10, fill: "var(--chart-axis-label)" }
-                  : false
-              }
+              tick={{ fontSize: 10, fill: "var(--chart-axis-label)" }}
               stroke="var(--chart-grid)"
               minTickGap={40}
               {...(xDomain

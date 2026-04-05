@@ -33,10 +33,10 @@ describe("BaselineBand", () => {
     expect(area).toHaveAttribute("data-y2", "66");
   });
 
-  it("uses 10% opacity fill", () => {
+  it("uses 12% opacity fill (≤0.15 per contract)", () => {
     render(<BaselineBand baseline={baseline} metricType="rhr" />);
     const area = screen.getByTestId("reference-area");
-    expect(area).toHaveAttribute("data-fill-opacity", "0.1");
+    expect(area).toHaveAttribute("data-fill-opacity", "0.12");
   });
 
   it("uses the metric color for fill", () => {

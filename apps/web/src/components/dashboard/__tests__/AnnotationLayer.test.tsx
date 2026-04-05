@@ -110,6 +110,13 @@ describe("AnnotationLayer", () => {
     expect(container.firstChild).toBeNull();
   });
 
+  it("shows loading skeleton when isLoading is true", () => {
+    render(
+      <AnnotationLayer annotations={[]} start={START} end={END} isLoading />,
+    );
+    expect(screen.getByTestId("annotation-layer-loading")).toBeInTheDocument();
+  });
+
   it("shows provider source in tooltip for non-user annotations", () => {
     render(
       <AnnotationLayer

@@ -153,6 +153,15 @@ const MOCK_NIGHT_DATA: NightViewResponse = {
         direction: "worse",
         status: "critical",
       },
+      sleep_latency: {
+        value: 35,
+        avg_30d: 12,
+        stddev_30d: 5,
+        delta: 23,
+        delta_pct: 191.67,
+        direction: "worse",
+        status: "critical",
+      },
       hrv: {
         value: 32,
         avg_30d: 45,
@@ -332,6 +341,30 @@ describe("NightDetailView", () => {
     // Should have strips for glucose and heart_rate
     const strips = screen.getAllByTestId("metric-strip");
     expect(strips.length).toBe(2);
+  });
+
+  it("renders summary strip with 5 metrics including Sleep Latency", () => {
+    mockUseNightView.mockReturnValue({
+      data: MOCK_NIGHT_DATA,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderWithProviders(
+      <NightDetailView
+        date="2026-03-28"
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+    );
+
+    const summaryStrip = screen.getByTestId("summary-strip");
+    const metrics = within(summaryStrip).getAllByTestId("summary-metric");
+    // sleep_score, deep_sleep, sleep_latency, hrv, rhr
+    expect(metrics).toHaveLength(5);
+    expect(summaryStrip).toHaveTextContent("Sleep Latency");
   });
 
   it("renders summary strip with polarity-colored deltas", () => {

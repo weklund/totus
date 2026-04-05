@@ -9,8 +9,22 @@ vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="responsive-container">{children}</div>
   ),
-  ComposedChart: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="composed-chart">{children}</div>
+  ComposedChart: ({
+    children,
+    onClick,
+    style,
+  }: {
+    children: React.ReactNode;
+    onClick?: (e: unknown) => void;
+    style?: React.CSSProperties;
+  }) => (
+    <div
+      data-testid="composed-chart"
+      onClick={onClick as React.MouseEventHandler}
+      style={style}
+    >
+      {children}
+    </div>
   ),
   AreaChart: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="area-chart">{children}</div>
@@ -633,6 +647,34 @@ describe("TrendDetailView", () => {
       "rhr,hrv,sleep_score",
       "7d",
     );
+  });
+
+  // ─── Date Click Navigation ─────────────────────────────────
+
+  it("calls onDateChange and onViewModeChange when chart is clicked", () => {
+    const mockOnDateChange = vi.fn();
+    const mockOnViewModeChange = vi.fn();
+
+    mockUseTrendView.mockReturnValue({
+      data: MOCK_TREND_DATA,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderWithProviders(
+      <TrendDetailView
+        date="2026-03-28"
+        onDateChange={mockOnDateChange}
+        onViewModeChange={mockOnViewModeChange}
+      />,
+    );
+
+    // Charts should have cursor: pointer style
+    const charts = screen.getAllByTestId("composed-chart");
+    expect(charts.length).toBeGreaterThan(0);
+    expect(charts[0]).toHaveStyle({ cursor: "pointer" });
   });
 
   // ─── Insufficient Correlation Data ────────────────────────

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { parseISO, format } from "date-fns";
 import { cn } from "@/lib/cn";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Annotation } from "@/lib/dashboard/types";
 
 /**
@@ -27,6 +28,8 @@ interface AnnotationLayerProps {
   end: string;
   /** Height of the annotation layer (should match total strip height) */
   height?: number;
+  /** Whether the annotation data is currently loading */
+  isLoading?: boolean;
 }
 
 /**
@@ -45,6 +48,7 @@ export function AnnotationLayer({
   start,
   end,
   height = 400,
+  isLoading = false,
 }: AnnotationLayerProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -82,6 +86,23 @@ export function AnnotationLayer({
       key: string;
     }>;
   }, [annotations, timeRange]);
+
+  if (isLoading) {
+    return (
+      <div
+        className="pointer-events-none absolute inset-0 flex items-start justify-center pt-2"
+        style={{ height }}
+        data-testid="annotation-layer-loading"
+        aria-label="Loading annotations"
+      >
+        <div className="flex gap-6">
+          <Skeleton className="h-6 w-6 rounded-full" />
+          <Skeleton className="h-6 w-6 rounded-full" />
+          <Skeleton className="h-6 w-6 rounded-full" />
+        </div>
+      </div>
+    );
+  }
 
   if (markers.length === 0) return null;
 

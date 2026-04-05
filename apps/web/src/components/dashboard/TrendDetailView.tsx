@@ -62,6 +62,14 @@ interface TrendDetailViewProps {
 }
 
 /**
+ * Convert an epoch-ms timestamp to YYYY-MM-DD string using local timezone.
+ */
+function epochToDateStr(ts: number): string {
+  const d = new Date(ts);
+  return format(d, "yyyy-MM-dd");
+}
+
+/**
  * TrendDetailView — the 30-Day Trend View page (W3).
  *
  * Composes:
@@ -82,8 +90,8 @@ interface TrendDetailViewProps {
 export function TrendDetailView({
   date,
   metrics,
-  onDateChange: _onDateChange,
-  onViewModeChange: _onViewModeChange,
+  onDateChange,
+  onViewModeChange,
 }: TrendDetailViewProps) {
   // Range preset state — default to 30D
   const [activePreset, setActivePreset] = useState<number>(30);
@@ -140,6 +148,16 @@ export function TrendDetailView({
   const handlePresetChange = useCallback((days: number) => {
     setActivePreset(days);
   }, []);
+
+  /** Navigate to Night view for the clicked date */
+  const handleDateClick = useCallback(
+    (ts: number) => {
+      const clickedDate = epochToDateStr(ts);
+      onDateChange(clickedDate);
+      onViewModeChange("night");
+    },
+    [onDateChange, onViewModeChange],
+  );
 
   // ─── Loading State ──────────────────────────────────────────
   if (isLoading) {
@@ -242,6 +260,7 @@ export function TrendDetailView({
               metricType={metricType}
               data={metricData}
               resolution={resolution}
+              onDateClick={handleDateClick}
             />
           );
         })}
@@ -309,6 +328,8 @@ interface TrendMetricPanelProps {
   metricType: string;
   data: TrendMetricData;
   resolution: "daily" | "weekly" | "monthly";
+  /** Callback when a data point is clicked — receives epoch-ms timestamp */
+  onDateClick?: (timestamp: number) => void;
 }
 
 /**
@@ -322,6 +343,7 @@ function TrendMetricPanel({
   metricType,
   data: metricData,
   resolution,
+  onDateClick,
 }: TrendMetricPanelProps) {
   const [expanded, setExpanded] = useState(true);
   const config = getMetricType(metricType);
@@ -492,6 +514,16 @@ function TrendMetricPanel({
           <ComposedChart
             data={chartData}
             margin={{ top: 4, right: 12, bottom: 4, left: expanded ? 4 : -20 }}
+            onClick={
+              onDateClick
+                ? (nextState) => {
+                    // activeLabel contains the XAxis value (epoch ms) of the clicked point
+                    const ts = nextState?.activeLabel;
+                    if (typeof ts === "number") onDateClick(ts);
+                  }
+                : undefined
+            }
+            style={onDateClick ? { cursor: "pointer" } : undefined}
           >
             {expanded && (
               <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />

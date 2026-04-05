@@ -55,7 +55,7 @@ export function MetricStripContainer({
           typeof timestamp === "number"
             ? new Date(timestamp)
             : parseISO(timestamp);
-        return axisMode === "time" ? format(d, "HH:mm") : format(d, "MMM d");
+        return axisMode === "time" ? format(d, "h a") : format(d, "MMM d");
       } catch {
         return String(timestamp);
       }
@@ -74,7 +74,7 @@ export function MetricStripContainer({
   return (
     <TimeAxisCtx.Provider value={ctx}>
       <div
-        className="relative flex flex-col gap-3"
+        className="relative flex max-w-full flex-col gap-3 overflow-x-hidden"
         data-testid="metric-strip-container"
       >
         {children}

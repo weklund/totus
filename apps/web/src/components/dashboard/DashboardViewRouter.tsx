@@ -115,7 +115,10 @@ export function DashboardViewRouter() {
   }, [date, recoveryRangeDays]);
 
   return (
-    <div className="space-y-4" data-testid="dashboard-view-router">
+    <div
+      className="max-w-full space-y-4 overflow-x-hidden"
+      data-testid="dashboard-view-router"
+    >
       <DateNavigation
         date={date}
         onDateChange={handleDateChange}
