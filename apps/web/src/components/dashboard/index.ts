@@ -29,3 +29,4 @@ export { SleepHypnogram } from "./SleepHypnogram";
 export type { HypnogramSegment } from "./SleepHypnogram";
 export { DateNavigation } from "./DateNavigation";
 export { NightDetailView } from "./NightDetailView";
+export { RecoveryDetailView } from "./RecoveryDetailView";
