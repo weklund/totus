@@ -339,12 +339,19 @@ async function seedDailyMetrics(
     s3Overrides?: number[];
   };
 
-  // S3 readiness progression: 42 → 61 → 68 → 82 → 84
-  // S3 HRV progression: 26 → 34 → 40 → 48 → 50
+  // S3 readiness progression: 42 → 58 → 74 → 82 → 84
+  // With baseline avg~78, stddev~4.6:
+  //   Day 1 (42): z=-7.8 critical, Day 2 (58): z=-4.3 critical,
+  //   Day 3 (74): z=-0.87 WARNING, Day 4 (82): z=+0.87 good, Day 5 (84): z=+1.3 good
+  // Produces 🔴🔴🟡🟢🟢 progression
+  // S3 HRV progression: 26 → 30 → 44 → 48 → 50
+  // With baseline avg~48, stddev~5.8:
+  //   Day 1 (26): z=-3.8 critical, Day 2 (30): z=-3.1 critical,
+  //   Day 3 (44): z=-0.69 warning, Day 4 (48): z=0 normal, Day 5 (50): z=+0.34 normal
   // S3 RHR progression: 66 → 63 → 59 → 59 → 59
   // S3 body_temp: +0.4 day 1, normalizing
-  const s3ReadinessValues = [42, 61, 68, 82, 84];
-  const s3HrvValues = [26, 34, 40, 48, 50];
+  const s3ReadinessValues = [42, 58, 74, 82, 84];
+  const s3HrvValues = [26, 30, 44, 48, 50];
   const s3RhrValues = [66, 63, 59, 59, 59];
   const s3TempValues = [0.4, 0.25, 0.15, 0.05, 0.0];
 
@@ -787,8 +794,8 @@ async function main() {
       S3_DATE_STRS[0],
       S3_DATE_STRS[S3_DATE_STRS.length - 1],
     );
-    console.log("    - readiness: 42→61→68→82→84");
-    console.log("    - hrv: 26→34→40→48→50");
+    console.log("    - readiness: 42→58→74→82→84");
+    console.log("    - hrv: 26→30→44→48→50");
     console.log("    - rhr: 66→63→59→59→59");
     console.log("    - body_temp_dev: +0.4→+0.25→+0.15→+0.05→0.0");
     console.log("    - Workout annotation on day 1");

@@ -261,7 +261,7 @@ const MOCK_RECOVERY_DATA: RecoveryViewResponse = {
           "2026-03-27",
           "2026-03-28",
         ],
-        values: [42, 61, 68, 82, 84],
+        values: [42, 58, 74, 82, 84],
       },
       sleep_score: {
         dates: [
@@ -281,7 +281,7 @@ const MOCK_RECOVERY_DATA: RecoveryViewResponse = {
           "2026-03-27",
           "2026-03-28",
         ],
-        values: [26, 34, 40, 48, 50],
+        values: [26, 30, 44, 48, 50],
       },
     },
     annotations: [
