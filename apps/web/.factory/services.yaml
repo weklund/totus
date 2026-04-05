@@ -1,0 +1,31 @@
+commands:
+  install: cd /Users/weae1504/Projects/totus && npm install
+  typecheck: cd /Users/weae1504/Projects/totus/apps/web && npm run typecheck
+  build: cd /Users/weae1504/Projects/totus/apps/web && npm run build
+  test: cd /Users/weae1504/Projects/totus/apps/web && npm run test -- --maxWorkers=8
+  lint: cd /Users/weae1504/Projects/totus/apps/web && npm run lint
+  db_generate: cd /Users/weae1504/Projects/totus/apps/web && npm run db:generate
+  db_push: cd /Users/weae1504/Projects/totus/apps/web && npm run db:push
+  db_seed: cd /Users/weae1504/Projects/totus/apps/web && npm run db:seed
+
+services:
+  postgres:
+    start: docker start totus-db
+    stop: docker stop totus-db
+    healthcheck: docker exec totus-db pg_isready -h localhost -p 5432
+    port: 5432
+    depends_on: []
+
+  web:
+    start: cd /Users/weae1504/Projects/totus/apps/web && PORT=3100 npm run dev -- --port 3100
+    stop: lsof -ti :3100 | xargs kill
+    healthcheck: curl -sf http://localhost:3100/api/health
+    port: 3100
+    depends_on: [postgres]
+
+  inngest:
+    start: npx inngest-cli dev --no-discovery --port 8288
+    stop: lsof -ti :8288 | xargs kill
+    healthcheck: curl -sf http://localhost:8288
+    port: 8288
+    depends_on: [web]
