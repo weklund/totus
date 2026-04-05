@@ -1,0 +1,26 @@
+{
+  "featureId": "fix-meal-annotation-mapping",
+  "reviewedAt": "2026-04-05T05:37:03Z",
+  "commitId": "4ca3598ce78c40d859ebcbf9daa384b2dc1d75ec",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix fully addresses the prior blocking gap by expanding meal visibility from two metrics to glucose plus all nutrition-category metrics via getMetricsByCategory(\"nutrition\"), while keeping non-meal mappings unchanged and adding targeted coverage.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill requires test-first TDD with an initial failing run, but this fix session edited implementation before test edits and did not record a failing test run, while handoff skillFeedback still reports followedProcedure=true.",
+      "evidence": ".factory/skills/backend-worker/SKILL.md:36 requires \"Write tests first (TDD)\"; worker-transcripts.jsonl (session 1e3a5163-cb4b-4c0f-8f3a-8a6027de2bbd) shows Edit on src/lib/dashboard/annotations.ts before Edit on src/lib/dashboard/__tests__/annotations.test.ts, and only passing test executions are recorded."
+    },
+    {
+      "area": "conventions",
+      "observation": "Mission AGENTS guidance says existing test files must not be modified, but this fix feature explicitly requires updating tests and correctly does so. This rule appears overly broad/ambiguous for fix features.",
+      "evidence": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/AGENTS.md:16 says \"Do NOT modify existing test files\"; features.json lines 744-753 for fix-meal-annotation-mapping explicitly require updating tests and verified behavior."
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/foundation/scrutiny/reviews/annotation-merge-service.json",
+  "summary": "Pass: the fix resolves the original annotation-merge-service failure by making meal annotation visibility align with LLD §9.2 (glucose + all nutrition metrics), and added tests confirm both direct visibility checks and merged-annotation filtering behavior for nutrition-granted viewers."
+}

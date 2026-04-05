@@ -1,0 +1,105 @@
+{
+  "milestone": "foundation",
+  "round": 1,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run test -- --maxWorkers=8",
+      "exitCode": 1,
+      "observation": "Vitest reported 9 failing tests in exactly the known pre-existing files listed in mission AGENTS.md: src/db/__tests__/schema.test.ts (8), src/app/api/health-data/__tests__/route.test.ts (1), and src/db/__tests__/audit-immutability.test.ts (skipped tests/file-level failure context). No additional failing files were observed."
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run typecheck",
+      "exitCode": 0
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run lint",
+      "exitCode": 0
+    }
+  },
+  "reviewsSummary": {
+    "total": 7,
+    "passed": 4,
+    "failed": 3,
+    "failedFeatures": [
+      "database-schemas-and-migration",
+      "baseline-computation-service",
+      "annotation-merge-service"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "database-schemas-and-migration",
+      "severity": "blocking",
+      "description": "drizzle/meta/0003_snapshot.json omits public.metric_baselines, public.user_annotations, and public.dismissed_insights introduced by drizzle/0003_dashboard-tables.sql, creating migration metadata drift risk for future db:generate runs."
+    },
+    {
+      "featureId": "baseline-computation-service",
+      "severity": "blocking",
+      "description": "apps/web/src/lib/dashboard/baselines.ts computeBaselinesOnDemand does not apply per-metric source resolution when querying health_data_daily, so multi-source users can have duplicate/mixed rows counted in baseline averages/stddev."
+    },
+    {
+      "featureId": "annotation-merge-service",
+      "severity": "blocking",
+      "description": "src/lib/dashboard/annotations.ts maps meal visibility only to glucose and calories_consumed; LLD §9.2 requires meal visibility for any nutrition metric grants as well."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "services.yaml",
+      "description": "Added commands.init alias for running .factory/init.sh from apps/web so bootstrap used by workers is represented in shared command manifest.",
+      "sourceFeature": "shared-types-and-config"
+    },
+    {
+      "target": "library",
+      "description": "Added .factory/library/migration-metadata-caveats.md documenting Drizzle SQL/snapshot drift risk and why snapshot metadata must be validated with migration SQL.",
+      "sourceFeature": "database-schemas-and-migration"
+    }
+  ],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "skills/backend-worker",
+      "suggestion": "Clarify TDD requirements by task class and require accurate skillFeedback reporting when tests-first is intentionally skipped.",
+      "evidence": "Multiple reviewed foundation features (rolling-averages-service, annotation-merge-service, insight-engine-p0, shared-types-and-config) implemented code before tests or skipped tests while handoffs reported followedProcedure=true.",
+      "isSystemic": true
+    },
+    {
+      "target": "skills/backend-worker",
+      "suggestion": "Add explicit fallback procedure for Drizzle migration metadata conflicts (interactive rename prompts/snapshot drift) in non-interactive worker mode.",
+      "evidence": "database-schemas-and-migration review found manual detours around db:generate and ended with snapshot mismatch issue.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Fix mission metadata mapping for rolling averages so fulfills IDs match validation-contract (rolling average behavior is VAL-COMP-008/009, not VAL-COMP-007/008).",
+      "evidence": "rolling-averages-service review observed mismatch between features.json fulfills list and validation-contract assertion numbering.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Reconcile z-score threshold boundary guidance at |z| = 1.28 across LLD and validation-contract to avoid inconsistent implementation/tests.",
+      "evidence": "summary-metrics-service review noted LLD strict inequalities conflict with validation-contract inclusive warning boundary.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Include source-resolution requirement explicitly in baseline feature acceptance criteria/contract checks for health_data_daily queries.",
+      "evidence": "baseline-computation-service review found missing source filter requirement in feature acceptance + contract despite LLD requiring per-metric source resolution.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Repeated TDD-procedure mismatch observations from rolling-averages-service, annotation-merge-service, and insight-engine-p0.",
+      "reason": "duplicate"
+    },
+    {
+      "observation": "shared-types-and-config should always read architecture.md for simple type/config-only tasks.",
+      "reason": "ambiguous"
+    }
+  ],
+  "previousRound": null
+}
