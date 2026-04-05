@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Mock recharts to avoid SVG rendering issues in jsdom
@@ -609,5 +609,152 @@ describe("RecoveryDetailView", () => {
       undefined,
       "42",
     );
+  });
+
+  // ─── Recovery Range Selector ──────────────────────────────
+
+  it("renders range selector when rangeDays and onRangeDaysChange provided", () => {
+    mockUseRecoveryView.mockReturnValue({
+      data: MOCK_RECOVERY_DATA,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderWithProviders(
+      <RecoveryDetailView
+        startDate="2026-03-24"
+        endDate="2026-03-28"
+        rangeDays={5}
+        onRangeDaysChange={vi.fn()}
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("recovery-range-selector")).toBeInTheDocument();
+    expect(screen.getByTestId("recovery-range-value")).toHaveTextContent(
+      "5 days",
+    );
+  });
+
+  it("does not render range selector when props are omitted", () => {
+    mockUseRecoveryView.mockReturnValue({
+      data: MOCK_RECOVERY_DATA,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderWithProviders(
+      <RecoveryDetailView
+        startDate="2026-03-24"
+        endDate="2026-03-28"
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("recovery-range-selector"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("calls onRangeDaysChange when + button is clicked", () => {
+    const mockOnRangeDaysChange = vi.fn();
+    mockUseRecoveryView.mockReturnValue({
+      data: MOCK_RECOVERY_DATA,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderWithProviders(
+      <RecoveryDetailView
+        startDate="2026-03-24"
+        endDate="2026-03-28"
+        rangeDays={5}
+        onRangeDaysChange={mockOnRangeDaysChange}
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("recovery-range-plus"));
+    expect(mockOnRangeDaysChange).toHaveBeenCalledWith(6);
+  });
+
+  it("calls onRangeDaysChange when - button is clicked", () => {
+    const mockOnRangeDaysChange = vi.fn();
+    mockUseRecoveryView.mockReturnValue({
+      data: MOCK_RECOVERY_DATA,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderWithProviders(
+      <RecoveryDetailView
+        startDate="2026-03-24"
+        endDate="2026-03-28"
+        rangeDays={5}
+        onRangeDaysChange={mockOnRangeDaysChange}
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("recovery-range-minus"));
+    expect(mockOnRangeDaysChange).toHaveBeenCalledWith(4);
+  });
+
+  it("disables - button at minimum (3 days)", () => {
+    mockUseRecoveryView.mockReturnValue({
+      data: MOCK_RECOVERY_DATA,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderWithProviders(
+      <RecoveryDetailView
+        startDate="2026-03-26"
+        endDate="2026-03-28"
+        rangeDays={3}
+        onRangeDaysChange={vi.fn()}
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("recovery-range-minus")).toBeDisabled();
+  });
+
+  it("disables + button at maximum (7 days)", () => {
+    mockUseRecoveryView.mockReturnValue({
+      data: MOCK_RECOVERY_DATA,
+      isLoading: false,
+      isError: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    renderWithProviders(
+      <RecoveryDetailView
+        startDate="2026-03-22"
+        endDate="2026-03-28"
+        rangeDays={7}
+        onRangeDaysChange={vi.fn()}
+        onDateChange={vi.fn()}
+        onViewModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("recovery-range-plus")).toBeDisabled();
   });
 });

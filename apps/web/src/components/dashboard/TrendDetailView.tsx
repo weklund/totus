@@ -355,11 +355,14 @@ function TrendMetricPanel({
       });
     }
 
-    // Sort by date and convert to epoch ms for Recharts
+    // Sort by date and convert to epoch ms for Recharts.
+    // Use "YYYY-MM-DDT00:00:00" to force local timezone interpretation,
+    // avoiding the UTC-midnight pitfall of new Date("YYYY-MM-DD") which can
+    // shift the visible day in negative-offset timezones (e.g. US time zones).
     return Array.from(dateMap.values())
       .sort((a, b) => a.date.localeCompare(b.date))
       .map((d) => ({
-        timestamp: new Date(d.date).getTime(),
+        timestamp: new Date(d.date + "T00:00:00").getTime(),
         raw: d.raw,
         smoothed: d.smoothed,
       }));

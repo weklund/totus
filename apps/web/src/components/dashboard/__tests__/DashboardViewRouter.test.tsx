@@ -166,9 +166,9 @@ describe("DashboardViewRouter", () => {
 
       fireEvent.click(screen.getByTestId("view-mode-recovery"));
 
-      // Should call router.replace with updated view param
-      expect(mockReplace).toHaveBeenCalled();
-      const callArg = mockReplace.mock.calls[0][0];
+      // Should call router.push with updated view param (preserves browser history)
+      expect(mockPush).toHaveBeenCalled();
+      const callArg = mockPush.mock.calls[0][0];
       expect(callArg).toContain("view=recovery");
     });
 
@@ -177,8 +177,8 @@ describe("DashboardViewRouter", () => {
 
       fireEvent.click(screen.getByTestId("view-mode-trend"));
 
-      expect(mockReplace).toHaveBeenCalled();
-      const callArg = mockReplace.mock.calls[0][0];
+      expect(mockPush).toHaveBeenCalled();
+      const callArg = mockPush.mock.calls[0][0];
       expect(callArg).toContain("view=trend");
     });
 
@@ -188,8 +188,8 @@ describe("DashboardViewRouter", () => {
 
       fireEvent.click(screen.getByTestId("view-mode-recovery"));
 
-      expect(mockReplace).toHaveBeenCalled();
-      const callArg = mockReplace.mock.calls[0][0];
+      expect(mockPush).toHaveBeenCalled();
+      const callArg = mockPush.mock.calls[0][0];
       expect(callArg).toContain("date=2026-03-25");
       expect(callArg).toContain("view=recovery");
     });
@@ -202,8 +202,8 @@ describe("DashboardViewRouter", () => {
 
       fireEvent.click(screen.getByTestId("date-nav-prev"));
 
-      expect(mockReplace).toHaveBeenCalled();
-      const callArg = mockReplace.mock.calls[0][0];
+      expect(mockPush).toHaveBeenCalled();
+      const callArg = mockPush.mock.calls[0][0];
       expect(callArg).toContain("date=2026-03-27");
     });
 
@@ -215,8 +215,8 @@ describe("DashboardViewRouter", () => {
 
       fireEvent.click(screen.getByTestId("date-nav-prev"));
 
-      expect(mockReplace).toHaveBeenCalled();
-      const callArg = mockReplace.mock.calls[0][0];
+      expect(mockPush).toHaveBeenCalled();
+      const callArg = mockPush.mock.calls[0][0];
       expect(callArg).toContain("view=recovery");
     });
   });
@@ -276,14 +276,14 @@ describe("DashboardViewRouter", () => {
     });
   });
 
-  describe("no page reloads", () => {
-    it("uses router.replace (not push) for view switching to avoid page reload", () => {
+  describe("browser history", () => {
+    it("uses router.push for view switching to preserve browser history", () => {
       renderWithProviders(<DashboardViewRouter />);
 
       fireEvent.click(screen.getByTestId("view-mode-trend"));
 
-      // replace is used for shallow URL updates (no full navigation)
-      expect(mockReplace).toHaveBeenCalled();
+      // push is used so the browser back button works after view transitions
+      expect(mockPush).toHaveBeenCalled();
     });
   });
 });

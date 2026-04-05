@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { format, parseISO, isValid } from "date-fns";
 import { DateNavigation } from "./DateNavigation";
@@ -65,7 +65,7 @@ function buildSearchString(view: ViewType, date: string): string {
  * - Deep linking: URL params control which view and date are displayed
  * - View switching: clicking Night/Recovery/Trend updates URL without page reload
  * - Date navigation: arrows and calendar update URL date param
- * - Browser history: uses router.replace for seamless back/forward
+ * - Browser history: uses router.push for view/date transitions to preserve history
  * - Defaults: night view + today's date when no params provided
  */
 export function DashboardViewRouter() {
@@ -76,28 +76,35 @@ export function DashboardViewRouter() {
   const view = parseViewParam(searchParams.get("view"));
   const date = parseDateParam(searchParams.get("date"));
 
-  // Handle view mode changes — update URL
+  // Recovery range state (3–7 days, default 5)
+  const [recoveryRangeDays, setRecoveryRangeDays] = useState(5);
+
+  // Handle view mode changes — update URL.
+  // Use router.push (not replace) so the browser back button works after
+  // user-initiated view transitions.
   const handleViewModeChange = useCallback(
     (newView: ViewType) => {
-      router.replace(buildSearchString(newView, date), { scroll: false });
+      router.push(buildSearchString(newView, date), { scroll: false });
     },
     [router, date],
   );
 
-  // Handle date changes — update URL
+  // Handle date changes — update URL.
+  // Use router.push (not replace) so the browser back button works after
+  // user-initiated date changes.
   const handleDateChange = useCallback(
     (newDate: string) => {
-      router.replace(buildSearchString(view, newDate), { scroll: false });
+      router.push(buildSearchString(view, newDate), { scroll: false });
     },
     [router, view],
   );
 
-  // Compute recovery date range (5 days ending at selected date)
+  // Compute recovery date range (recoveryRangeDays ending at selected date)
   const recoveryRange = useMemo(() => {
     try {
       const endDate = parseISO(date);
       const startDate = new Date(endDate);
-      startDate.setDate(startDate.getDate() - 4);
+      startDate.setDate(startDate.getDate() - (recoveryRangeDays - 1));
       return {
         start: format(startDate, "yyyy-MM-dd"),
         end: format(endDate, "yyyy-MM-dd"),
@@ -105,7 +112,7 @@ export function DashboardViewRouter() {
     } catch {
       return { start: date, end: date };
     }
-  }, [date]);
+  }, [date, recoveryRangeDays]);
 
   return (
     <div className="space-y-4" data-testid="dashboard-view-router">
@@ -129,6 +136,8 @@ export function DashboardViewRouter() {
         <RecoveryDetailView
           startDate={recoveryRange.start}
           endDate={recoveryRange.end}
+          rangeDays={recoveryRangeDays}
+          onRangeDaysChange={setRecoveryRangeDays}
           onDateChange={handleDateChange}
           onViewModeChange={handleViewModeChange}
         />

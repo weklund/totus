@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { format, subDays, parseISO } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DateNavigation } from "@/components/dashboard/DateNavigation";
@@ -23,11 +23,14 @@ export default function RecoveryViewPage() {
   const date = searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd");
   const eventId = searchParams.get("event_id") ?? undefined;
 
-  // Recovery view shows a date range. Default to 5 days ending at the selected date.
+  // Recovery range state (3–7 days, default 5)
+  const [rangeDays, setRangeDays] = useState(5);
+
+  // Recovery view shows a date range ending at the selected date.
   const dateRange = useMemo(() => {
     try {
       const endDate = parseISO(date);
-      const startDate = subDays(endDate, 4); // 5-day range
+      const startDate = subDays(endDate, rangeDays - 1);
       return {
         start: format(startDate, "yyyy-MM-dd"),
         end: format(endDate, "yyyy-MM-dd"),
@@ -38,11 +41,11 @@ export default function RecoveryViewPage() {
         end: date,
       };
     }
-  }, [date]);
+  }, [date, rangeDays]);
 
   const handleDateChange = useCallback(
     (newDate: string) => {
-      router.replace(`/dashboard?view=recovery&date=${newDate}`, {
+      router.push(`/dashboard?view=recovery&date=${newDate}`, {
         scroll: false,
       });
     },
@@ -51,7 +54,7 @@ export default function RecoveryViewPage() {
 
   const handleViewModeChange = useCallback(
     (mode: ViewType) => {
-      router.replace(`/dashboard?view=${mode}&date=${date}`, {
+      router.push(`/dashboard?view=${mode}&date=${date}`, {
         scroll: false,
       });
     },
@@ -71,6 +74,8 @@ export default function RecoveryViewPage() {
         startDate={dateRange.start}
         endDate={dateRange.end}
         eventId={eventId}
+        rangeDays={rangeDays}
+        onRangeDaysChange={setRangeDays}
         onDateChange={handleDateChange}
         onViewModeChange={handleViewModeChange}
       />

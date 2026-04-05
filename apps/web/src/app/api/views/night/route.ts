@@ -191,9 +191,18 @@ export async function GET(request: Request): Promise<NextResponse> {
     const userId = ctx.userId;
 
     // Step 4: Fetch baselines anchored to the effective date (FR-1.4)
+    // Include intraday series metrics (glucose, heart_rate, spo2) alongside
+    // the daily requestedMetrics so baseline bands render on intraday charts.
+    const intradayForBaselines =
+      ctx.role === "owner"
+        ? INTRADAY_SERIES_METRICS
+        : INTRADAY_SERIES_METRICS.filter((m) => requestedMetrics.includes(m));
+    const baselineMetrics = [
+      ...new Set([...requestedMetrics, ...intradayForBaselines]),
+    ];
     const baselinesMap = await fetchBaselines(
       userId,
-      requestedMetrics,
+      baselineMetrics,
       effectiveDate, // referenceDate = effective (clamped) view date
       2, // tolerance
       encryption,

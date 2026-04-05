@@ -24,7 +24,7 @@ export default function TrendViewPage() {
 
   const handleDateChange = useCallback(
     (newDate: string) => {
-      router.replace(`/dashboard?view=trend&date=${newDate}`, {
+      router.push(`/dashboard?view=trend&date=${newDate}`, {
         scroll: false,
       });
     },
@@ -33,7 +33,7 @@ export default function TrendViewPage() {
 
   const handleViewModeChange = useCallback(
     (mode: ViewType) => {
-      router.replace(`/dashboard?view=${mode}&date=${date}`, {
+      router.push(`/dashboard?view=${mode}&date=${date}`, {
         scroll: false,
       });
     },

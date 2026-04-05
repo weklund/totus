@@ -58,6 +58,10 @@ const STATUS_COLORS: Record<
   },
 };
 
+/** Allowed recovery range in days (3–7). */
+const MIN_RANGE_DAYS = 3;
+const MAX_RANGE_DAYS = 7;
+
 interface RecoveryDetailViewProps {
   /** Start date in YYYY-MM-DD format */
   startDate: string;
@@ -67,6 +71,10 @@ interface RecoveryDetailViewProps {
   metrics?: string;
   /** Optional triggering event ID */
   eventId?: string;
+  /** Current range in days (3–7) */
+  rangeDays?: number;
+  /** Callback when range days changes */
+  onRangeDaysChange?: (days: number) => void;
   /** Callback when date changes */
   onDateChange: (date: string) => void;
   /** Callback when view mode changes */
@@ -92,6 +100,8 @@ export function RecoveryDetailView({
   endDate,
   metrics,
   eventId,
+  rangeDays,
+  onRangeDaysChange,
   onDateChange: _onDateChange,
   onViewModeChange: _onViewModeChange,
 }: RecoveryDetailViewProps) {
@@ -254,6 +264,11 @@ export function RecoveryDetailView({
   // ─── Data State ─────────────────────────────────────────────
   return (
     <div className="space-y-4" data-testid="recovery-detail-view">
+      {/* Range selector (3–7 days) */}
+      {onRangeDaysChange && rangeDays != null && (
+        <RecoveryRangeSelector value={rangeDays} onChange={onRangeDaysChange} />
+      )}
+
       {/* Insight cards (conditional — only when insights exist) */}
       {recoveryData!.insights.length > 0 && (
         <div className="space-y-3">
@@ -304,6 +319,59 @@ export function RecoveryDetailView({
           daily={recoveryData!.daily}
         />
       )}
+    </div>
+  );
+}
+
+// ─── RecoveryRangeSelector Sub-Component ───────────────────────
+
+interface RecoveryRangeSelectorProps {
+  /** Current range in days */
+  value: number;
+  /** Callback when range changes */
+  onChange: (days: number) => void;
+}
+
+/**
+ * RecoveryRangeSelector — +/- buttons for selecting the recovery window
+ * between MIN_RANGE_DAYS and MAX_RANGE_DAYS.
+ */
+function RecoveryRangeSelector({
+  value,
+  onChange,
+}: RecoveryRangeSelectorProps) {
+  return (
+    <div
+      className="flex items-center gap-2"
+      data-testid="recovery-range-selector"
+    >
+      <span className="text-muted-foreground text-xs font-medium">Range:</span>
+      <button
+        type="button"
+        disabled={value <= MIN_RANGE_DAYS}
+        onClick={() => onChange(Math.max(MIN_RANGE_DAYS, value - 1))}
+        className="bg-muted text-muted-foreground hover:text-foreground inline-flex size-7 items-center justify-center rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
+        aria-label="Decrease range"
+        data-testid="recovery-range-minus"
+      >
+        −
+      </button>
+      <span
+        className="min-w-[3.5rem] text-center text-sm font-semibold"
+        data-testid="recovery-range-value"
+      >
+        {value} days
+      </span>
+      <button
+        type="button"
+        disabled={value >= MAX_RANGE_DAYS}
+        onClick={() => onChange(Math.min(MAX_RANGE_DAYS, value + 1))}
+        className="bg-muted text-muted-foreground hover:text-foreground inline-flex size-7 items-center justify-center rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50"
+        aria-label="Increase range"
+        data-testid="recovery-range-plus"
+      >
+        +
+      </button>
     </div>
   );
 }
