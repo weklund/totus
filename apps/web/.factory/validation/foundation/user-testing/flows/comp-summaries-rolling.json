@@ -1,0 +1,125 @@
+{
+  "groupId": "comp-summaries-rolling",
+  "testedAt": "2026-04-05T05:46:51.781127+00:00",
+  "isolation": {
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "constraints": [
+      "local repo and local services only",
+      "targeted vitest runs only",
+      "no production logic edits"
+    ]
+  },
+  "toolsUsed": ["vitest"],
+  "assertions": [
+    {
+      "id": "VAL-COMP-005",
+      "title": "Direction respects metric polarity",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted vitest suite including summaries polarity cases",
+          "expected": "Direction mapping passes for lower_is_better, higher_is_better, and neutral metrics across delta signs",
+          "observed": "All summaries polarity tests passed in src/lib/dashboard/__tests__/summaries.test.ts"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "foundation/comp-summaries-rolling/vitest-targeted.log",
+          "foundation/comp-summaries-rolling/vitest-command-summary.txt"
+        ],
+        "exitCodeFile": "foundation/comp-summaries-rolling/vitest-targeted.exitcode",
+        "command": "npm --prefix \"/Users/weae1504/Projects/totus/apps/web\" run test -- src/lib/dashboard/__tests__/summaries.test.ts src/lib/dashboard/__tests__/rolling-averages.test.ts"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-006",
+      "title": "Z-score status classification with all threshold boundaries",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted vitest suite including z-score threshold and boundary tests",
+          "expected": "Critical/warning/normal/good statuses match thresholds and polarity rules",
+          "observed": "All z-score status and boundary tests passed in src/lib/dashboard/__tests__/summaries.test.ts"
+        }
+      ],
+      "evidence": {
+        "logs": ["foundation/comp-summaries-rolling/vitest-targeted.log"],
+        "exitCodeFile": "foundation/comp-summaries-rolling/vitest-targeted.exitcode"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-007",
+      "title": "Metrics without baselines omitted from summaries",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted vitest suite including missing-baseline summary cases",
+          "expected": "Metrics with no baseline are absent from output map",
+          "observed": "Missing-baseline omission tests passed in src/lib/dashboard/__tests__/summaries.test.ts"
+        }
+      ],
+      "evidence": {
+        "logs": ["foundation/comp-summaries-rolling/vitest-targeted.log"],
+        "exitCodeFile": "foundation/comp-summaries-rolling/vitest-targeted.exitcode"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-008",
+      "title": "Rolling average computed correctly with gap handling",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted vitest suite including rolling average complete, sparse, single-point, and empty-input cases",
+          "expected": "Rolling means use available points only and do not zero-fill missing days",
+          "observed": "Rolling average and gap-handling tests passed in src/lib/dashboard/__tests__/rolling-averages.test.ts"
+        }
+      ],
+      "evidence": {
+        "logs": ["foundation/comp-summaries-rolling/vitest-targeted.log"],
+        "exitCodeFile": "foundation/comp-summaries-rolling/vitest-targeted.exitcode"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-009",
+      "title": "Early dates use available data for rolling average",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted vitest suite including early-date partial-window cases",
+          "expected": "Initial days compute mean over available points only",
+          "observed": "Early-date rolling-average tests passed in src/lib/dashboard/__tests__/rolling-averages.test.ts"
+        }
+      ],
+      "evidence": {
+        "logs": ["foundation/comp-summaries-rolling/vitest-targeted.log"],
+        "exitCodeFile": "foundation/comp-summaries-rolling/vitest-targeted.exitcode"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-013",
+      "title": "Division-safe when stddev is zero but value differs",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted vitest suite including zero-stddev edge cases where value differs from avg",
+          "expected": "No NaN/Infinity/division errors; status defaults to critical/good per polarity",
+          "observed": "Zero-stddev edge-case tests passed in src/lib/dashboard/__tests__/summaries.test.ts"
+        }
+      ],
+      "evidence": {
+        "logs": ["foundation/comp-summaries-rolling/vitest-targeted.log"],
+        "exitCodeFile": "foundation/comp-summaries-rolling/vitest-targeted.exitcode"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 6 assigned assertions via targeted vitest suites; all passed (VAL-COMP-005, 006, 007, 008, 009, 013). Command exit code was 0."
+}

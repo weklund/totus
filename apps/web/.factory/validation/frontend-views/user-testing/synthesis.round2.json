@@ -1,0 +1,97 @@
+{
+  "milestone": "frontend-views",
+  "round": 2,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 21,
+    "passed": 4,
+    "failed": 14,
+    "blocked": 3
+  },
+  "passedAssertions": [
+    "VAL-CROSS-008",
+    "VAL-CROSS-021",
+    "VAL-UICMP-004",
+    "VAL-UITRD-003"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-CROSS-007",
+      "reason": "Required Heart Rate baseline band contract is unmet: missing heart_rate baseline data and observed chart fill opacity is 0.6 (not <=0.15)."
+    },
+    {
+      "id": "VAL-CROSS-009",
+      "reason": "Back navigation returned to Trend URL/date but did not preserve prior range/metric context (reset to 30D/Weekly)."
+    },
+    {
+      "id": "VAL-CROSS-018",
+      "reason": "Contract not met: with only 10 baseline-window points, API still returns populated baselines for night/recovery and still returns direction fields instead of suppressing baseline-driven fields entirely."
+    },
+    {
+      "id": "VAL-CROSS-019",
+      "reason": "Cross assertion failed on frontend axis rendering despite correct API window bounds."
+    },
+    {
+      "id": "VAL-CROSS-024",
+      "reason": "API overlap inclusion passes, but required left-edge marker rendering was not conclusively met in UI evidence."
+    },
+    {
+      "id": "VAL-UICMP-003",
+      "reason": "Earliest-date boundary is not enforced: Previous-day button stayed enabled on old historical dates."
+    },
+    {
+      "id": "VAL-UICMP-006",
+      "reason": "Mobile viewport still overflows horizontally (375px viewport rendered 478px document width)."
+    },
+    {
+      "id": "VAL-UINGT-001",
+      "reason": "Required multi-strip shared overnight axis (glucose + heart-rate + hypnogram) was not present on the rerun surface."
+    },
+    {
+      "id": "VAL-UINGT-002",
+      "reason": "Hypnogram stage differentiation requirement not met on rerun."
+    },
+    {
+      "id": "VAL-UINGT-003",
+      "reason": "Summary strip contract failed because Sleep Latency delta badge is absent."
+    },
+    {
+      "id": "VAL-UINGT-004",
+      "reason": "S1 end-to-end causal visualization contract not satisfied in rerun."
+    },
+    {
+      "id": "VAL-UIRCV-001",
+      "reason": "Contract-required Body Temp Deviation panel was not rendered."
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "reason": "S3 fixture expectations are not met on the current local surface."
+    },
+    {
+      "id": "VAL-UITRD-002",
+      "reason": "Correlation card and in-card Share action were absent in the tested Trend UI."
+    }
+  ],
+  "blockedAssertions": [
+    {
+      "id": "VAL-CROSS-006",
+      "blockedBy": "Unable to confirm the required job-completion path because baseline rows never materialized in metric_baselines after event submission; only on-demand baseline math could be validated."
+    },
+    {
+      "id": "VAL-CROSS-012",
+      "blockedBy": "Blocked: API-only flow cannot create an already-expired raw token in-session (expires_in_days minimum is 1, and expired-share listing/detail endpoints do not reveal raw token), so the required expired-token 403 check is not directly executable."
+    },
+    {
+      "id": "VAL-CROSS-020",
+      "blockedBy": "Blocked by runtime precondition: could not execute during an in-progress window for this environment's night-window calculation."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added agent-browser guidance for trend chart date-click validation to prefer active data-point clicks when overlays intercept broad chart clicks.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": ".factory/validation/frontend-views/user-testing/synthesis.round1.json"
+}

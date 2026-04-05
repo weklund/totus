@@ -1,0 +1,59 @@
+{
+  "milestone": "foundation",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 18,
+    "passed": 14,
+    "failed": 0,
+    "blocked": 4
+  },
+  "passedAssertions": [
+    "VAL-COMP-001",
+    "VAL-COMP-002",
+    "VAL-COMP-003",
+    "VAL-COMP-004",
+    "VAL-COMP-005",
+    "VAL-COMP-006",
+    "VAL-COMP-007",
+    "VAL-COMP-008",
+    "VAL-COMP-009",
+    "VAL-COMP-010",
+    "VAL-COMP-011",
+    "VAL-COMP-012",
+    "VAL-COMP-013",
+    "VAL-COMP-014"
+  ],
+  "failedAssertions": [],
+  "blockedAssertions": [
+    {
+      "id": "VAL-DB-001",
+      "blockedBy": "Assertion requires endpoint + DB roundtrip evidence; foundation test surface only provides mocked unit tests."
+    },
+    {
+      "id": "VAL-DB-002",
+      "blockedBy": "No direct vitest integration test for metric_baselines at-rest ciphertext in current milestone surface."
+    },
+    {
+      "id": "VAL-DB-003",
+      "blockedBy": "Assertion cannot be validated via existing vitest tests in this milestone."
+    },
+    {
+      "id": "VAL-DB-004",
+      "blockedBy": "No existing vitest coverage for required cascade verification on dashboard-derived tables."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added vitest concurrency guidance and a Flow Validator Guidance: vitest section for safe isolation and assertion-scoped validation behavior.",
+      "source": "setup"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Documented reliable vitest invocation via npm --prefix after flow-report friction showed direct binary path issues in workspace layout.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

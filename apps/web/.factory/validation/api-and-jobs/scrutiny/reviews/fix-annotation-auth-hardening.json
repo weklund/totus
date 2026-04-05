@@ -1,0 +1,26 @@
+{
+  "featureId": "fix-annotation-auth-hardening",
+  "reviewedAt": "2026-04-05T06:53:46Z",
+  "commitId": "e2b3253",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix commit fully addresses the prior blocking findings: API-key scope checks are now enforced on all annotation CRUD handlers (health:read for GET, health:write for POST/PATCH/DELETE), and viewer GET date ranges are clamped via enforcePermissions() before querying. The added integration tests cover negative and positive scope cases plus clamp/no-overlap/partial-overlap viewer scenarios. No regressions were identified in owner behavior or response/audit shape.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill requires test-first TDD, but this fix session applied implementation edits before adding new tests while handoff skill feedback still reports followedProcedure=true.",
+      "evidence": "apps/web/.factory/skills/backend-worker/SKILL.md:36 requires \"Write tests first (TDD)\"; worker transcript skeleton (worker-transcripts.jsonl:21, session 0e714780-ed9c-47f9-b47c-b46015bfa3aa) shows route edits before the later \"Now let me add tests\" step; handoff marks \"followedProcedure\": true with no deviations (handoffs/2026-04-05T06-42-22-432Z__fix-annotation-auth-hardening__0e714780-ed9c-47f9-b47c-b46015bfa3aa.json:88-89)."
+    },
+    {
+      "area": "conventions",
+      "observation": "Mission AGENTS auth guidance is too generic for API data endpoints: it documents getResolvedContext + role checks, but not API-key scope enforcement and viewer date-window clamping, which were the exact prior blocking defects.",
+      "evidence": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/AGENTS.md:24 only states role-check auth guidance; prior fail review identified missing scope/clamp in annotation-crud-api, and this fix adds that logic in apps/web/src/app/api/annotations/route.ts and apps/web/src/app/api/annotations/[id]/route.ts (commit e2b3253)."
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/api-and-jobs/scrutiny/reviews/annotation-crud-api.json",
+  "summary": "Pass. Reviewed the prior failure report, original failed commit (0fde193), fix commit (e2b3253), handoff, and transcript skeleton. All previously blocking authorization issues are resolved and no new regressions were found."
+}

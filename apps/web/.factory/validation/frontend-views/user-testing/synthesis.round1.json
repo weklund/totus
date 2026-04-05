@@ -1,0 +1,128 @@
+{
+  "milestone": "frontend-views",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 40,
+    "passed": 19,
+    "failed": 17,
+    "blocked": 4
+  },
+  "passedAssertions": [
+    "VAL-CROSS-001",
+    "VAL-CROSS-002",
+    "VAL-CROSS-003",
+    "VAL-CROSS-004",
+    "VAL-CROSS-005",
+    "VAL-CROSS-010",
+    "VAL-CROSS-011",
+    "VAL-CROSS-013",
+    "VAL-CROSS-014",
+    "VAL-CROSS-015",
+    "VAL-CROSS-016",
+    "VAL-CROSS-017",
+    "VAL-CROSS-022",
+    "VAL-CROSS-023",
+    "VAL-UICMP-001",
+    "VAL-UICMP-002",
+    "VAL-UICMP-005",
+    "VAL-UIRCV-002",
+    "VAL-UITRD-001"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-CROSS-007",
+      "reason": "Contract not met: expected Heart Rate baseline band behavior/opacity could not be validated because heart_rate baseline data was absent and rendered fill did not match <=15% baseline-band requirement."
+    },
+    {
+      "id": "VAL-CROSS-008",
+      "reason": "Date click did not trigger navigation to Night detail view."
+    },
+    {
+      "id": "VAL-CROSS-018",
+      "reason": "Insufficient-history behavior did not suppress baselines/deltas for a 10-point history window; API still emits computed baseline and full delta/direction fields."
+    },
+    {
+      "id": "VAL-CROSS-019",
+      "reason": "API window is correct, but required frontend time-axis label rendering was not observed."
+    },
+    {
+      "id": "VAL-CROSS-021",
+      "reason": "Night endpoint returns fixed UTC window (20:00Z to 08:00Z) and ignores timezone differences; requests with timezone params and different users produced identical time_range values."
+    },
+    {
+      "id": "VAL-CROSS-024",
+      "reason": "Spanning workout annotation exists in API (recovery) but is excluded from night view overlap surface; Night UI has no marker at left edge."
+    },
+    {
+      "id": "VAL-UICMP-003",
+      "reason": "Earliest-date boundary behavior does not match contract: backward navigation never disables at earliest data date."
+    },
+    {
+      "id": "VAL-UICMP-004",
+      "reason": "Loading placeholder requirement was not met in observed delayed-fetch state (no skeleton/spinner surfaced)."
+    },
+    {
+      "id": "VAL-UICMP-006",
+      "reason": "Mobile viewport violates full-width expectation due reproducible horizontal overflow/horizontal scrolling."
+    },
+    {
+      "id": "VAL-UINGT-001",
+      "reason": "Expected glucose + HR + hypnogram aligned on shared axis, but glucose and hypnogram visualization were not rendered."
+    },
+    {
+      "id": "VAL-UINGT-002",
+      "reason": "Hypnogram stage differentiation/legend did not render on tested surface."
+    },
+    {
+      "id": "VAL-UINGT-003",
+      "reason": "Required Sleep Latency delta badge is missing from SummaryStrip."
+    },
+    {
+      "id": "VAL-UINGT-004",
+      "reason": "Current local night surface does not match S1 fixture expectations."
+    },
+    {
+      "id": "VAL-UIRCV-001",
+      "reason": "Assertion requires Body Temp Deviation sparkline; observed Sleep Score sparkline instead."
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "reason": "S3 fixture expectations are not met on current local surface."
+    },
+    {
+      "id": "VAL-UITRD-002",
+      "reason": "Correlation card and share action are absent on the tested Trend UI state."
+    },
+    {
+      "id": "VAL-UITRD-003",
+      "reason": "Monthly mode did not show monthly aggregation behavior required by the assertion."
+    }
+  ],
+  "blockedAssertions": [
+    {
+      "id": "VAL-CROSS-006",
+      "blockedBy": "Could not verify the specific 'Inngest job produced baselines' contract because local Inngest event delivery did not materialize metric_baselines rows despite 200 trigger responses."
+    },
+    {
+      "id": "VAL-CROSS-009",
+      "blockedBy": "Blocked by VAL-CROSS-008 failure (no date-click navigation path available)."
+    },
+    {
+      "id": "VAL-CROSS-012",
+      "blockedBy": "Unable to create a truly expired token in-session (expires_in_days minimum is 1 day, no time-travel control, and raw tokens for historical expired grants are unavailable via API)."
+    },
+    {
+      "id": "VAL-CROSS-020",
+      "blockedBy": "Blocked by unmet precondition: test runtime was outside an in-progress night window for the configured timezone/data."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Updated browser validation guidance to document sign-in redirect handling via __session cookie and fallback to curl artifacts when agent-browser request capture is empty.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

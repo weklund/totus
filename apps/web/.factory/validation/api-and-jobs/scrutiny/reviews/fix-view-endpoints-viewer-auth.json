@@ -1,0 +1,28 @@
+{
+  "featureId": "fix-view-endpoints-viewer-auth",
+  "reviewedAt": "2026-04-05T06:53:55Z",
+  "commitId": "3a9cd1124502e10f32820360acbd92a22c30e363",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The fix commit correctly resolves the prior Night and Recovery blocking auth/scoping issues (grant_token resolution, clamped effective date usage in Night, and viewer event_id window checks in Recovery) and does not introduce regressions in those paths. However, the prior Trend blocking issue remains unresolved: trend correlations are still hardcoded to an empty array.",
+    "issues": [
+      {
+        "file": "apps/web/src/app/api/views/trend/route.ts",
+        "line": 424,
+        "severity": "blocking",
+        "description": "Prior blocking concern from trend-view-endpoint review remains unresolved. The endpoint still returns `const correlations: CorrelationResult[] = [];` unconditionally, even when valid `correlations` query pairs are supplied. This still fails VAL-TREND-005 correlation-computation expectations from the mission validation contract."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Mission shared state still has a scope conflict around correlations: AGENTS says not to implement correlations (P1), while validation contract requires computed trend correlations.",
+      "evidence": "Mission AGENTS.md line 14 forbids P1 correlations; validation-contract.md lines 251-254 define VAL-TREND-005 as required correlation computation; current implementation still hardcodes empty correlations at src/app/api/views/trend/route.ts:423-424."
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/api-and-jobs/scrutiny/reviews/trend-view-endpoint.json",
+  "summary": "Reviewed fix-view-endpoints-viewer-auth as a re-run against prior Night/Recovery/Trend failures. Night and Recovery blocking issues are addressed, but the Trend prior blocking issue (missing correlation computation) remains unresolved, so this fix review is FAIL."
+}

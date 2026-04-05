@@ -1,0 +1,80 @@
+{
+  "milestone": "frontend-views",
+  "round": 3,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 17,
+    "passed": 6,
+    "failed": 10,
+    "blocked": 1
+  },
+  "passedAssertions": [
+    "VAL-CROSS-006",
+    "VAL-CROSS-009",
+    "VAL-CROSS-012",
+    "VAL-CROSS-024",
+    "VAL-UICMP-003",
+    "VAL-UICMP-006"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-CROSS-007",
+      "reason": "Required Heart Rate baseline-band contract remains unmet: heart_rate baseline key absent and observed fill opacity evidence remained above contract threshold."
+    },
+    {
+      "id": "VAL-CROSS-018",
+      "reason": "With only 10 baseline-window points, API still returned populated baselines for night/recovery (sample_count=10), violating suppression expectation."
+    },
+    {
+      "id": "VAL-CROSS-019",
+      "reason": "API night-window bounds were correct, but frontend evidence still did not satisfy required 8 PM\u20138 AM axis labeling contract."
+    },
+    {
+      "id": "VAL-UINGT-001",
+      "reason": "Night UI did not render glucose strip and did not show the required shared overnight axis alignment across strips/hypnogram."
+    },
+    {
+      "id": "VAL-UINGT-002",
+      "reason": "Night UI showed \"No sleep stage data available\"; required hypnogram stage bars and legend were not rendered."
+    },
+    {
+      "id": "VAL-UINGT-003",
+      "reason": "Summary strip still omitted Sleep Latency metric/delta badge required by the contract."
+    },
+    {
+      "id": "VAL-UINGT-004",
+      "reason": "S1 causal chain was not visible end-to-end (missing glucose panel/hypnogram evidence and required summary deltas)."
+    },
+    {
+      "id": "VAL-UIRCV-001",
+      "reason": "Recovery view still missed the required Body Temp Deviation panel in the multi-day strip set."
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "reason": "S3-specific fixture expectations were not observed (for example no \"10K run\" marker and no \"3 days\" insight text)."
+    },
+    {
+      "id": "VAL-UITRD-002",
+      "reason": "Correlation card with Pearson coefficients/strength labels and in-card Share action was still absent on the tested Trend UI."
+    }
+  ],
+  "blockedAssertions": [
+    {
+      "id": "VAL-CROSS-020",
+      "blockedBy": "Blocked by runtime precondition: rerun occurred after the tested night window had already completed, so in-progress-night behavior was not executable."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "services.yaml",
+      "description": "Updated Inngest service start command to sync app handlers (`-u http://localhost:3100/api/inngest`) so job assertions can execute with registered functions.",
+      "source": "setup"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Added curl-surface guidance for Inngest handler sync and reproducible expired-share validation workflow.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": ".factory/validation/frontend-views/user-testing/synthesis.round2.json"
+}

@@ -1,0 +1,47 @@
+{
+  "milestone": "frontend-views",
+  "round": 4,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 11,
+    "passed": 7,
+    "failed": 4,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-UINGT-001",
+    "VAL-UINGT-002",
+    "VAL-UINGT-003",
+    "VAL-UINGT-004",
+    "VAL-CROSS-019",
+    "VAL-CROSS-020",
+    "VAL-UIRCV-001"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-CROSS-007",
+      "reason": "API returns populated baseline ranges, but frontend evidence still does not render an explicit low-opacity baseline reference band (only regular chart area fills observed)."
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "reason": "S3 narrative contract not satisfied on tested UI surface: no \"10K run\" marker label or \"3 days\" recovery insight text, while API still showed the dip/recovery data."
+    },
+    {
+      "id": "VAL-CROSS-018",
+      "reason": "For a <14-point baseline window case, night/recovery responses still returned populated baselines (sample_count=10) instead of suppressing baseline objects."
+    },
+    {
+      "id": "VAL-UITRD-002",
+      "reason": "Trend UI still lacks correlation card Pearson/strength/direction content and missing in-card Share action (deferred P1 assertion per AGENTS.md)."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "nonBlockingDeferredAssertions": [
+    {
+      "id": "VAL-UITRD-002",
+      "reason": "Deferred P1 scope per AGENTS.md Testing & Validation Guidance."
+    }
+  ],
+  "previousRound": ".factory/validation/frontend-views/user-testing/synthesis.round3.json"
+}

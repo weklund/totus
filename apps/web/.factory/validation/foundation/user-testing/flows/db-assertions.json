@@ -1,0 +1,145 @@
+{
+  "groupId": "db-assertions",
+  "testedAt": "2026-04-05T05:45:08Z",
+  "isolation": {
+    "milestone": "foundation",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "stack": {
+      "postgres": "localhost:5432 (totus-db)",
+      "web": "localhost:3100",
+      "inngest": "localhost:8288"
+    }
+  },
+  "toolsUsed": ["vitest", "rg", "glob"],
+  "assertions": [
+    {
+      "id": "VAL-DB-001",
+      "title": "Annotation fields encrypted at rest",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Discover direct validation surface for POST/GET /api/annotations in foundation code",
+          "expected": "Existing endpoint + vitest integration test covering DB ciphertext and decrypted readback",
+          "observed": "No matching /src/app/api/annotations route files found in this milestone surface"
+        },
+        {
+          "action": "Run targeted vitest suites with closest related behavior",
+          "expected": "Assertion-scoped test proving ciphertext-at-rest and plaintext readback",
+          "observed": "src/lib/dashboard/__tests__/annotations.test.ts passed and validates decryption behavior with mocked DB/encryption, but does not validate POST/GET endpoint flow or DB ciphertext inequality"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "n/a",
+        "logs": [
+          "foundation/db-assertions/vitest-dashboard-services.log",
+          "foundation/db-assertions/test-coverage-search.log"
+        ]
+      },
+      "issues": "Assertion requires endpoint + DB roundtrip evidence; foundation test surface only provides mocked unit tests."
+    },
+    {
+      "id": "VAL-DB-002",
+      "title": "Baseline values encrypted at rest",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Search for assertion-scoped vitest coverage",
+          "expected": "Test that reads metric_baselines.value_encrypted raw, confirms JSON.parse() fails pre-decrypt, then validates decrypted payload fields",
+          "observed": "No test references metric_baselines in *.test.ts files"
+        },
+        {
+          "action": "Run closest baseline tests",
+          "expected": "Direct DB-at-rest encryption assertion",
+          "observed": "src/lib/dashboard/__tests__/baselines.test.ts passed and validates finite BaselinePayload shape using mocked data paths, not raw DB ciphertext behavior"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "n/a",
+        "logs": [
+          "foundation/db-assertions/vitest-dashboard-services.log",
+          "foundation/db-assertions/test-coverage-search.log"
+        ]
+      },
+      "issues": "No direct vitest integration test for metric_baselines at-rest ciphertext in current milestone surface."
+    },
+    {
+      "id": "VAL-DB-003",
+      "title": "Dismissed insights unique constraint",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Search for dismissed_insights assertion coverage in tests",
+          "expected": "Test proving duplicate insert with ON CONFLICT DO NOTHING keeps one row and unchanged dismissed_at",
+          "observed": "No dismissed_insights references found in *.test.ts files"
+        },
+        {
+          "action": "Run targeted related suites",
+          "expected": "Assertion-scoped DB behavior test",
+          "observed": "No existing targeted vitest suite for dismissed_insights duplicate insert idempotency behavior"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "n/a",
+        "logs": ["foundation/db-assertions/test-coverage-search.log"]
+      },
+      "issues": "Assertion cannot be validated via existing vitest tests in this milestone."
+    },
+    {
+      "id": "VAL-DB-004",
+      "title": "CASCADE deletion cleans up derived tables",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Search for cascade tests on metric_baselines/user_annotations/dismissed_insights",
+          "expected": "Test deleting users row and asserting zero dependent rows across all 3 derived tables",
+          "observed": "No test references these tables in *.test.ts files"
+        },
+        {
+          "action": "Evaluate available DB test surfaces",
+          "expected": "Assertion-scoped cascade verification suite",
+          "observed": "Existing cascade tests in schema suite target other tables and do not cover the three derived dashboard tables required by this assertion"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "n/a",
+        "logs": ["foundation/db-assertions/test-coverage-search.log"]
+      },
+      "issues": "No existing vitest coverage for required cascade verification on dashboard-derived tables."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Assigned VAL-DB assertions are not directly represented in current vitest suites; closest available suites are unit tests with mocked DB/encryption paths.",
+      "resolved": false,
+      "resolution": "Captured test coverage search evidence and ran the closest targeted suites to confirm current surface gap.",
+      "affectedAssertions": [
+        "VAL-DB-001",
+        "VAL-DB-002",
+        "VAL-DB-003",
+        "VAL-DB-004"
+      ]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Missing assertion-scoped vitest integration tests and missing foundation API surface for /api/annotations and /api/insights dismissal flows required by VAL-DB-001 and VAL-DB-003 semantics.",
+      "affectedAssertions": ["VAL-DB-001", "VAL-DB-003"],
+      "quickFixAttempted": "Searched for existing routes/tests and executed nearest relevant suites; no direct surface found."
+    },
+    {
+      "description": "No existing vitest tests validate raw at-rest ciphertext behavior for metric_baselines or cascade cleanup on metric_baselines/user_annotations/dismissed_insights.",
+      "affectedAssertions": ["VAL-DB-002", "VAL-DB-004"],
+      "quickFixAttempted": "Ran targeted baseline/annotation suites and repository-wide test coverage searches to confirm coverage gap."
+    }
+  ],
+  "summary": "Ran targeted vitest command: 2 files passed (63 tests), but all 4 assigned VAL-DB assertions are blocked due missing assertion-scoped vitest coverage/surface at foundation."
+}

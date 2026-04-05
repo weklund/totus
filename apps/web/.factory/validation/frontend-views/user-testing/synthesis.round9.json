@@ -1,0 +1,27 @@
+{
+  "milestone": "frontend-views",
+  "round": 9,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": [],
+  "failedAssertions": [
+    {
+      "id": "VAL-UITRD-003",
+      "reason": "Resolution toggle partially works: default 30D + Weekly (7-Day Avg equivalent), Daily toggle changed to raw-dot rendering, and 7D/30D/90D/1Y presets updated the range; however Monthly toggle did not produce a distinct monthly-aggregated rendering state and appeared equivalent to Weekly."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": ".factory/validation/frontend-views/user-testing/synthesis.round8.json",
+  "nonBlockingDeferredAssertions": [
+    {
+      "id": "VAL-UITRD-002",
+      "reason": "Deferred P1 scope per AGENTS.md Testing & Validation Guidance."
+    }
+  ]
+}
