@@ -1,0 +1,169 @@
+{
+  "groupId": "rerun3-nav-shared-trend",
+  "testedAt": "2026-04-05T11:22:00Z",
+  "isolation": {
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "browserSessionId": "db9d835a-rerun3-nav-shared-trend",
+    "boundary": "Local app surface only; assigned assertions only; no source-code edits"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": [
+    {
+      "id": "VAL-UICMP-003",
+      "title": "DateNavigation with picker, arrows, presets, and view toggle",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check forward boundary at today",
+          "expected": "Forward arrow disabled at today",
+          "observed": "At trend date=2026-04-05, Next day button was disabled (is enabled => false)."
+        },
+        {
+          "action": "Open date picker and select Apr 3, 2026",
+          "expected": "Calendar opens and selected date updates navigation context",
+          "observed": "Date picker opened; selecting Apr 3 navigated to /dashboard?view=night&date=2026-04-03."
+        },
+        {
+          "action": "Switch views Night -> Recovery -> Trend",
+          "expected": "View toggle preserves same date context",
+          "observed": "Date context remained 2026-04-03 across /night, /recovery, /trend."
+        },
+        {
+          "action": "Apply trend range presets",
+          "expected": "Range preset tabs update range",
+          "observed": "7D set range=7 and 1Y set range=365 in URL while keeping date context."
+        },
+        {
+          "action": "Use arrows and earliest backward boundary check",
+          "expected": "Arrows navigate date and previous disables at earliest bound",
+          "observed": "Next arrow advanced to 2026-04-04; at old boundary date=2020-01-01 Previous day button was disabled (is enabled => false)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-003-night-today-next-disabled-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-003-date-picker-open-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-003-date-picker-selected-2026-04-03-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-003-recovery-date-preserved-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-003-trend-date-preserved-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-003-trend-range-7d-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-003-trend-range-1y-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-003-arrow-next-to-2026-04-04-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-003-trend-today-next-disabled-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-003-earliest-boundary-check-annotated.png"
+        ],
+        "consoleErrors": "none",
+        "network": "UI route transitions verified via URL changes (night/recovery/trend with preserved date; range=7 and range=365 presets)."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UITRD-002",
+      "title": "Correlation card with coefficients and share action",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open Trend view (30D, Weekly)",
+          "expected": "Correlation card visible with Pearson coefficients and directional labels",
+          "observed": "Trend strips rendered, but no correlation card/coefficients visible in viewport or full-page capture."
+        },
+        {
+          "action": "Inspect DOM text/buttons for correlation + share action",
+          "expected": "Correlation text plus clickable \"Share ↗\" action",
+          "observed": "Eval result: hasCorrelation=false; shareButtonsCount=1 with only sidebar \"Shared Links\" anchor (no correlation-card share button)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-nav-shared-trend/VAL-UITRD-002-trend-no-correlation-card-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UITRD-002-trend-no-correlation-card-full.png"
+        ],
+        "consoleErrors": "none",
+        "network": "N/A (UI presence assertion)."
+      },
+      "issues": "CorrelationCard contract not met: no Pearson correlation values/strength labels rendered and no in-card Share action present."
+    },
+    {
+      "id": "VAL-UICMP-006",
+      "title": "Responsive layout at desktop, tablet, and mobile viewports",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Desktop viewport check",
+          "expected": "No horizontal overflow at desktop",
+          "observed": "At 1440x900: docClientWidth=1440, docScrollWidth=1440, bodyScrollWidth=1440."
+        },
+        {
+          "action": "Tablet viewport check",
+          "expected": "No horizontal overflow/cutoff at tablet",
+          "observed": "At 768x1024: docClientWidth=768, docScrollWidth=768, bodyScrollWidth=768."
+        },
+        {
+          "action": "Mobile viewport check",
+          "expected": "Single-column mobile layout with no horizontal overflow",
+          "observed": "At 375x812: viewportWidth=375 and docScrollWidth=375 (docClientWidth=375, bodyScrollWidth=375), indicating no horizontal overflow."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-006-desktop-1440x900.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-006-tablet-768x1024.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-006-mobile-375x812-top.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-006-mobile-375x812-scrolled.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-UICMP-006-mobile-375x812-top-annotated.png"
+        ],
+        "consoleErrors": "none",
+        "network": "N/A (layout assertion)."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-009",
+      "title": "View navigation preserves context on browser back",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Set Trend context before navigation",
+          "expected": "Custom trend context established",
+          "observed": "Trend set to date=2026-04-04 with 7D + Daily; selected tabs = [Trend, 7D, Daily]; metric context = [Resting Heart Rate, Heart Rate Variability, Sleep Score]."
+        },
+        {
+          "action": "Navigate Trend -> Night by clicking trend date label",
+          "expected": "Date click opens Night for clicked date",
+          "observed": "Clicking chart date label (tspan Apr 4) navigated to /dashboard?view=night&date=2026-04-04."
+        },
+        {
+          "action": "Browser back to Trend",
+          "expected": "Return to Trend with same range/smoothing/metrics context",
+          "observed": "Returned to /dashboard?view=trend&date=2026-04-04&range=7&smoothing=daily with selected tabs still [Trend, 7D, Daily] and same metric strip set."
+        },
+        {
+          "action": "Check no full reload / no new API call on back",
+          "expected": "Client-side back navigation with no new /api/views call",
+          "observed": "In-page probe variables persisted across navigation; after performance.clearResourceTimings() on Night, back-navigation produced apiEntries=[] for /api/views."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-nav-shared-trend/VAL-CROSS-009-trend-context-before-navigation-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-CROSS-009-night-after-trend-date-click-annotated.png",
+          "frontend-views/rerun3-nav-shared-trend/VAL-CROSS-009-trend-after-browser-back-annotated.png"
+        ],
+        "consoleErrors": "none",
+        "network": "After clearing resource timings on Night before back: performance.getEntriesByType('resource').filter(name includes '/api/views') => []."
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Trend data-point click path is not directly exposed as an interactive ref in snapshot -i output.",
+      "resolved": true,
+      "resolution": "Used a concrete chart date label click target (SVG tspan for Apr 4) to trigger Trend -> Night navigation deterministically.",
+      "affectedAssertions": ["VAL-CROSS-009"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 4 assertions: 3 passed (VAL-UICMP-003, VAL-UICMP-006, VAL-CROSS-009) and 1 failed (VAL-UITRD-002)."
+}

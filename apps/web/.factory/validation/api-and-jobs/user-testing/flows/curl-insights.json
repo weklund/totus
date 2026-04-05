@@ -1,0 +1,180 @@
+{
+  "groupId": "curl-insights",
+  "testedAt": "2026-04-05T07:07:32Z",
+  "isolation": {
+    "milestone": "api-and-jobs",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "baseUrl": "http://localhost:3100",
+    "ownerAuth": "Generated __session cookie for user_test_001 (mock auth JWT)",
+    "viewerAuth": "Fresh share token via POST /api/shares, validated via POST /api/viewer/validate (no owner cookie on viewer dismissal check)",
+    "validationDates": ["2026-04-04", "2026-03-23"]
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-INSGT-001",
+      "title": "Dismiss happy path with idempotency",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night?date=2026-04-04 (owner)",
+          "expected": "At least one live insight type is present before dismissal",
+          "observed": "200 with insights [\"elevated_rhr\", \"low_sleep_score\"]"
+        },
+        {
+          "action": "POST /api/insights/elevated_rhr/2026-04-04/dismiss twice (owner)",
+          "expected": "Both calls return 200 with identical confirmation payload",
+          "observed": "Both calls returned 200 with identical { insight_type: \"elevated_rhr\", date: \"2026-04-04\", dismissed: true }"
+        },
+        {
+          "action": "POST dismiss without auth",
+          "expected": "401 unauthorized",
+          "observed": "401 with { error.code: \"UNAUTHORIZED\" }"
+        },
+        {
+          "action": "Create fresh share token, validate viewer session, then POST dismiss with grant_token and viewer cookie (no owner cookie)",
+          "expected": "Viewer rejection",
+          "observed": "403 with { error.code: \"FORBIDDEN\", message: \"Only the data owner can dismiss insights\" }"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "api-and-jobs/curl-insights/v2-night-before-target.log",
+          "api-and-jobs/curl-insights/v2-dismiss-owner-first.log",
+          "api-and-jobs/curl-insights/v2-dismiss-owner-second.log",
+          "api-and-jobs/curl-insights/v2-dismiss-no-auth.log",
+          "api-and-jobs/curl-insights/v2-share-create.log",
+          "api-and-jobs/curl-insights/v2-viewer-validate.log",
+          "api-and-jobs/curl-insights/v2-dismiss-viewer-grant-token.log"
+        ],
+        "network": "GET /api/views/night -> 200; POST dismiss(owner)x2 -> 200/200; POST dismiss(no auth) -> 401; POST /api/shares -> 201; POST /api/viewer/validate -> 200; POST dismiss(viewer+grant_token) -> 403"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-INSGT-002",
+      "title": "Dismissal scoped to specific date and type",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Dismiss elevated_rhr for 2026-04-04 as owner",
+          "expected": "Only that (type,date) pair is affected",
+          "observed": "2026-04-04 night insights changed from [\"elevated_rhr\",\"low_sleep_score\"] to [\"low_sleep_score\"]"
+        },
+        {
+          "action": "Check same type on different date (2026-04-03)",
+          "expected": "Unchanged",
+          "observed": "elevated_rhr remained present before and after owner dismissal"
+        },
+        {
+          "action": "Check different type on same date (2026-04-04)",
+          "expected": "Unchanged",
+          "observed": "low_sleep_score remained present after elevated_rhr dismissal"
+        },
+        {
+          "action": "Call invalid type and invalid date formats",
+          "expected": "400 validation errors",
+          "observed": "invalid type -> 400, invalid date format -> 400"
+        },
+        {
+          "action": "Cross-user isolation: sign in user B, dismiss same pair as user B, then re-check owner night view before owner dismissal",
+          "expected": "User B dismissal does not affect user A",
+          "observed": "Owner still saw [\"elevated_rhr\",\"low_sleep_score\"] after user B dismissal"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "api-and-jobs/curl-insights/v2-userb-signin.log",
+          "api-and-jobs/curl-insights/v2-dismiss-userb.log",
+          "api-and-jobs/curl-insights/v2-night-after-userb.log",
+          "api-and-jobs/curl-insights/v2-night-before-target.log",
+          "api-and-jobs/curl-insights/v2-night-after-target.log",
+          "api-and-jobs/curl-insights/v2-night-before-other-date.log",
+          "api-and-jobs/curl-insights/v2-night-after-other-date.log",
+          "api-and-jobs/curl-insights/v2-dismiss-invalid-type.log",
+          "api-and-jobs/curl-insights/v2-dismiss-invalid-date.log"
+        ],
+        "network": "POST dismiss(userB) -> 200; GET night(owner, same date) unchanged -> 200; POST dismiss(owner) -> 200; GET night(other date) unchanged -> 200; invalid type/date dismiss -> 400/400"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-INSGT-003",
+      "title": "Dismissed insights filtered from all view endpoint responses",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Before dismissal, fetch night/recovery/trend for target date 2026-03-23 and target type low_sleep_score",
+          "expected": "Capture cross-view baseline for target type",
+          "observed": "Night insights [\"low_sleep_score\",\"suppressed_hrv\"]; Recovery insights [\"low_sleep_score\",\"suppressed_hrv\"]; Trend insights []"
+        },
+        {
+          "action": "POST /api/insights/low_sleep_score/2026-03-23/dismiss (owner)",
+          "expected": "Dismissal applied for target pair",
+          "observed": "200 with dismissal confirmation"
+        },
+        {
+          "action": "After dismissal, fetch night/recovery/trend again",
+          "expected": "Target type absent across view responses; other types remain",
+          "observed": "Night insights [\"suppressed_hrv\"]; Recovery insights [\"suppressed_hrv\"]; Trend insights [] (target absent before and after)"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "api-and-jobs/curl-insights/v3-night-before.log",
+          "api-and-jobs/curl-insights/v3-recovery-before.log",
+          "api-and-jobs/curl-insights/v3-trend-before.log",
+          "api-and-jobs/curl-insights/v3-dismiss-owner-first.log",
+          "api-and-jobs/curl-insights/v3-night-after.log",
+          "api-and-jobs/curl-insights/v3-recovery-after.log",
+          "api-and-jobs/curl-insights/v3-trend-after.log"
+        ],
+        "network": "Before: night 200/recovery 200/trend 200; dismiss 200; After: night 200/recovery 200/trend 200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NIGHT-006",
+      "title": "Dismissed insights excluded, max 3 returned",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night?date=2026-03-23 before dismissal",
+          "expected": "Insights include target type and length <= 3",
+          "observed": "200 with insights [\"low_sleep_score\",\"suppressed_hrv\"] (length 2)"
+        },
+        {
+          "action": "Dismiss low_sleep_score for 2026-03-23 and re-fetch night view",
+          "expected": "Dismissed type removed; list remains capped at 3",
+          "observed": "After dismissal, insights [\"suppressed_hrv\"] (length 1); dismissed type absent"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "api-and-jobs/curl-insights/v3-night-before.log",
+          "api-and-jobs/curl-insights/v3-dismiss-owner-first.log",
+          "api-and-jobs/curl-insights/v3-night-after.log"
+        ],
+        "network": "GET night before -> 200; POST dismiss -> 200; GET night after -> 200"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Trend endpoint requires explicit metrics query parameter; initial trend call without metrics returned 400 validation error.",
+      "resolved": true,
+      "resolution": "Retried trend requests with metrics=rhr,hrv,sleep_score for before/after evidence collection.",
+      "affectedAssertions": ["VAL-INSGT-003"]
+    },
+    {
+      "description": "Previously-dismissed dates from earlier runs reduced available same-date multi-insight candidates.",
+      "resolved": true,
+      "resolution": "Switched assertion sampling dates (2026-04-04 for scoping/auth checks and 2026-03-23 for cross-view filtering) where required insight combinations were still present.",
+      "affectedAssertions": ["VAL-INSGT-002", "VAL-INSGT-003", "VAL-NIGHT-006"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 4 assertions via live curl API flows: 4 passed, 0 failed, 0 blocked. Captured idempotency, owner/viewer auth enforcement, date/type scoping, cross-user isolation, and night/recovery/trend before/after dismissal evidence."
+}

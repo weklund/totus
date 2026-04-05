@@ -72,7 +72,7 @@ export function SummaryStrip({
             <span className="text-muted-foreground mb-1 text-[10px] font-medium">
               {label}
             </span>
-            <span className="text-lg leading-tight font-semibold">
+            <span className="text-lg leading-tight font-semibold tabular-nums">
               {formatValue(metric.value)}{" "}
               <span className="text-muted-foreground text-xs font-normal">
                 {unit}

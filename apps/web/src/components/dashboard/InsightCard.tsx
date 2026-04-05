@@ -45,7 +45,7 @@ export function InsightCard({ insight, date, onDismiss }: InsightCardProps) {
       className={cn(
         "bg-card relative rounded-xl border p-4",
         insight.severity === "warning"
-          ? "border-[#E8845A]/30 bg-[#E8845A]/5"
+          ? "border-[var(--totus-red)]/30 bg-[var(--totus-red)]/5"
           : "border-border",
       )}
       role="article"

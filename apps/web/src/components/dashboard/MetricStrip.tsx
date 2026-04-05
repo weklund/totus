@@ -146,7 +146,7 @@ export function MetricStrip({
           />
           <span className="text-xs font-medium">{label}</span>
           {currentValue !== null && (
-            <span className="text-muted-foreground text-xs">
+            <span className="text-muted-foreground text-xs tabular-nums">
               {formatValue(currentValue)} {unit}
             </span>
           )}
@@ -291,7 +291,7 @@ function StripTooltip({
       }}
     >
       <p className="mb-1 text-[10px] font-medium">{formatTime(label)}</p>
-      <p className="text-xs">
+      <p className="text-xs tabular-nums">
         <span className="font-medium">{formatValue(value)}</span>{" "}
         <span className="text-muted-foreground">{config?.unit ?? ""}</span>
       </p>

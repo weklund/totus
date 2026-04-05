@@ -1,0 +1,155 @@
+{
+  "groupId": "rerun4-night-ui-cross",
+  "testedAt": "2026-04-05T11:54:35Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "ownerUser": "user_test_001",
+    "browserSessionId": "rerun4-night-ui-cross",
+    "datesTested": ["2026-03-29", "2026-03-28", "2026-04-05"]
+  },
+  "toolsUsed": ["agent-browser", "curl", "tsx", "python3"],
+  "assertionResults": [
+    {
+      "id": "VAL-UINGT-001",
+      "title": "Intraday series render with shared time axis (8 PM – 8 AM)",
+      "status": "pass",
+      "observed": "Night UI rendered glucose, heart-rate, and sleep panels with synchronized overnight ticks and aligned x-axis labels spanning the same night window.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun4-night-ui-cross/VAL-UINGT-001-axis-alignment.png"
+        ],
+        "consoleErrors": "frontend-views/rerun4-night-ui-cross/console-2026-03-29.txt",
+        "network": "frontend-views/rerun4-night-ui-cross/network-2026-03-29.txt"
+      }
+    },
+    {
+      "id": "VAL-UINGT-002",
+      "title": "Sleep hypnogram renders with stage differentiation",
+      "status": "pass",
+      "observed": "Sleep panel shows staged hypnogram segments with distinct Awake/Light/Deep/REM differentiation and corresponding labels.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun4-night-ui-cross/VAL-UINGT-002-hypnogram-stages.png"
+        ],
+        "consoleErrors": "frontend-views/rerun4-night-ui-cross/console-2026-03-29.txt"
+      }
+    },
+    {
+      "id": "VAL-UINGT-003",
+      "title": "Summary strip with polarity-colored delta badges",
+      "status": "pass",
+      "observed": "Summary strip includes Sleep Score, Deep Sleep, Sleep Latency, HRV, RHR, and REM with polarity deltas (worse in red/down, better in green/up) matching expected directionality.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun4-night-ui-cross/VAL-UINGT-003-summary-deltas.png"
+        ],
+        "checks": [
+          "frontend-views/rerun4-night-ui-cross/VAL-CROSS-007-dom-baseline.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-UINGT-004",
+      "title": "S1 scenario — meal → glucose spike → HR → sleep disruption causal chain",
+      "status": "pass",
+      "observed": "The S1 surface presents the end-to-end chain at a glance: meal marker, overnight glucose rise, elevated HR signal, sleep-stage disruption, and warning insights/deltas consistent with the scenario.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun4-night-ui-cross/VAL-UINGT-004-causal-chain-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun4-night-ui-cross/console-2026-03-29.txt",
+        "network": "frontend-views/rerun4-night-ui-cross/network-2026-03-29.txt"
+      }
+    },
+    {
+      "id": "VAL-CROSS-007",
+      "title": "Fresh baselines render as normal range bands on frontend",
+      "status": "fail",
+      "observed": "API returns populated baseline ranges, but frontend DOM/screenshot evidence shows no explicit low-opacity baseline reference band; only regular chart area fills (fillOpacity 0.6) were observed.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun4-night-ui-cross/VAL-CROSS-007-baseline-band.png",
+          "frontend-views/rerun4-night-ui-cross/VAL-CROSS-007-baseline-band-expanded.png"
+        ],
+        "api": "frontend-views/rerun4-night-ui-cross/curl-night-2026-03-29.json",
+        "checks": [
+          "frontend-views/rerun4-night-ui-cross/VAL-CROSS-007-dom-baseline.json",
+          "frontend-views/rerun4-night-ui-cross/VAL-CROSS-007-dom-baseline-expanded.json",
+          "frontend-views/rerun4-night-ui-cross/VAL-CROSS-007-dom-svg-elements.json",
+          "frontend-views/rerun4-night-ui-cross/VAL-CROSS-007-dom-svg-expanded-elements.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-CROSS-019",
+      "title": "Night view window spans yesterday 8 PM to today 8 AM correctly",
+      "status": "pass",
+      "observed": "Night API and UI both align to the overnight contract for 2026-03-28, with time_range start/end matching previous-day 8 PM through requested-day 8 AM and UI axis labels reflecting overnight boundaries.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun4-night-ui-cross/VAL-CROSS-019-axis-2026-03-28.png"
+        ],
+        "api": "frontend-views/rerun4-night-ui-cross/curl-night-2026-03-28.json",
+        "metaFiles": [
+          "frontend-views/rerun4-night-ui-cross/curl-night-2026-03-28.headers.txt"
+        ],
+        "consoleErrors": "frontend-views/rerun4-night-ui-cross/console-2026-03-28.txt",
+        "network": "frontend-views/rerun4-night-ui-cross/network-2026-03-28.txt"
+      }
+    },
+    {
+      "id": "VAL-CROSS-020",
+      "title": "Night view for in-progress night handles incomplete data",
+      "status": "pass",
+      "observed": "At runtime (07:54 EDT), the current-night view showed active overnight data ending near now without misleading synthetic continuation, satisfying in-progress handling expectations.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun4-night-ui-cross/VAL-CROSS-020-current-night.png"
+        ],
+        "api": "frontend-views/rerun4-night-ui-cross/curl-night-2026-04-05.json",
+        "metaFiles": [
+          "frontend-views/rerun4-night-ui-cross/curl-night-2026-04-05.headers.txt",
+          "frontend-views/rerun4-night-ui-cross/runtime-clock-utc.txt"
+        ],
+        "consoleErrors": "frontend-views/rerun4-night-ui-cross/console-2026-04-05.txt",
+        "network": "frontend-views/rerun4-night-ui-cross/network-2026-04-05.txt"
+      }
+    }
+  ],
+  "passedAssertions": [
+    "VAL-UINGT-001",
+    "VAL-UINGT-002",
+    "VAL-UINGT-003",
+    "VAL-UINGT-004",
+    "VAL-CROSS-019",
+    "VAL-CROSS-020"
+  ],
+  "failedAssertions": ["VAL-CROSS-007"],
+  "blockedAssertions": [],
+  "frictions": [
+    {
+      "description": "Fresh session initially redirected to /sign-in before dashboard assertions could be executed.",
+      "resolved": true,
+      "resolution": "Generated a local mock-auth token for user_test_001 and set it as the __session cookie.",
+      "affectedAssertions": [
+        "VAL-UINGT-001",
+        "VAL-UINGT-002",
+        "VAL-UINGT-003",
+        "VAL-UINGT-004",
+        "VAL-CROSS-019",
+        "VAL-CROSS-020"
+      ]
+    },
+    {
+      "description": "Collapsed chart view did not expose clear baseline-band elements for frontend assertion.",
+      "resolved": true,
+      "resolution": "Expanded the heart-rate chart and captured additional DOM/SVG artifacts to confirm baseline-band non-rendering versus available API baselines.",
+      "affectedAssertions": ["VAL-CROSS-007"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Validated 7 assigned assertions for rerun4-night-ui-cross: 6 passed (VAL-UINGT-001/002/003/004, VAL-CROSS-019, VAL-CROSS-020) and 1 failed (VAL-CROSS-007 baseline-band rendering)."
+}

@@ -1,0 +1,182 @@
+{
+  "groupId": "browser-recovery-flow",
+  "testedAt": "2026-04-05T09:36:06.415885Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100",
+    "browserSessionId": "0a629f9ae2f9__u3",
+    "scope": "local-only resources",
+    "writes": "annotation labels/notes use unique UTC timestamp suffix 20260405T093140Z"
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertions": [
+    {
+      "id": "VAL-UIRCV-001",
+      "title": "Multi-day sparklines with shared day axis and baseline bands",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open Recovery view for Mar 24-28, 2026 in browser session",
+          "expected": "Readiness/HRV/RHR/Body Temp Deviation sparklines align on shared day axis with baseline bands and event marker spanning panels",
+          "observed": "Shared axis and baseline bands render; event markers/vertical guides are visible across stacked panels, but panel set is Readiness/HRV/RHR/Sleep Score (Body Temp Deviation panel missing)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-recovery-flow/VAL-UIRCV-001-sparklines-shared-axis.png",
+          "frontend-views/browser-recovery-flow/VAL-UIRCV-001-recovery-overview.png"
+        ],
+        "consoleErrors": "frontend-views/browser-recovery-flow/recovery-console-errors.txt (none)",
+        "network": "GET /api/views/recovery?start=2026-03-24&end=2026-03-28 -> 200 (frontend-views/browser-recovery-flow/recovery-2026-03-24-to-2026-03-28.meta.txt)"
+      },
+      "issues": "Assertion requires Body Temp Deviation sparkline; observed Sleep Score sparkline instead."
+    },
+    {
+      "id": "VAL-UIRCV-002",
+      "title": "Daily score table with traffic-light colors",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Inspect Recovery daily table for Mar 24-28",
+          "expected": "Daily Readiness/Sleep/HRV rows use red/yellow/green traffic-light encoding with recovery progression visible",
+          "observed": "Table cells include traffic-light dots (e.g., readiness Tue/Wed green, Sat yellow; HRV Tue red then green later; Sleep row includes red/yellow/green states)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-recovery-flow/VAL-UIRCV-002-daily-table-traffic-colors.png"
+        ],
+        "consoleErrors": "frontend-views/browser-recovery-flow/recovery-console-errors.txt (none)",
+        "network": "GET /api/views/recovery?start=2026-03-24&end=2026-03-28 -> 200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "title": "S3 scenario \u2014 post-workout recovery arc visible at a glance",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Validate S3-specific expectations on Recovery view (workout marker, 42\u219282 readiness recovery, 26\u219248 HRV recovery, red\u2192yellow\u2192green progression, insight text mentions 3 days)",
+          "expected": "All S3 values/patterns present and identifiable quickly",
+          "observed": "Workout marker exists, but observed values do not match S3 targets (readiness: 91,98,95,84,67; HRV: 23.3,49.9,70.1,79.6,76.4), and no insight text stating \u201c3 days\u201d recovery."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-recovery-flow/VAL-UIRCV-003-s3-scenario-check.png"
+        ],
+        "consoleErrors": "frontend-views/browser-recovery-flow/recovery-console-errors.txt (none)",
+        "network": "GET /api/views/recovery?start=2026-03-24&end=2026-03-28 -> 200; values captured in frontend-views/browser-recovery-flow/recovery-2026-03-24-to-2026-03-28.json"
+      },
+      "issues": "S3 fixture expectations are not met on current local surface."
+    },
+    {
+      "id": "VAL-CROSS-002",
+      "title": "Annotation created via API appears as marker on Recovery View",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST workout annotation at 2026-03-24T07:00:00Z",
+          "expected": "201 created with annotation id",
+          "observed": "201 created with id=2297."
+        },
+        {
+          "action": "GET Recovery view 2026-03-24..2026-03-28",
+          "expected": "Response annotations include created workout annotation",
+          "observed": "annotations include id=2297."
+        },
+        {
+          "action": "Open Recovery UI for same range",
+          "expected": "Workout marker visible at correct day position",
+          "observed": "Workout marker appears on day axis for Tue 24 in Recovery view."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-recovery-flow/VAL-CROSS-002-recovery-workout-marker.png"
+        ],
+        "consoleErrors": "frontend-views/browser-recovery-flow/recovery-console-errors.txt (none)",
+        "network": "POST /api/annotations -> 201 (frontend-views/browser-recovery-flow/val-cross-002-workout-post.meta.txt), GET /api/views/recovery -> 200 (frontend-views/browser-recovery-flow/recovery-2026-03-24-to-2026-03-28.meta.txt)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-022",
+      "title": "Same annotation visible on both Night and Recovery views",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST meal annotation at 2026-03-27T21:30:00Z",
+          "expected": "201 with new annotation id",
+          "observed": "201 created with id=2298."
+        },
+        {
+          "action": "GET Night (date=2026-03-28) and Recovery (2026-03-24..28)",
+          "expected": "Both responses include same annotation id",
+          "observed": "Night annotations include id=2298; Recovery annotations include id=2298."
+        },
+        {
+          "action": "Open Night and Recovery UI",
+          "expected": "Marker rendered on both views",
+          "observed": "Meal marker rendered on Night and Recovery screens."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-recovery-flow/VAL-CROSS-022-night-marker.png",
+          "frontend-views/browser-recovery-flow/VAL-CROSS-022-recovery-marker.png"
+        ],
+        "consoleErrors": "frontend-views/browser-recovery-flow/night-console-errors.txt (none), frontend-views/browser-recovery-flow/recovery-console-errors.txt (none)",
+        "network": "POST /api/annotations -> 201 (frontend-views/browser-recovery-flow/val-cross-022-meal-night-post.meta.txt), GET /api/views/night -> 200 and GET /api/views/recovery -> 200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-023",
+      "title": "Annotation outside night window excluded from Night view",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST meal annotation at 2026-03-27T14:00:00Z",
+          "expected": "201 with new annotation id",
+          "observed": "201 created with id=2299."
+        },
+        {
+          "action": "GET Night (date=2026-03-28) and Recovery (2026-03-24..28)",
+          "expected": "Night excludes annotation (outside 8pm-8am window); Recovery includes it in range",
+          "observed": "Night annotations do not include id=2299, Recovery annotations include id=2299."
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a (curl assertion)",
+        "network": "POST /api/annotations -> 201 (frontend-views/browser-recovery-flow/val-cross-023-meal-day-post.meta.txt), GET /api/views/night -> 200 and GET /api/views/recovery -> 200 with annotation-id presence summary in frontend-views/browser-recovery-flow/api-evidence-summary.json"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Direct navigation to /dashboard/recovery initially redirected to /sign-in in isolated browser session.",
+      "resolved": true,
+      "resolution": "Generated owner __session token via mock-auth helper and set browser cookie before opening dashboard routes.",
+      "affectedAssertions": [
+        "VAL-UIRCV-001",
+        "VAL-UIRCV-002",
+        "VAL-UIRCV-003",
+        "VAL-CROSS-002",
+        "VAL-CROSS-022"
+      ]
+    },
+    {
+      "description": "agent-browser network request log returned no captured requests on this run.",
+      "resolved": true,
+      "resolution": "Captured API request/response evidence with curl (status/meta + JSON bodies) and referenced those artifacts in each assertion.",
+      "affectedAssertions": ["VAL-CROSS-002", "VAL-CROSS-022", "VAL-CROSS-023"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 6 assertions: 4 passed (VAL-UIRCV-002, VAL-CROSS-002, VAL-CROSS-022, VAL-CROSS-023), 2 failed (VAL-UIRCV-001 missing Body Temp Deviation panel; VAL-UIRCV-003 S3 scenario expectations not met on local surface)."
+}

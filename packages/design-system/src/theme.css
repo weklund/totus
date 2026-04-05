@@ -28,6 +28,8 @@
   --color-brand-ocean-tint: var(--totus-ocean-tint);
   --color-brand-emerald-tint: var(--totus-emerald-tint);
   --color-brand-coral-tint: var(--totus-coral-tint);
+  --color-brand-red: var(--totus-red);
+  --color-brand-red-tint: var(--totus-red-tint);
 
   /* ── Semantic colors → bg-semantic-primary, text-semantic-text-muted, etc. ── */
   --color-semantic-primary: var(--totus-primary);

@@ -9,7 +9,7 @@ describe("DeltaBadge", () => {
     const badge = screen.getByTestId("delta-badge");
     expect(badge).toHaveTextContent("▲");
     expect(badge).toHaveTextContent("11 bpm");
-    expect(badge).toHaveClass("text-[#E8845A]");
+    expect(badge).toHaveClass("text-[var(--totus-red)]");
   });
 
   it("shows down arrow and emerald color for better negative delta", () => {
@@ -17,7 +17,7 @@ describe("DeltaBadge", () => {
     const badge = screen.getByTestId("delta-badge");
     expect(badge).toHaveTextContent("▼");
     expect(badge).toHaveTextContent("5 ms");
-    expect(badge).toHaveClass("text-[#2FA87B]");
+    expect(badge).toHaveClass("text-[var(--totus-emerald)]");
   });
 
   it("shows slate/muted color for neutral direction", () => {

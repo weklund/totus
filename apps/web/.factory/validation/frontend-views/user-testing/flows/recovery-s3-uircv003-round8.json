@@ -1,0 +1,96 @@
+{
+  "groupId": "recovery-s3-uircv003-round8",
+  "testedAt": "2026-04-05T13:06:39Z",
+  "isolation": {
+    "surface": "agent-browser",
+    "milestone": "frontend-views",
+    "appUrl": "http://localhost:3100/dashboard",
+    "user": "user_test_001",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "scenarioWindow": {
+      "start": "2026-03-22",
+      "end": "2026-03-26"
+    }
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertionResults": [
+    {
+      "id": "VAL-UIRCV-003",
+      "title": "S3 scenario — post-workout recovery arc visible at a glance",
+      "status": "pass",
+      "reason": "All contract clauses were observed in the real UI for the assigned range: visible '10K run' marker text, readiness 42→84, HRV 26→50 (including 48+ recovery), table progression with red/yellow/green states, and insight copy stating recovery over 3 days.",
+      "steps": [
+        {
+          "action": "Open /dashboard?view=recovery&start=2026-03-22&end=2026-03-26 as user_test_001",
+          "expected": "Recovery view for S3 range renders with event markers, sparklines, and table.",
+          "observed": "Recovery view rendered for Sun 22 through Thu 26 with sparklines, annotations, and daily table."
+        },
+        {
+          "action": "Verify workout marker label",
+          "expected": "Workout marker shows '10K run'.",
+          "observed": "UI text contains workout marker label '10K run'."
+        },
+        {
+          "action": "Verify Readiness recovery arc",
+          "expected": "Readiness dips to 42 and recovers to 82+ by range end.",
+          "observed": "Daily row shows 42, 58, 74, 82, 84 and sparkline shows U/V-shaped recovery."
+        },
+        {
+          "action": "Verify HRV recovery arc",
+          "expected": "HRV dips to 26 and recovers to 48+ by range end.",
+          "observed": "Daily row shows 26, 30, 44, 48, 50 and sparkline recovery is visible."
+        },
+        {
+          "action": "Verify table status progression",
+          "expected": "At least one 🔴 and one 🟡 or 🟢 in daily status cells.",
+          "observed": "Table includes 🔴 (e.g., 42/26), 🟡 (74/44), and 🟢 (84/50) cells."
+        },
+        {
+          "action": "Verify InsightCard recovery duration",
+          "expected": "Insight mentions '3 days' recovery.",
+          "observed": "Insight reads: 'Your readiness improved from 42 to 84 over 3 days...'."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/recovery-s3-uircv003-round8/VAL-UIRCV-003-overview-full.png",
+          "frontend-views/recovery-s3-uircv003-round8/VAL-UIRCV-003-top-view.png",
+          "frontend-views/recovery-s3-uircv003-round8/VAL-UIRCV-003-daily-table.png"
+        ],
+        "artifacts": [
+          "frontend-views/recovery-s3-uircv003-round8/VAL-UIRCV-003-body-text.txt",
+          "frontend-views/recovery-s3-uircv003-round8/VAL-UIRCV-003-console-errors.txt",
+          "frontend-views/recovery-s3-uircv003-round8/VAL-UIRCV-003-network-requests.txt",
+          "frontend-views/recovery-s3-uircv003-round8/VAL-UIRCV-003-curl-recovery-headers.txt",
+          "frontend-views/recovery-s3-uircv003-round8/VAL-UIRCV-003-curl-recovery-response.json"
+        ],
+        "consoleErrors": "none (see VAL-UIRCV-003-console-errors.txt)",
+        "network": "agent-browser network capture was empty; fallback captured GET /api/views/recovery?start=2026-03-22&end=2026-03-26 -> HTTP/1.1 200 OK via curl."
+      },
+      "issues": null
+    }
+  ],
+  "assertions": [
+    {
+      "id": "VAL-UIRCV-003",
+      "title": "S3 scenario — post-workout recovery arc visible at a glance",
+      "status": "pass"
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Initial navigation redirected to /sign-in in fresh browser session.",
+      "resolved": true,
+      "resolution": "Generated local mock-auth token for user_test_001 and set __session cookie per guidance.",
+      "affectedAssertions": ["VAL-UIRCV-003"]
+    },
+    {
+      "description": "agent-browser request list returned no captured recovery requests.",
+      "resolved": true,
+      "resolution": "Captured equivalent request/response evidence with authenticated curl.",
+      "affectedAssertions": ["VAL-UIRCV-003"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 1 assertion (VAL-UIRCV-003): pass."
+}

@@ -1,0 +1,102 @@
+{
+  "groupId": "rerun5-cross018",
+  "testedAt": "2026-04-05T12:18:08Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "boundary": "local API + UI validation only on localhost",
+    "evidencePrefix": "rerun5-cross018",
+    "ownerUser": "user_test_001",
+    "referenceDate": "2026-01-02",
+    "recoveryRange": {
+      "start": "2026-01-02",
+      "end": "2026-01-06"
+    }
+  },
+  "toolsUsed": ["curl", "agent-browser", "tsx", "python3"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-018",
+      "title": "User with <14 days data has suppressed baselines; UI hides BaselineBand/DeltaBadge",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Confirm <14-point baseline window for rhr before reference date",
+          "expected": "Window has fewer than 14 points (target 10)",
+          "observed": "Window 2025-12-03..2026-01-01 has 10 rhr points"
+        },
+        {
+          "action": "GET /api/views/night?date=2026-01-02&metrics=rhr",
+          "expected": "Baselines suppressed/empty or explicit insufficiency; summary delta handling aligned",
+          "observed": "200 OK; baselines={} and summary.rhr delta=null, direction=neutral"
+        },
+        {
+          "action": "GET /api/views/recovery?start=2026-01-02&end=2026-01-06&metrics=rhr",
+          "expected": "Baselines suppressed/empty or explicit insufficiency; daily deltas handled accordingly",
+          "observed": "200 OK; baselines={} and each daily rhr metric has delta=null, direction=neutral"
+        },
+        {
+          "action": "Open /dashboard?view=night&date=2026-01-02&metrics=rhr in browser and inspect DOM",
+          "expected": "Suppressed-baseline UI hides BaselineBand and DeltaBadge",
+          "observed": "baseline-band count=0 and delta-badge count=0; no \"avg\"/\"vs avg\" labels present"
+        }
+      ],
+      "evidence": {
+        "apiRequests": [
+          {
+            "request": "GET http://localhost:3100/api/health-data?metrics=rhr&start=2025-12-03&end=2026-01-01",
+            "status": 200,
+            "meta": "frontend-views/rerun5-cross018/VAL-CROSS-018-healthdata-baseline-window-meta.txt",
+            "response": "frontend-views/rerun5-cross018/VAL-CROSS-018-healthdata-baseline-window-response.json",
+            "bodySnippet": "points.length=10 in baseline window"
+          },
+          {
+            "request": "GET http://localhost:3100/api/views/night?date=2026-01-02&metrics=rhr",
+            "status": 200,
+            "meta": "frontend-views/rerun5-cross018/VAL-CROSS-018-night-partial-history-meta.txt",
+            "response": "frontend-views/rerun5-cross018/VAL-CROSS-018-night-partial-history-response.json",
+            "bodySnippet": "{ baselines: {}, summary.rhr: { delta: null, direction: \"neutral\" } }"
+          },
+          {
+            "request": "GET http://localhost:3100/api/views/recovery?start=2026-01-02&end=2026-01-06&metrics=rhr",
+            "status": 200,
+            "meta": "frontend-views/rerun5-cross018/VAL-CROSS-018-recovery-partial-history-meta.txt",
+            "response": "frontend-views/rerun5-cross018/VAL-CROSS-018-recovery-partial-history-response.json",
+            "bodySnippet": "{ baselines: {}, daily[*].metrics.rhr.delta: null, direction: \"neutral\" }"
+          }
+        ],
+        "ui": {
+          "screenshots": [
+            "frontend-views/rerun5-cross018/VAL-CROSS-018-ui-night-2026-01-02.png"
+          ],
+          "domChecks": [
+            "frontend-views/rerun5-cross018/VAL-CROSS-018-ui-night-check.json"
+          ],
+          "bodyCapture": "frontend-views/rerun5-cross018/VAL-CROSS-018-ui-night-body.txt",
+          "url": "frontend-views/rerun5-cross018/VAL-CROSS-018-ui-night-url.txt",
+          "consoleErrors": "none (frontend-views/rerun5-cross018/VAL-CROSS-018-ui-night-errors.txt)",
+          "network": "agent-browser capture empty (frontend-views/rerun5-cross018/VAL-CROSS-018-ui-night-network.txt)"
+        },
+        "evaluation": "frontend-views/rerun5-cross018/VAL-CROSS-018-evaluation.json",
+        "requestMetaRaw": {
+          "healthData": "status=200\nurl=http://localhost:3100/api/health-data?metrics=rhr&start=2025-12-03&end=2026-01-01",
+          "nightView": "status=200\nurl=http://localhost:3100/api/views/night?date=2026-01-02&metrics=rhr",
+          "recoveryView": "status=200\nurl=http://localhost:3100/api/views/recovery?start=2026-01-02&end=2026-01-06&metrics=rhr"
+        }
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "agent-browser request capture returned no tracked requests for the UI session.",
+      "resolved": true,
+      "resolution": "Captured exact API request/response evidence via curl meta+response artifacts and referenced them directly.",
+      "affectedAssertions": ["VAL-CROSS-018"]
+    }
+  ],
+  "blockers": [],
+  "summary": "VAL-CROSS-018 rerun PASS: baseline window had 10 points (<14), night/recovery APIs returned suppressed baselines with null deltas, and Night UI showed no BaselineBand or DeltaBadge for the suppressed-baseline scenario."
+}

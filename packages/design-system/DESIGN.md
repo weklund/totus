@@ -1,0 +1,333 @@
+# DESIGN.md — Totus Design System
+
+Complete design system specification for Totus, a personal health data vault.
+This document follows the 9-section DESIGN.md format for consumption by both
+humans and AI agents.
+
+---
+
+## 1. Visual Theme & Atmosphere
+
+**Mood:** Calm confidence. Clinical precision without clinical coldness.
+
+**Density:** Medium. Data-dense dashboard views surrounded by generous whitespace.
+The chrome is spacious; the data is compact. Health metrics deserve room to
+breathe — stressed or tired users checking their data at night or first thing in
+the morning need calm, not visual noise.
+
+**Philosophy:** "Approachable precision." Warm enough to feel like a supportive
+companion, precise enough to earn the trust of a clinician reviewing the data.
+Think: a well-organized medical chart designed by someone who cares about the
+patient's experience.
+
+**Key tension:** Totus must feel trustworthy (security, privacy, clinical
+credibility) AND welcoming (not intimidating, not sterile). The design resolves
+this through warm-tinted neutrals, ocean-blue trust signals, and generous
+spacing around dense health data.
+
+---
+
+## 2. Color Palette & Roles
+
+### Appearance Colors (constant across light/dark)
+
+| Token             | Hex       | Role                                        |
+| ----------------- | --------- | ------------------------------------------- |
+| `--totus-ocean`   | `#1e5b7b` | Primary brand. Trust, navigation, links.    |
+| `--totus-emerald` | `#2fa87b` | Success, in-range, positive health signal.  |
+| `--totus-coral`   | `#e8845a` | CTA buttons only. Warm, inviting action.    |
+| `--totus-red`     | `#dc4a3a` | Danger, errors, out-of-range health alerts. |
+| `--totus-ink`     | `#1f2433` | Primary text (light mode), warm near-black. |
+| `--totus-slate`   | `#6b7280` | Secondary/muted text. Warm gray.            |
+| `--totus-mist`    | `#e2e8f0` | Borders, dividers.                          |
+| `--totus-cloud`   | `#f8f9fb` | Light backgrounds, page canvas.             |
+
+### Tints (subtle backgrounds, hover states)
+
+| Token                | Hex       |
+| -------------------- | --------- |
+| `--totus-ocean-tint` | `#e8f2f8` |
+| `--totus-emerald-tint` | `#e8f4f0` |
+| `--totus-coral-tint` | `#fdf0eb` |
+| `--totus-red-tint`   | `#fdecea` |
+
+### Semantic Aliases (flip in dark mode)
+
+| Token                  | Light                | Dark                 |
+| ---------------------- | -------------------- | -------------------- |
+| `--totus-primary`      | ocean `#1e5b7b`      | lighter ocean `#5ba3c9` |
+| `--totus-cta`          | coral `#e8845a`      | coral `#e8845a`      |
+| `--totus-success`      | emerald `#2fa87b`    | emerald `#2fa87b`    |
+| `--totus-danger`       | red `#dc4a3a`        | red `#dc4a3a`        |
+| `--totus-background`   | cloud `#f8f9fb`      | `#0f1824`            |
+| `--totus-surface`      | white `#ffffff`      | ink `#1f2433`        |
+| `--totus-text`         | ink `#1f2433`        | off-white `#e2e8f0`  |
+| `--totus-text-muted`   | slate `#6b7280`      | `#94a3b8`            |
+| `--totus-border-color` | mist `#e2e8f0`       | `#2a3a4a`            |
+
+### Color Rules
+
+- **Coral = CTA only.** Never use coral for errors, warnings, or status.
+- **Red = danger only.** Never use red for CTAs, decoration, or emphasis.
+- **Emerald = positive health only.** Never use emerald for interactive elements.
+- **Ocean = trust/navigation.** Links, primary buttons, selected states.
+
+---
+
+## 3. Typography
+
+### Font Families
+
+| Token              | Font Stack                                                 | Use                        |
+| ------------------ | ---------------------------------------------------------- | -------------------------- |
+| `--totus-font-sans` | DM Sans, system-ui, -apple-system, sans-serif             | All UI text                |
+| `--totus-font-mono` | DM Mono, ui-monospace, Cascadia Code, monospace           | Code, raw data, share URLs |
+
+### Weight System (3 weights max per view)
+
+| Weight | Name       | Use                                          |
+| ------ | ---------- | -------------------------------------------- |
+| 400    | Regular    | Body text, descriptions, secondary labels    |
+| 500    | Medium     | Emphasis, metric labels, navigation items    |
+| 600    | Semibold   | Headings, hero metrics, primary actions      |
+
+### Type Scale
+
+| Size   | Use                                                   |
+| ------ | ----------------------------------------------------- |
+| 48-60px | Hero headlines (landing page only)                   |
+| 30-36px | Section headings                                     |
+| 24px   | Card titles, view headings                            |
+| 16-18px | Body text, descriptions                              |
+| 14px   | Secondary text, form labels                           |
+| 12px   | Captions, metric labels, chart axis labels            |
+| 10px   | Tertiary info, timestamps, "vs avg" text              |
+
+### Numeric Display Rules
+
+- **Always** use `font-feature-settings: "tnum"` (tabular figures) for health
+  metrics. This prevents layout shift when values change and aligns columns.
+- **Always** display units alongside values: "61 bpm", "42 ms", "7h 23m".
+- **Never** use weight below 400 for metric values.
+
+### Dark Mode Typography
+
+- Body text weight bumps to 450 (light-on-dark renders thinner)
+- `-webkit-font-smoothing: antialiased` enforced
+- Text color is off-white (`#e2e8f0`), never pure white
+
+---
+
+## 4. Component Styles
+
+### Buttons
+
+| Variant     | Background        | Text   | Radius | Use                    |
+| ----------- | ----------------- | ------ | ------ | ---------------------- |
+| Primary     | `--totus-primary` | white  | sm 6px | Forms, settings, nav   |
+| CTA         | `--totus-coral`   | white  | pill 24px | Hero actions, sign-up |
+| Destructive | `--totus-red`     | white  | sm 6px | Delete, revoke         |
+| Secondary   | emerald-tint      | text   | sm 6px | Secondary actions      |
+| Ghost       | transparent       | text   | sm 6px | Tertiary, toggle       |
+| Outline     | transparent       | text   | sm 6px | Bordered, subtle       |
+
+### Cards
+
+- Background: `--totus-surface` (white / ink in dark)
+- Border: `--totus-border-color` (1px solid)
+- Radius: `--totus-radius` (12px)
+- Shadow: `--totus-shadow-sm` for flat cards, `--totus-shadow-md` for elevated
+- Padding: `--totus-space-4` to `--totus-space-6`
+
+### Inputs
+
+- Border: `--totus-border-color`
+- Radius: `--totus-radius-sm` (6px)
+- Focus ring: `--totus-primary` with 2px offset
+- Placeholder: `--totus-slate` at 50% opacity
+
+### Badges / Pills
+
+- Radius: `--totus-radius-badge` (4px) for inline tags
+- Radius: `--totus-radius-pill` (24px) for filter pills and metric selectors
+- Status badges use tint backgrounds: emerald-tint + emerald text, red-tint + red text
+
+### Metric Strips
+
+- Collapsed: 80px sparkline with metric label + current value + DeltaBadge
+- Expanded: 200px chart with Y-axis, gridlines, data points, tooltip
+- Header: clickable, shows expand/collapse indicator
+- Numeric values: `tabular-nums`, 12px, medium weight
+
+---
+
+## 5. Layout Principles
+
+### Spacing Scale (4px base)
+
+| Token   | Value  | Use                                           |
+| ------- | ------ | --------------------------------------------- |
+| space-1 | 4px    | Tight gaps (icon-to-text, badge padding)      |
+| space-2 | 8px    | Default component gap, inline spacing         |
+| space-3 | 12px   | Card internal padding (compact)               |
+| space-4 | 16px   | Standard padding, form group gaps             |
+| space-6 | 24px   | Section padding, card body                    |
+| space-8 | 32px   | Between content sections                      |
+| space-12 | 48px  | Major section breaks                          |
+| space-16 | 64px  | Page-level vertical rhythm (py-16)            |
+| space-24 | 96px  | Hero/CTA section padding (py-24)              |
+
+### Grid
+
+- Max content width: `max-w-5xl` (1024px) for landing, `max-w-6xl` for dashboard
+- Dashboard uses single-column stacked metric strips (no multi-column grid)
+- Landing page uses alternating left/right layout for product demo steps
+- Mobile: single column, full-width cards with horizontal scroll for overflow
+
+### Whitespace Philosophy
+
+> "Dense data, generous chrome."
+
+Health data displays are inherently information-dense. Surround them with
+generous whitespace to prevent cognitive overload. A tired user scanning their
+sleep data at 6 AM needs calm, not clutter.
+
+---
+
+## 6. Depth & Elevation
+
+### Shadow System (Ocean-Tinted in Light Mode)
+
+| Token       | Use                                        |
+| ----------- | ------------------------------------------ |
+| shadow-sm   | Subtle lift: cards, metric strips          |
+| shadow-md   | Medium elevation: dropdowns, popovers      |
+| shadow-lg   | High elevation: modals, dashboard preview  |
+
+**Light mode:** Shadows use `rgba(30, 91, 123, opacity)` — a subtle ocean-blue
+tint that reinforces brand cohesion even in peripheral details. This follows
+the Stripe pattern of chromatic shadows.
+
+**Dark mode:** Shadows switch to `rgba(0, 0, 0, opacity)` with higher opacity
+values, since brand-tinted shadows are invisible on dark surfaces.
+
+### Surface Hierarchy
+
+| Level         | Light Mode    | Dark Mode     |
+| ------------- | ------------- | ------------- |
+| Page canvas   | cloud #f8f9fb | #0f1824       |
+| Card/panel    | white #ffffff | ink #1f2433   |
+| Muted surface | cloud #f8f9fb | #1e2d3d       |
+| Elevated      | white + shadow-md | ink + shadow-md |
+
+---
+
+## 7. Do's and Don'ts
+
+See [RULES.md](./RULES.md) for the full list. Key highlights:
+
+### Do
+
+- Use `tabular-nums` on all numeric health metrics
+- Use semantic color tokens in feature code
+- Show baseline context alongside every metric value
+- Use off-white text in dark mode, never pure white
+- Test chart legibility in both light and dark modes
+- Include units next to every numeric value
+
+### Don't
+
+- Never use coral for errors (use red) or red for CTAs (use coral)
+- Never display a health metric without its unit
+- Never use font-weight below 400 for metric values
+- Never use pure black (#000) or pure white (#fff) in dark mode
+- Never use animation on health status indicators
+- Never use arbitrary spacing — stick to the 4px grid tokens
+
+---
+
+## 8. Responsive Behavior
+
+### Breakpoints
+
+| Name | Width  | Behavior                                       |
+| ---- | ------ | ---------------------------------------------- |
+| sm   | 640px  | Stack to single column                         |
+| md   | 768px  | Two-column layouts become available             |
+| lg   | 1024px | Full dashboard layout, max content width        |
+
+### Mobile Adaptations
+
+- Landing page hero: text-4xl → text-2xl, reduce padding
+- ProductDemo steps: stack vertically (visual below text)
+- SummaryStrip: horizontal scroll with snap points
+- MetricStrip: full-width, collapsedHeight stays 80px
+- Share modal: full-screen sheet on mobile
+- Touch targets: minimum 44x44px for all interactive elements
+
+### Content Strategy
+
+- Charts are the primary content on every dashboard view
+- On mobile, prioritize the metric value + DeltaBadge over the sparkline
+- Landing page: hero → trust strip → 3 steps → devices → waitlist → CTA
+- Dashboard: summary strip → stacked metric strips → detail views
+
+---
+
+## 9. Agent Prompt Guide
+
+Quick reference for AI agents implementing Totus UI.
+
+### Token Access
+
+```css
+/* CSS — use semantic tokens for dark-mode-aware styling */
+color: var(--totus-text);
+background: var(--totus-surface);
+border: 1px solid var(--totus-border-color);
+box-shadow: var(--totus-shadow-md);
+
+/* Appearance colors for brand surfaces */
+background: var(--totus-ocean);
+color: var(--totus-coral);  /* CTA only */
+color: var(--totus-red);    /* Danger only */
+```
+
+```tsx
+// TypeScript — for Recharts, canvas, emails
+import { colors, semantic } from '@totus/design-system';
+```
+
+### Tailwind Classes
+
+```html
+<!-- Brand colors -->
+<div class="bg-brand-ocean text-brand-cloud">...</div>
+
+<!-- Semantic (dark-aware) -->
+<div class="bg-semantic-background text-semantic-text">...</div>
+
+<!-- Health metrics — always use tabular-nums -->
+<span class="tabular-nums text-lg font-semibold">72 bpm</span>
+
+<!-- CTA button -->
+<button class="rounded-full bg-[var(--totus-coral)] px-8 text-white">
+  Get started free
+</button>
+
+<!-- Danger/error -->
+<span class="text-[var(--totus-red)]">Out of range</span>
+```
+
+### Key Decisions
+
+| Decision | Choice | Why |
+| --- | --- | --- |
+| Primary typeface | DM Sans | High x-height, geometric, warm |
+| Card radius | 12px | Approachable precision sweet spot |
+| CTA vs danger color | coral vs red | Prevents confusion in health data context |
+| Dark mode text | off-white #e2e8f0 | Reduces eye strain for nighttime use |
+| Shadow tint | Ocean-blue (light), black (dark) | Subtle brand reinforcement |
+| Spacing grid | 4px | Industry standard, divisible, predictable |
+| Neutral warmth | Warm-shifted ink/slate | Supportive, not clinical |
+| Numeric display | tabular-nums | Prevents layout shift in data views |

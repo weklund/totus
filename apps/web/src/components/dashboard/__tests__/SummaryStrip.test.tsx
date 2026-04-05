@@ -74,9 +74,9 @@ describe("SummaryStrip", () => {
     const badges = screen.getAllByTestId("delta-badge");
     expect(badges).toHaveLength(4);
 
-    // All are "worse" → should have coral color
+    // All are "worse" → should have danger/red color
     for (const badge of badges) {
-      expect(badge).toHaveClass("text-[#E8845A]");
+      expect(badge).toHaveClass("text-[var(--totus-red)]");
     }
   });
 

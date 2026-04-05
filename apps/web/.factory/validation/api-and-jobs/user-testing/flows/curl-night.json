@@ -1,0 +1,266 @@
+{
+  "groupId": "curl-night",
+  "testedAt": "2026-04-05T07:06:30Z",
+  "isolation": {
+    "baseUrl": "http://localhost:3100",
+    "ownerUser": "user_test_001",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "evidenceDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/api-and-jobs/curl-night"
+  },
+  "toolsUsed": ["curl", "tsx"],
+  "assertions": [
+    {
+      "id": "VAL-NIGHT-001",
+      "title": "Single-request response contains all required fields",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night?date=2026-03-28 as owner",
+          "expected": "200 with 8 top-level keys and night time_range",
+          "observed": "200; keys=[date,time_range,insights,annotations,series,hypnogram,summary,baselines]; time_range.start=2026-03-27T20:00:00.000Z, end=2026-03-28T08:00:00.000Z"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "api-and-jobs/curl-night/VAL-NIGHT-001-owner-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-001-owner-response.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NIGHT-002",
+      "title": "Baselines anchored to requested date",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night for 2026-03-28 and 2026-03-29 (metrics=rhr,hrv,sleep_score)",
+          "expected": "Different baselines for different requested dates",
+          "observed": "rhr avg changed 63.0333 -> 63.3333; hrv avg changed 59.0233 -> 59.9367; sleep_score avg changed 83.3667 -> 82.9333"
+        },
+        {
+          "action": "Compute manual windows from DB for both dates",
+          "expected": "2026-03-28 uses 2026-02-26..2026-03-27 and 2026-03-29 uses 2026-02-27..2026-03-28",
+          "observed": "Manual aggregates match API baselines exactly for both dates"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "api-and-jobs/curl-night/VAL-NIGHT-002-date-2026-03-28-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-002-date-2026-03-28-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-002-date-2026-03-29-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-002-date-2026-03-29-response.json"
+        ],
+        "db": [
+          "api-and-jobs/curl-night/VAL-NIGHT-002-baseline-window-query.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NIGHT-003",
+      "title": "Summary metrics have correct polarity-aware direction and z-score status",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night?date=2026-03-28&metrics=rhr,hrv,active_calories",
+          "expected": "higher_is_better above avg -> better/good; lower_is_better above avg -> worse/warning|critical; neutral -> neutral/normal",
+          "observed": "hrv: direction=better,status=good,z=0.9609; rhr: direction=worse,status=warning,z=0.9913; active_calories: direction=neutral,status=normal,z=-1.2882"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "api-and-jobs/curl-night/VAL-NIGHT-003-polarity-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-003-polarity-response.json"
+        ],
+        "analysis": ["api-and-jobs/curl-night/VAL-NIGHT-003-zscore-check.json"]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NIGHT-004",
+      "title": "Viewer sees only granted metrics and dates",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "POST /api/shares to create grant (allowed_metrics=[rhr,hrv], data_start=2026-03-27, data_end=2026-03-28)",
+          "expected": "201 with share_url/grant token",
+          "observed": "201 share created; token extracted from share_url"
+        },
+        {
+          "action": "GET /api/views/night with valid grant_token query param",
+          "expected": "viewer-scoped 200 response limited to granted metrics/date",
+          "observed": "401 UNAUTHORIZED (Authentication is required) even with valid grant_token"
+        },
+        {
+          "action": "GET /api/views/night with invalid grant_token",
+          "expected": "401/403",
+          "observed": "401 UNAUTHORIZED"
+        },
+        {
+          "action": "Fallback check via /api/viewer/validate -> viewer cookie, then GET /api/views/night",
+          "expected": "in-range request returns only granted metrics; out-of-range request denied/clamped",
+          "observed": "in-range 200 with summary keys [hrv,rhr] only; out-of-range 403 FORBIDDEN"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "api-and-jobs/curl-night/VAL-NIGHT-004-share-create-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-share-create-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-scoped-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-scoped-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-forbidden-metrics-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-forbidden-metrics-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-invalid-grant-token-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-invalid-grant-token-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-validate-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-validate-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-cookie-inrange-scoped-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-cookie-inrange-scoped-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-cookie-scoped-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-cookie-scoped-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-cookie-forbidden-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-cookie-forbidden-response.json"
+        ]
+      },
+      "issues": "Direct grant_token query flow for /api/views/night is not reachable on this surface (401 Authentication is required despite valid token)."
+    },
+    {
+      "id": "VAL-NIGHT-005",
+      "title": "Zod validation rejects invalid parameters",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night (missing date)",
+          "expected": "400 VALIDATION_ERROR",
+          "observed": "400 with error envelope"
+        },
+        {
+          "action": "GET ?date=03-28-2026 (malformed date)",
+          "expected": "400",
+          "observed": "400 with error envelope"
+        },
+        {
+          "action": "GET ?date=2026-02-30 (invalid calendar date)",
+          "expected": "400",
+          "observed": "400 with error envelope"
+        },
+        {
+          "action": "GET ?date=2026-03-28&metrics=rhr,not_a_metric",
+          "expected": "400",
+          "observed": "400 with error envelope"
+        },
+        {
+          "action": "GET ?date=2026-03-28 without auth",
+          "expected": "401",
+          "observed": "401 with error envelope"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "api-and-jobs/curl-night/VAL-NIGHT-005-missing-date-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-005-missing-date-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-005-malformed-date-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-005-malformed-date-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-005-invalid-date-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-005-invalid-date-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-005-invalid-metric-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-005-invalid-metric-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-005-no-auth-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-005-no-auth-response.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NIGHT-007",
+      "title": "Edge cases handled gracefully without 500 errors",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET date=2026-03-28 (metrics=rhr,hrv,sleep_score)",
+          "expected": "No sleep data -> hypnogram null; no intraday -> series {}; summary/baselines still populated",
+          "observed": "200; hypnogram=null; series={}; summary/baselines contain hrv/rhr/sleep_score"
+        },
+        {
+          "action": "GET date=2025-12-24 (very early date)",
+          "expected": "Insufficient baseline data may yield empty baselines",
+          "observed": "200; baselines={}, summary={}, no 500"
+        },
+        {
+          "action": "GET date=2026-12-01 (future)",
+          "expected": "400 or empty-data response; never 500",
+          "observed": "200 with empty structures (summary={}, baselines={}, series={}), no 500"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "api-and-jobs/curl-night/VAL-NIGHT-007-no-sleep-series-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-007-no-sleep-series-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-007-insufficient-baseline-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-007-insufficient-baseline-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-007-future-date-meta.txt",
+          "api-and-jobs/curl-night/VAL-NIGHT-007-future-date-response.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-NIGHT-008",
+      "title": "Audit event emitted with view metadata",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Trigger owner and viewer night-view requests",
+          "expected": "view.accessed audit events include view metadata; viewer event includes actor_type=viewer and grant_id",
+          "observed": "Audit query shows owner and viewer rows. Viewer row includes actor_type=viewer, grant_id=ed028201-6e19-4175-9c9d-3f960601a75c, resource_detail with view_type/date/metrics_requested/metrics_returned/data_points_returned"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "api-and-jobs/curl-night/VAL-NIGHT-001-owner-response.json",
+          "api-and-jobs/curl-night/VAL-NIGHT-004-viewer-cookie-inrange-scoped-response.json"
+        ],
+        "db": ["api-and-jobs/curl-night/VAL-NIGHT-008-audit-events-query.json"]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-JOBS-006",
+      "title": "On-demand baseline fallback for historical dates",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night?date=2025-12-30&metrics=rhr,hrv,sleep_score",
+          "expected": "Historical request returns computed baselines and completes within performance target",
+          "observed": "200 in 0.017199s with baselines for rhr/hrv/sleep_score"
+        },
+        {
+          "action": "Verify cache absence and manual 30-day window aggregates",
+          "expected": "No cached baselines and computed values use [2025-11-30, 2025-12-29]",
+          "observed": "metric_baselines rows for user=0; manual decrypted aggregates for the window exactly match API baseline avg/stddev/upper/lower"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "api-and-jobs/curl-night/VAL-JOBS-006-historical-fallback-meta.txt",
+          "api-and-jobs/curl-night/VAL-JOBS-006-historical-fallback-response.json"
+        ],
+        "db": [
+          "api-and-jobs/curl-night/VAL-JOBS-006-baseline-window-query.json"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Direct grant_token requests to /api/views/night were rejected at middleware with 401 before route-level grant_token resolution.",
+      "resolved": true,
+      "resolution": "Used /api/viewer/validate to mint a viewer cookie and validated metric/date scoping plus viewer audit behavior through the same endpoint.",
+      "affectedAssertions": ["VAL-NIGHT-004", "VAL-NIGHT-008"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 8 assertions via curl: 7 passed, 1 failed. Failure: VAL-NIGHT-004 due to direct grant_token flow returning 401 instead of serving viewer-scoped data."
+}

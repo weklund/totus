@@ -1,0 +1,168 @@
+{
+  "groupId": "browser-night-ui-core",
+  "testedAt": "2026-04-05T09:37:51Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100",
+    "browserSessionId": "0a629f9ae2f9__u1",
+    "scope": "local app surface only"
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertions": [
+    {
+      "id": "VAL-UINGT-001",
+      "title": "Intraday series render with shared time axis (8 PM \u2013 8 AM)",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open Night dashboard for current day and inspect metric strips/hypnogram alignment",
+          "expected": "Glucose and heart-rate strips plus sleep hypnogram share one 8 PM\u20138 AM axis",
+          "observed": "Only a single Heart Rate strip is visible; glucose strip is absent and hypnogram panel shows \"No sleep stage data available\". Required shared multi-panel alignment is not present."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-night-ui-core/VAL-UINGT-001-shared-axis.png"
+        ],
+        "consoleErrors": "frontend-views/browser-night-ui-core/console-errors-today.txt (none)",
+        "network": "GET /api/views/night?date=2026-04-05 -> 200 (frontend-views/browser-night-ui-core/VAL-CROSS-020-night-2026-04-05.meta.txt)"
+      },
+      "issues": "Expected glucose + HR + hypnogram aligned on shared axis, but glucose and hypnogram visualization were not rendered."
+    },
+    {
+      "id": "VAL-UINGT-002",
+      "title": "Sleep hypnogram renders with stage differentiation",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Inspect Night view sleep panel for stage bars and legend",
+          "expected": "Hypnogram shows distinct awake/light/deep/REM bars with legend and axis alignment",
+          "observed": "Panel displays \"No sleep stage data available\" and no stage legend/color-coded bars are rendered."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-night-ui-core/VAL-UINGT-002-hypnogram.png"
+        ],
+        "consoleErrors": "frontend-views/browser-night-ui-core/console-errors-today.txt (none)",
+        "network": "GET /api/views/night?date=2026-04-05 -> 200 with hypnogram=null (frontend-views/browser-night-ui-core/VAL-CROSS-020-night-2026-04-05.json)"
+      },
+      "issues": "Hypnogram stage differentiation/legend did not render on tested surface."
+    },
+    {
+      "id": "VAL-UINGT-003",
+      "title": "Summary strip with polarity-colored delta badges",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Review SummaryStrip metrics and delta badges on Night view",
+          "expected": "Sleep Score, Deep Sleep, Sleep Latency, HRV, RHR each show polarity-aware colored deltas and matching arrows",
+          "observed": "Summary strip shows only 4 metrics (Sleep Score, Deep Sleep, HRV, Resting Heart Rate); Sleep Latency metric is missing, so required full strip contract is not met."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-night-ui-core/VAL-UINGT-003-summary-strip.png"
+        ],
+        "consoleErrors": "frontend-views/browser-night-ui-core/console-errors-today.txt (none)",
+        "network": "GET /api/views/night?date=2026-04-05 -> 200 (frontend-views/browser-night-ui-core/VAL-CROSS-020-night-2026-04-05.json)"
+      },
+      "issues": "Required Sleep Latency delta badge is missing from SummaryStrip."
+    },
+    {
+      "id": "VAL-UINGT-004",
+      "title": "S1 scenario \u2014 meal \u2192 glucose spike \u2192 HR \u2192 sleep disruption causal chain",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Validate S1-specific chain on Night view (meal marker, glucose spike, HR response, hypnogram latency, insight text, exact red deltas)",
+          "expected": "All S1 causal elements and specified values are simultaneously visible and traceable",
+          "observed": "Screen lacks glucose panel and hypnogram stage rendering; observed summary values do not match S1 targets (e.g., no Sleep Latency \u25b223 min badge), so the required S1 chain is not present."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-night-ui-core/VAL-UINGT-004-s1-causal-chain.png"
+        ],
+        "consoleErrors": "frontend-views/browser-night-ui-core/console-errors-today.txt (none)",
+        "network": "GET /api/views/night?date=2026-04-05 -> 200 (frontend-views/browser-night-ui-core/VAL-CROSS-020-night-2026-04-05.json)"
+      },
+      "issues": "Current local night surface does not match S1 fixture expectations."
+    },
+    {
+      "id": "VAL-CROSS-019",
+      "title": "Night view window spans yesterday 8 PM to today 8 AM correctly",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Call GET /api/views/night?date=2026-03-28",
+          "expected": "API returns 2026-03-27 20:00 to 2026-03-28 08:00 range and timestamps within bounds",
+          "observed": "API returned time_range.start=2026-03-27T20:00:00.000Z and end=2026-03-28T08:00:00.000Z with no out-of-window points in payload."
+        },
+        {
+          "action": "Open /dashboard?date=2026-03-28 and inspect night axis labels",
+          "expected": "Frontend shows 8 PM\u20138 AM labels on the time axis",
+          "observed": "Frontend screen for that date does not show the required 8 PM/8 AM axis labels (intraday axis labels not visible)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-night-ui-core/VAL-CROSS-019-night-view-window.png"
+        ],
+        "consoleErrors": "frontend-views/browser-night-ui-core/console-errors-2026-03-28.txt (none)",
+        "network": "GET /api/views/night?date=2026-03-28 -> 200 (frontend-views/browser-night-ui-core/VAL-CROSS-019-night-2026-03-28.meta.txt); response body in frontend-views/browser-night-ui-core/VAL-CROSS-019-night-2026-03-28.json"
+      },
+      "issues": "API window is correct, but required frontend time-axis label rendering was not observed."
+    },
+    {
+      "id": "VAL-CROSS-020",
+      "title": "Night view for in-progress night handles incomplete data",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Check runtime clock and request today's night view",
+          "expected": "When current time is during the night window (example 2 AM), series should end near now and UI should avoid misleading flatline to 8 AM",
+          "observed": "At test runtime local time was 05:36 EDT / 09:36 UTC; API for date=2026-04-05 returned completed window ending 08:00Z (not an in-progress night scenario)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-night-ui-core/VAL-CROSS-020-in-progress-night.png"
+        ],
+        "consoleErrors": "frontend-views/browser-night-ui-core/console-errors-today.txt (none)",
+        "network": "GET /api/views/night?date=2026-04-05 -> 200 (frontend-views/browser-night-ui-core/VAL-CROSS-020-night-2026-04-05.meta.txt); runtime timestamp in frontend-views/browser-night-ui-core/runtime-clock.txt"
+      },
+      "issues": "Blocked by unmet precondition: test runtime was outside an in-progress night window for the configured timezone/data."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Opening /dashboard initially landed on /sign-in in isolated browser session.",
+      "resolved": true,
+      "resolution": "Generated mock owner session token for user_test_001 and set __session cookie in the assigned browser session.",
+      "affectedAssertions": [
+        "VAL-UINGT-001",
+        "VAL-UINGT-002",
+        "VAL-UINGT-003",
+        "VAL-UINGT-004",
+        "VAL-CROSS-019",
+        "VAL-CROSS-020"
+      ]
+    },
+    {
+      "description": "agent-browser network request capture returned no tracked requests during this run.",
+      "resolved": true,
+      "resolution": "Captured endpoint status/body evidence with curl artifacts in the mission evidence directory.",
+      "affectedAssertions": ["VAL-CROSS-019", "VAL-CROSS-020"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Could not reproduce an in-progress night (e.g., 2 AM within active 8 PM\u20138 AM window) at execution time to validate truncation behavior directly.",
+      "affectedAssertions": ["VAL-CROSS-020"],
+      "quickFixAttempted": "Queried current clock and fetched today's night payload; response represented a completed window ending at 08:00Z."
+    }
+  ],
+  "summary": "Tested 6 assertions: 5 failed (VAL-UINGT-001/002/003/004 and VAL-CROSS-019) and 1 blocked (VAL-CROSS-020 due to unmet in-progress-night runtime precondition)."
+}

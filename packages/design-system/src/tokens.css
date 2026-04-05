@@ -12,17 +12,22 @@
   --totus-emerald-rgb: 47 168 123;
   --totus-coral: #e8845a;
   --totus-coral-rgb: 232 132 90;
-  --totus-ink: #1a2332;
-  --totus-ink-rgb: 26 35 50;
-  --totus-slate: #64748b;
+  --totus-ink: #1f2433;
+  --totus-ink-rgb: 31 36 51;
+  --totus-slate: #6b7280;
   --totus-mist: #e2e8f0;
   --totus-cloud: #f8f9fb;
   --totus-white: #ffffff;
+
+  /* Danger — distinct from coral CTA, used only for alerts/errors */
+  --totus-red: #dc4a3a;
+  --totus-red-rgb: 220 74 58;
 
   /* Tints (hover states, subtle backgrounds) */
   --totus-ocean-tint: #e8f2f8;
   --totus-emerald-tint: #e8f4f0;
   --totus-coral-tint: #fdf0eb;
+  --totus-red-tint: #fdecea;
 
   /* ── Semantic aliases (light mode) ── */
   /* Use these in feature code so rebranding only requires updating the mapping. */
@@ -32,7 +37,7 @@
   --totus-cta-foreground: var(--totus-white);
   --totus-success: var(--totus-emerald);
   --totus-success-foreground: var(--totus-white);
-  --totus-danger: var(--totus-coral);
+  --totus-danger: var(--totus-red);
   --totus-danger-foreground: var(--totus-white);
   --totus-background: var(--totus-cloud);
   --totus-surface: var(--totus-white);
@@ -60,7 +65,7 @@
   /* ── Border radius ── */
   --totus-radius-badge: 0.25rem;  /* 4px  — badges, tags */
   --totus-radius-sm: 0.375rem;    /* 6px  — inputs, default buttons */
-  --totus-radius: 0.5rem;         /* 8px  — cards, containers */
+  --totus-radius: 0.75rem;        /* 12px — cards, containers */
   --totus-radius-icon: 0.875rem;  /* 14px — app icon */
   --totus-radius-pill: 1.5rem;    /* 24px — CTA pill buttons */
 
@@ -80,9 +85,9 @@
   --totus-primary: #5ba3c9;          /* lighter ocean for dark bg */
   --totus-primary-foreground: #0f1824;
   --totus-background: #0f1824;
-  --totus-surface: var(--totus-ink);  /* #1a2332 */
+  --totus-surface: var(--totus-ink);  /* #1f2433 */
   --totus-surface-muted: #1e2d3d;
-  --totus-text: var(--totus-cloud);
+  --totus-text: #e2e8f0;              /* off-white — reduces eye strain on dark bg */
   --totus-text-muted: #94a3b8;
   --totus-border-color: #2a3a4a;
 

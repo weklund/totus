@@ -1,0 +1,299 @@
+{
+  "groupId": "curl-trend",
+  "testedAt": "2026-04-05T07:06:01.297867+00:00",
+  "isolation": {
+    "baseUrl": "http://localhost:3100",
+    "ownerAuth": "__session cookie for user_test_001 (mock JWT)",
+    "viewerChecks": {
+      "shareGrantId": "5b3dcb6b-dc57-4569-b2c0-c3705c679b9f",
+      "grantTokenCreatedFresh": true,
+      "grantWindow": {
+        "data_start": "2026-03-01",
+        "data_end": "2026-03-20"
+      },
+      "allowedMetrics": ["rhr", "hrv"]
+    }
+  },
+  "toolsUsed": ["curl", "python3"],
+  "assertions": [
+    {
+      "id": "VAL-TREND-001",
+      "title": "Single-request response with metrics, smoothing, trend, and correlations",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/trend?start=2026-02-27&end=2026-03-28&metrics=rhr,hrv,sleep_score (smoothing omitted)",
+          "expected": "200 with keys date_range,smoothing,insights,metrics,correlations and smoothing default 7d",
+          "observed": "200; all keys present; smoothing='7d'"
+        },
+        {
+          "action": "GET same request with smoothing=none",
+          "expected": "smoothed is null",
+          "observed": "smoothed=null for rhr/hrv/sleep_score"
+        },
+        {
+          "action": "GET same request with smoothing=30d",
+          "expected": "smoothed populated",
+          "observed": "smoothed populated for rhr/hrv/sleep_score"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "trend_owner_default: status=200 time=0.020024",
+          "trend_owner_smoothing_none: status=200 time=0.017517",
+          "trend_owner_smoothing_30d: status=200 time=0.018902"
+        ],
+        "files": [
+          "api-and-jobs/curl-trend/trend_owner_default.json",
+          "api-and-jobs/curl-trend/trend_owner_smoothing_none.json",
+          "api-and-jobs/curl-trend/trend_owner_smoothing_30d.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TREND-002",
+      "title": "Rolling averages correct and handle gaps",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Manually recompute sample 7d smoothing values from raw rhr values (day3/day7)",
+          "expected": "API smoothed values equal arithmetic mean over available points",
+          "observed": "day3=68.3333 and day7=62.8571 match manual calculations exactly"
+        },
+        {
+          "action": "Manually recompute sample 30d smoothing value for rhr day30",
+          "expected": "30d smoothed value matches mean of first 30 points",
+          "observed": "API 63.3333 matches manual 63.3333"
+        },
+        {
+          "action": "Request 365-day range where long leading portion has no data",
+          "expected": "Missing days are skipped (not zero-filled)",
+          "observed": "raw_points=96 and smoothed_points=96 for 365-day range; no 365-point zero-filled series"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "trend_owner_default: status=200 time=0.020024",
+          "trend_owner_smoothing_30d: status=200 time=0.018902",
+          "trend_val_max_365d: status=200 time=0.015586"
+        ],
+        "files": [
+          "api-and-jobs/curl-trend/trend_owner_default.json",
+          "api-and-jobs/curl-trend/trend_owner_smoothing_30d.json",
+          "api-and-jobs/curl-trend/trend_val_max_365d.json",
+          "api-and-jobs/curl-trend/manual-computation.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TREND-003",
+      "title": "Trend detection uses 7-day start/end averages",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Compute start_value/end_value/change_abs/change_pct from rhr raw first/last 7 values",
+          "expected": "Matches trend payload and threshold behavior",
+          "observed": "start=62.86 end=62.86 change_abs=0 change_pct=0; direction='stable' matches manual"
+        },
+        {
+          "action": "Compare baselines for start=2026-02-27 vs start=2026-03-07 (same end)",
+          "expected": "Baselines anchored to start date should differ",
+          "observed": "rhr baseline avg changed 62.0333 -> 62.5333"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "trend_owner_default: status=200 time=0.020024",
+          "trend_owner_start_shifted: status=200 time=0.016466"
+        ],
+        "files": [
+          "api-and-jobs/curl-trend/trend_owner_default.json",
+          "api-and-jobs/curl-trend/trend_owner_start_shifted.json",
+          "api-and-jobs/curl-trend/manual-computation.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TREND-004",
+      "title": "Date range and parameter validation enforced",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Boundary checks: 7d and 365d ranges",
+          "expected": "Both return 200",
+          "observed": "7d=200; 365d=200"
+        },
+        {
+          "action": "Invalid range checks: 6d, 366d, start>end",
+          "expected": "400 VALIDATION_ERROR",
+          "observed": "All returned 400"
+        },
+        {
+          "action": "Parameter checks: >10 metrics, >5 correlation pairs, correlation metric not in metrics, invalid smoothing, missing params",
+          "expected": "400",
+          "observed": "All returned 400"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "trend_val_min_7d: status=200 time=0.015766",
+          "trend_val_max_365d: status=200 time=0.015586",
+          "trend_val_6d_invalid: status=400 time=0.011490",
+          "trend_val_366d_invalid: status=400 time=0.011162",
+          "trend_val_start_after_end: status=400 time=0.010155",
+          "trend_val_too_many_metrics: status=400 time=0.011006",
+          "trend_val_too_many_corr_pairs: status=400 time=0.010639",
+          "trend_val_corr_metric_not_in_list: status=400 time=0.010176",
+          "trend_val_invalid_smoothing: status=400 time=0.010844",
+          "trend_val_missing_metrics: status=400 time=0.009802",
+          "trend_val_missing_start: status=400 time=0.010219",
+          "trend_val_missing_end: status=400 time=0.011490"
+        ],
+        "files": [
+          "api-and-jobs/curl-trend/trend_val_min_7d.json",
+          "api-and-jobs/curl-trend/trend_val_max_365d.json",
+          "api-and-jobs/curl-trend/trend_val_6d_invalid.json",
+          "api-and-jobs/curl-trend/trend_val_366d_invalid.json",
+          "api-and-jobs/curl-trend/trend_val_start_after_end.json",
+          "api-and-jobs/curl-trend/trend_val_too_many_metrics.json",
+          "api-and-jobs/curl-trend/trend_val_too_many_corr_pairs.json",
+          "api-and-jobs/curl-trend/trend_val_corr_metric_not_in_list.json",
+          "api-and-jobs/curl-trend/trend_val_invalid_smoothing.json",
+          "api-and-jobs/curl-trend/trend_val_missing_metrics.json",
+          "api-and-jobs/curl-trend/trend_val_missing_start.json",
+          "api-and-jobs/curl-trend/trend_val_missing_end.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TREND-005",
+      "title": "Correlations computed correctly",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "GET trend with correlations=rhr:hrv,hrv:sleep_score",
+          "expected": "Response includes computed correlation objects with coefficient/strength/direction/sufficient_data",
+          "observed": "Response returned correlations=[]"
+        },
+        {
+          "action": "Manual Pearson computation from returned raw data",
+          "expected": "API should return values near computed coefficients",
+          "observed": "Manual rhr\u2194hrv coefficient=0.9991 (strong positive), hrv\u2194sleep_score=0.2745 (weak positive), but API returned none"
+        },
+        {
+          "action": "Sparse pair check with correlations=rhr:weight",
+          "expected": "Pair present with sufficient_data=false (<7 overlaps)",
+          "observed": "Response returned correlations=[]"
+        },
+        {
+          "action": "Request without correlations param",
+          "expected": "correlations omitted/empty",
+          "observed": "correlations=[]"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "trend_corr_requested: status=200 time=0.015442",
+          "trend_corr_sparse_pair: status=200 time=0.013838",
+          "trend_corr_not_requested: status=200 time=0.015838"
+        ],
+        "files": [
+          "api-and-jobs/curl-trend/trend_corr_requested.json",
+          "api-and-jobs/curl-trend/trend_corr_sparse_pair.json",
+          "api-and-jobs/curl-trend/trend_corr_not_requested.json",
+          "api-and-jobs/curl-trend/manual-computation.json"
+        ]
+      },
+      "issues": "Correlation computation is not implemented in trend response (always empty array even when requested)."
+    },
+    {
+      "id": "VAL-TREND-006",
+      "title": "Viewer sees only granted metrics and clamped dates",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Create fresh share grant and call /api/views/trend with grant_token only",
+          "expected": "Viewer-scoped 200 response limited to granted metrics and clamped date_range",
+          "observed": "Direct grant_token requests returned 401 UNAUTHORIZED before scoping checks"
+        },
+        {
+          "action": "Retry with granted and ungranted correlation queries using grant_token",
+          "expected": "Ungranted correlation excluded/rejected under viewer scope",
+          "observed": "Both direct grant_token requests returned 401"
+        },
+        {
+          "action": "Diagnostic workaround: validate grant token via /api/viewer/validate and call trend with viewer cookie",
+          "expected": "If token is valid, viewer cookie path should scope metrics/dates",
+          "observed": "viewer cookie request succeeded (200) and returned only rhr/hrv with date_range clamped to 2026-03-01..2026-03-20"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "share_create_trend_viewer: status=201 time=0.217218",
+          "trend_viewer_grant_scoped: status=401 time=0.001535",
+          "trend_viewer_grant_corr_ungranted: status=401 time=0.001032",
+          "trend_viewer_grant_corr_granted: status=401 time=0.001092",
+          "viewer_validate_with_grant_token: status=200 time=0.025467",
+          "trend_viewer_cookie_scoped: status=200 time=0.016838"
+        ],
+        "files": [
+          "api-and-jobs/curl-trend/share_create_trend_viewer.json",
+          "api-and-jobs/curl-trend/trend_viewer_grant_scoped.json",
+          "api-and-jobs/curl-trend/trend_viewer_grant_corr_ungranted.json",
+          "api-and-jobs/curl-trend/trend_viewer_grant_corr_granted.json",
+          "api-and-jobs/curl-trend/viewer_validate_with_grant_token.json",
+          "api-and-jobs/curl-trend/trend_viewer_cookie_scoped.json"
+        ]
+      },
+      "issues": "grant_token direct viewer access to /api/views/trend is blocked by 401 (real surface), so viewer grant_token scoping behavior cannot be observed through the expected entry path."
+    },
+    {
+      "id": "VAL-TREND-007",
+      "title": "Audit event emitted for trend view access",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Call trend endpoint and query /api/audit?event_type=view.accessed",
+          "expected": "Audit event row includes trend metadata",
+          "observed": "Multiple view.accessed events found with resource_detail.view_type='trend', date_range, smoothing, metrics_requested/returned, data_points_returned"
+        }
+      ],
+      "evidence": {
+        "network": ["audit_view_accessed_all: status=200 time=0.146010"],
+        "files": ["api-and-jobs/curl-trend/audit_view_accessed_all.json"]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TREND-008",
+      "title": "Minimum range (7 days) produces valid trend results",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/trend?start=2026-03-22&end=2026-03-28&metrics=rhr,hrv,sleep_score",
+          "expected": "200 with stable trends due overlapping 7-day start/end windows",
+          "observed": "200; trend.direction='stable' for rhr/hrv/sleep_score"
+        }
+      ],
+      "evidence": {
+        "network": ["trend_exact_7d: status=200 time=0.016013"],
+        "files": ["api-and-jobs/curl-trend/trend_exact_7d.json"]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Direct grant_token calls to /api/views/trend returned 401 due endpoint being treated as owner-only by middleware; this prevented exercising viewer checks through the intended grant_token path.",
+      "resolved": true,
+      "resolution": "Used /api/viewer/validate with the same fresh token to confirm token validity, then verified viewer scoping via viewer cookie as a diagnostic workaround.",
+      "affectedAssertions": ["VAL-TREND-006"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 8 Trend API assertions via curl: 6 passed, 2 failed (VAL-TREND-005 correlations always empty; VAL-TREND-006 direct grant_token viewer access returns 401)."
+}

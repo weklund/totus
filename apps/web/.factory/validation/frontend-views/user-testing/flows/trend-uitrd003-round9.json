@@ -1,0 +1,100 @@
+{
+  "groupId": "trend-uitrd003-round9",
+  "testedAt": "2026-04-05T13:18:00Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "assertionIds": ["VAL-UITRD-003"],
+    "browserSessionId": "trend-uitrd003-round9",
+    "boundary": "Local dashboard surface with seeded local data only"
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertionResults": [
+    {
+      "id": "VAL-UITRD-003",
+      "title": "Resolution toggle and range presets work",
+      "status": "fail",
+      "reason": "Default and range presets behaved as expected, and Daily changed rendering, but Monthly did not produce distinct monthly-aggregated point rendering (it matched Weekly rendering with unchanged axis cadence and point density).",
+      "steps": [
+        {
+          "action": "Open /dashboard and switch to Trend view",
+          "expected": "Trend view loads with default 30D + 7-Day Avg",
+          "observed": "Trend tab selected with 30D selected and Weekly selected (UI label for 7-Day Avg). URL: /dashboard?view=trend&date=2026-04-05&range=30&smoothing=weekly"
+        },
+        {
+          "action": "Toggle resolution to Daily",
+          "expected": "Raw-dot style rendering",
+          "observed": "Daily selected and URL changed to smoothing=daily. DOM rendering check: lines=0, scatterSymbols=30 on 30D (raw points only), consistent with raw-dot style."
+        },
+        {
+          "action": "Toggle resolution to Monthly",
+          "expected": "Monthly aggregated point rendering",
+          "observed": "Monthly selected and URL changed to smoothing=monthly, but rendering metrics matched Weekly (30D: lines=1 + scatterSymbols=30; 1Y: lines=1 + scatterSymbols=104). X-axis labels remained unchanged versus Weekly, indicating no visible monthly aggregation behavior."
+        },
+        {
+          "action": "Exercise 7D preset",
+          "expected": "Time axis/data window updates to 7 days",
+          "observed": "7D selected; x-axis labels moved to Mar 30-Apr 5 window; symbols=7; URL range=7."
+        },
+        {
+          "action": "Exercise 30D preset",
+          "expected": "Time axis/data window updates to 30 days",
+          "observed": "30D selected; x-axis labels moved to Mar 9-Apr 5 window; symbols=30; URL range=30."
+        },
+        {
+          "action": "Exercise 90D preset",
+          "expected": "Time axis/data window updates to 90 days",
+          "observed": "90D selected; x-axis labels moved to Jan 13-Apr 5 window; symbols=90; URL range=90."
+        },
+        {
+          "action": "Exercise 1Y preset",
+          "expected": "Time axis/data window updates to 1 year",
+          "observed": "1Y selected; x-axis labels moved to Dec 29-Apr 5 span; symbols=104 (available seeded period), URL range=365."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-default-30D-weekly.png",
+          "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-daily-30D.png",
+          "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-monthly-30D.png",
+          "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-preset-7D-weekly.png",
+          "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-preset-30D-weekly.png",
+          "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-preset-90D-weekly.png",
+          "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-preset-1Y-weekly.png",
+          "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-monthly-1Y.png",
+          "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-daily-1Y.png"
+        ],
+        "consoleErrors": "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-console-errors.txt",
+        "network": {
+          "agentBrowser": "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-agent-browser-network.txt",
+          "supplementalCurl": "frontend-views/trend-uitrd003-round9/VAL-UITRD-003-network-summary.json"
+        }
+      },
+      "issues": "Monthly resolution toggle updates selected state/query param but does not visibly change chart into monthly-aggregated points."
+    }
+  ],
+  "stepsTaken": [
+    "Started agent-browser session trend-uitrd003-round9 and authenticated via local mock-auth cookie for user_test_001 after sign-in redirect.",
+    "Navigated to Trend tab, captured default state evidence, then toggled Daily and Monthly and captured evidence/DOM observations.",
+    "Exercised all presets (7D/30D/90D/1Y), captured screenshot evidence for each, and recorded axis/data-window observations.",
+    "Checked browser errors (none) and captured supplemental curl network evidence because agent-browser request capture returned empty."
+  ],
+  "frictions": [
+    {
+      "description": "agent-browser network request capture returned 'No requests captured' for /api/views/trend.",
+      "resolved": true,
+      "resolution": "Collected equivalent request/response evidence via authenticated curl calls and saved summary artifact.",
+      "affectedAssertions": ["VAL-UITRD-003"]
+    },
+    {
+      "description": "UI resolution label is 'Weekly' rather than literal '7-Day Avg' wording in assertion text.",
+      "resolved": true,
+      "resolution": "Mapped Weekly state to query parameter smoothing=weekly and verified default state accordingly.",
+      "affectedAssertions": ["VAL-UITRD-003"]
+    }
+  ],
+  "blockers": [],
+  "summary": "VAL-UITRD-003 failed: default 30D+Weekly and all range presets updated correctly, Daily changed rendering, but Monthly did not produce a distinct monthly-aggregated rendering."
+}

@@ -1,0 +1,522 @@
+{
+  "groupId": "curl-viewer-grants",
+  "testedAt": "2026-04-05T09:34:55.828502Z",
+  "overallStatus": "fail",
+  "isolation": {
+    "milestone": "frontend-views",
+    "baseUrl": "http://localhost:3100",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "validatorType": "curl-only",
+    "ownerUser": "user_test_001",
+    "assignedAssertions": [
+      "VAL-CROSS-010",
+      "VAL-CROSS-011",
+      "VAL-CROSS-012",
+      "VAL-CROSS-013",
+      "VAL-CROSS-014",
+      "VAL-CROSS-021"
+    ]
+  },
+  "toolsUsed": ["curl", "tsx"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-010",
+      "title": "Owner creates share; viewer sees scoped data and audit trail",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/shares (owner)",
+          "expected": "201 with share_url/token",
+          "observed": "201 id=4fe97f4d-f564-4c5b-875a-2fa2824f3b2a"
+        },
+        {
+          "action": "POST /api/viewer/validate with token",
+          "expected": "200 and viewer cookie",
+          "observed": "200"
+        },
+        {
+          "action": "GET /api/views/night in-range as viewer",
+          "expected": "Only granted metrics",
+          "observed": "status=200 summary=['hrv', 'rhr', 'sleep_score'] series=[]"
+        },
+        {
+          "action": "GET /api/views/night out-of-range as viewer",
+          "expected": "Date clamped to grant boundary",
+          "observed": "status=200 response.date=2026-03-28"
+        },
+        {
+          "action": "GET /api/viewer/data and owner audit query",
+          "expected": "data.viewed event with actor_type=viewer and grant_id",
+          "observed": "viewer_data status=200 metrics=['hrv', 'rhr', 'sleep_score']; auditMatch=yes"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "frontend-views/curl-viewer-grants/setup-share-main-rhr-hrv-sleep-meta.txt",
+          "frontend-views/curl-viewer-grants/setup-share-main-rhr-hrv-sleep-response.json",
+          "frontend-views/curl-viewer-grants/main-viewer-validate-meta.txt",
+          "frontend-views/curl-viewer-grants/main-viewer-validate-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-010-open-share-url-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-010-open-share-url-response.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-010-night-in-range-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-010-night-in-range-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-010-night-out-of-range-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-010-night-out-of-range-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-010-viewer-data-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-010-viewer-data-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-010-audit-data-viewed-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-010-audit-data-viewed-response.json"
+        ],
+        "responseSnippets": [
+          "share create: {\"data\":{\"id\":\"4fe97f4d-f564-4c5b-875a-2fa2824f3b2a\",\"token\":\"dG80GRsjKIGq6BTNed7RlnKagfJHXLskuyr_CDiL6Mw\",\"share_url\":\"http://localhost:3100/v/REDACTED_MOCK_TOKEN\",\"label\":\"main-rhr-hrv-sleep-20260405T093451Z\",\"allowed_metrics\":[\"rhr\",\"hrv\",\"sleep_score\"],\"data_start\":\"2026-",
+          "night in-range: {\"data\":{\"date\":\"2026-03-27\",\"time_range\":{\"start\":\"2026-03-26T20:00:00.000Z\",\"end\":\"2026-03-27T08:00:00.000Z\"},\"insights\":[{\"type\":\"elevated_rhr\",\"title\":\"Elevated resting heart rate\",\"body\":\"Your resting HR was 70 bpm, 7.600000000000001 bpm above your 30-day average of 62.4 bpm.\",\"related_metrics\"",
+          "viewer data: {\"data\":{\"metrics\":{\"rhr\":{\"unit\":\"bpm\",\"points\":[{\"date\":\"2026-03-20\",\"value\":69,\"source\":\"oura\"},{\"date\":\"2026-03-21\",\"value\":69,\"source\":\"oura\"},{\"date\":\"2026-03-22\",\"value\":65,\"source\":\"oura\"},{\"date\":\"2026-03-23\",\"value\":58,\"source\":\"oura\"},{\"date\":\"2026-03-24\",\"value\":51,\"source\":\"oura\"},{\"dat",
+          "audit: {\"data\":[{\"id\":\"11943\",\"event_type\":\"data.viewed\",\"actor_type\":\"viewer\",\"actor_id\":null,\"grant_id\":\"4fe97f4d-f564-4c5b-875a-2fa2824f3b2a\",\"resource_type\":\"health_data\",\"resource_detail\":{\"metrics\":[\"rhr\",\"hrv\",\"sleep_score\"],\"date_range\":{\"end\":\"2026-03-28\",\"start\":\"2026-03-20\"},\"resolution\":\"daily\""
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-011",
+      "title": "Viewer sees scoped data on Night, Recovery, and Trend",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night",
+          "expected": "200 with only granted metrics",
+          "observed": "status=200 keys=['hrv', 'rhr', 'sleep_score']"
+        },
+        {
+          "action": "GET /api/views/recovery",
+          "expected": "200 with metric/date clamping to grant",
+          "observed": "status=200 metricKeys=['hrv', 'rhr', 'sleep_score'] date_range={'start': '2026-03-20', 'end': '2026-03-28'}"
+        },
+        {
+          "action": "GET /api/views/trend",
+          "expected": "200 with metric/date clamping to grant",
+          "observed": "status=200 metricKeys=['hrv', 'rhr', 'sleep_score'] date_range={'start': '2026-03-20', 'end': '2026-03-28'}"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "frontend-views/curl-viewer-grants/VAL-CROSS-011-night-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-011-night-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-011-recovery-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-011-recovery-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-011-trend-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-011-trend-response.json"
+        ],
+        "responseSnippets": [
+          "night: {\"data\":{\"date\":\"2026-03-27\",\"time_range\":{\"start\":\"2026-03-26T20:00:00.000Z\",\"end\":\"2026-03-27T08:00:00.000Z\"},\"insights\":[{\"type\":\"elevated_rhr\",\"title\":\"Elevated resting heart rate\",\"body\":\"Your resting HR was 70 bpm, 7.600000000000001 bpm above your 30-day average of 62.4 bpm.\",\"related_metrics\"",
+          "recovery: {\"data\":{\"date_range\":{\"start\":\"2026-03-20\",\"end\":\"2026-03-28\"},\"triggering_event\":null,\"insights\":[],\"daily\":{\"2026-03-20\":{\"metrics\":{\"sleep_score\":{\"value\":92,\"avg_30d\":82.93333333333334,\"stddev_30d\":10.58909292096773,\"delta\":9.066666666666663,\"delta_pct\":10.932475884244369,\"direction\":\"better\",\"",
+          "trend: {\"data\":{\"date_range\":{\"start\":\"2026-03-20\",\"end\":\"2026-03-28\"},\"smoothing\":\"7d\",\"insights\":[],\"metrics\":{\"rhr\":{\"raw\":{\"dates\":[\"2026-03-20\",\"2026-03-21\",\"2026-03-22\",\"2026-03-23\",\"2026-03-24\",\"2026-03-25\",\"2026-03-26\",\"2026-03-27\",\"2026-03-28\"],\"values\":[69,69,65,58,51,60,67,70,69]},\"smoothed\":{\"d"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-012",
+      "title": "Expired share grant denies viewer access",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "POST /api/shares with expires_in_days=1",
+          "expected": "Create short-lived grant",
+          "observed": "status=201"
+        },
+        {
+          "action": "GET /api/views/night with direct grant_token (before expiry)",
+          "expected": "Current validity check before expiry",
+          "observed": "status=200"
+        },
+        {
+          "action": "PATCH /api/shares/:id revoke + POST /api/viewer/validate",
+          "expected": "Denied after invalidation",
+          "observed": "revoke=200, validate_after_revoke=404, night_after_revoke=401"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "frontend-views/curl-viewer-grants/setup-share-expiry-check-meta.txt",
+          "frontend-views/curl-viewer-grants/setup-share-expiry-check-response.json",
+          "frontend-views/curl-viewer-grants/expiry-before-viewer-validate-meta.txt",
+          "frontend-views/curl-viewer-grants/expiry-before-viewer-validate-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-012-night-direct-grant-token-before-expiry-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-012-night-direct-grant-token-before-expiry-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-012-revoke-share-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-012-revoke-share-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-012-viewer-validate-after-revoke-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-012-viewer-validate-after-revoke-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-012-night-after-revoke-grant-token-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-012-night-after-revoke-grant-token-response.json"
+        ],
+        "responseSnippets": [
+          "validate_before: {\"data\":{\"valid\":true,\"owner_display_name\":\"Test User\",\"label\":\"expiry-check-20260405T093451Z\",\"note\":\"curl viewer grant validation\",\"allowed_metrics\":[\"rhr\",\"hrv\",\"sleep_score\"],\"data_start\":\"2026-03-24\",\"data_end\":\"2026-03-28\",\"expires_at\":\"2026-04-06T09:34:52.405Z\"}}",
+          "validate_after_revoke: {\"error\":{\"code\":\"SHARE_NOT_FOUND\",\"message\":\"The share link was not found or is no longer available\"}}",
+          "night_after_revoke: {\"error\":{\"code\":\"UNAUTHORIZED\",\"message\":\"Invalid or expired share token\"}}"
+        ]
+      },
+      "issues": "Unable to create a truly expired token in-session (expires_in_days minimum is 1 day, no time-travel control, and raw tokens for historical expired grants are unavailable via API)."
+    },
+    {
+      "id": "VAL-CROSS-013",
+      "title": "Meal annotation visible only when glucose metric granted",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/annotations meal (owner)",
+          "expected": "annotation created",
+          "observed": "status=201 id=2302 label=viewer-grant-meal-20260405T093451Z"
+        },
+        {
+          "action": "Viewer A (glucose grant) GET /api/views/night",
+          "expected": "meal annotation visible",
+          "observed": "status=200 mealIds=[2298, 2302]"
+        },
+        {
+          "action": "Viewer B (rhr/hrv grant) GET /api/views/night",
+          "expected": "meal annotation hidden",
+          "observed": "status=200 mealIds=[]"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "frontend-views/curl-viewer-grants/setup-annotation-meal-meta.txt",
+          "frontend-views/curl-viewer-grants/setup-annotation-meal-response.json",
+          "frontend-views/curl-viewer-grants/setup-share-glucose-only-meta.txt",
+          "frontend-views/curl-viewer-grants/setup-share-glucose-only-response.json",
+          "frontend-views/curl-viewer-grants/setup-share-no-glucose-meta.txt",
+          "frontend-views/curl-viewer-grants/setup-share-no-glucose-response.json",
+          "frontend-views/curl-viewer-grants/glucose-viewer-validate-meta.txt",
+          "frontend-views/curl-viewer-grants/glucose-viewer-validate-response.json",
+          "frontend-views/curl-viewer-grants/noglucose-viewer-validate-meta.txt",
+          "frontend-views/curl-viewer-grants/noglucose-viewer-validate-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-013-viewer-glucose-night-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-013-viewer-glucose-night-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-013-viewer-no-glucose-night-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-013-viewer-no-glucose-night-response.json"
+        ],
+        "responseSnippets": [
+          "glucose viewer: {\"data\":{\"date\":\"2026-03-28\",\"time_range\":{\"start\":\"2026-03-27T20:00:00.000Z\",\"end\":\"2026-03-28T08:00:00.000Z\"},\"insights\":[],\"annotations\":[{\"id\":2298,\"source\":\"user\",\"event_type\":\"meal\",\"label\":\"VAL-CROSS-022 meal 20260405T093140Z\",\"note\":\"val-cross-022-meal-night-20260405T093140Z\",\"occurred_at\":\"",
+          "no-glucose viewer: {\"data\":{\"date\":\"2026-03-28\",\"time_range\":{\"start\":\"2026-03-27T20:00:00.000Z\",\"end\":\"2026-03-28T08:00:00.000Z\"},\"insights\":[],\"annotations\":[{\"id\":2303,\"source\":\"user\",\"event_type\":\"workout\",\"label\":\"viewer-grant-workout-20260405T093451Z\",\"note\":\"workout scope check\",\"occurred_at\":\"2026-03-27T22:00:"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-014",
+      "title": "Workout annotation visible only when activity metrics granted",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/annotations workout (owner)",
+          "expected": "annotation created",
+          "observed": "status=201 id=2303 label=viewer-grant-workout-20260405T093451Z"
+        },
+        {
+          "action": "Viewer activity grant GET /api/views/night",
+          "expected": "workout annotation visible",
+          "observed": "status=200 workoutIds=[2303]"
+        },
+        {
+          "action": "Viewer sleep-only grant GET /api/views/night",
+          "expected": "workout annotation hidden",
+          "observed": "status=200 workoutIds=[]"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "frontend-views/curl-viewer-grants/setup-annotation-workout-meta.txt",
+          "frontend-views/curl-viewer-grants/setup-annotation-workout-response.json",
+          "frontend-views/curl-viewer-grants/setup-share-activity-only-meta.txt",
+          "frontend-views/curl-viewer-grants/setup-share-activity-only-response.json",
+          "frontend-views/curl-viewer-grants/setup-share-sleep-only-meta.txt",
+          "frontend-views/curl-viewer-grants/setup-share-sleep-only-response.json",
+          "frontend-views/curl-viewer-grants/activity-viewer-validate-meta.txt",
+          "frontend-views/curl-viewer-grants/activity-viewer-validate-response.json",
+          "frontend-views/curl-viewer-grants/sleep-viewer-validate-meta.txt",
+          "frontend-views/curl-viewer-grants/sleep-viewer-validate-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-014-viewer-activity-night-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-014-viewer-activity-night-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-014-viewer-sleep-night-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-014-viewer-sleep-night-response.json"
+        ],
+        "responseSnippets": [
+          "activity viewer: {\"data\":{\"date\":\"2026-03-28\",\"time_range\":{\"start\":\"2026-03-27T20:00:00.000Z\",\"end\":\"2026-03-28T08:00:00.000Z\"},\"insights\":[],\"annotations\":[{\"id\":2303,\"source\":\"user\",\"event_type\":\"workout\",\"label\":\"viewer-grant-workout-20260405T093451Z\",\"note\":\"workout scope check\",\"occurred_at\":\"2026-03-27T22:00:",
+          "sleep-only viewer: {\"data\":{\"date\":\"2026-03-28\",\"time_range\":{\"start\":\"2026-03-27T20:00:00.000Z\",\"end\":\"2026-03-28T08:00:00.000Z\"},\"insights\":[],\"annotations\":[],\"series\":{},\"hypnogram\":null,\"summary\":{\"sleep_score\":{\"value\":79,\"avg_30d\":83.36666666666666,\"stddev_30d\":10.637930040922226,\"delta\":-4.36666666666666,\"delt"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-021",
+      "title": "Night view respects user timezone for window calculation",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "GET /api/views/night with timezone=America/Los_Angeles",
+          "expected": "PST-adjusted UTC window",
+          "observed": "status=200 time_range={'start': '2026-03-27T20:00:00.000Z', 'end': '2026-03-28T08:00:00.000Z'}"
+        },
+        {
+          "action": "GET /api/views/night with timezone=Asia/Tokyo",
+          "expected": "Different UTC window than PST",
+          "observed": "status=200 time_range={'start': '2026-03-27T20:00:00.000Z', 'end': '2026-03-28T08:00:00.000Z'}"
+        },
+        {
+          "action": "GET /api/views/night for user_test_001 and user_test_002",
+          "expected": "Different UTC windows if user timezone differs",
+          "observed": "user1={'start': '2026-03-27T20:00:00.000Z', 'end': '2026-03-28T08:00:00.000Z'}; user2={'start': '2026-03-27T20:00:00.000Z', 'end': '2026-03-28T08:00:00.000Z'}"
+        }
+      ],
+      "evidence": {
+        "network": [
+          "frontend-views/curl-viewer-grants/VAL-CROSS-021-night-timezone-pst-param-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-021-night-timezone-pst-param-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-021-night-timezone-tokyo-param-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-021-night-timezone-tokyo-param-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-021-night-user1-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-021-night-user1-response.json",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-021-night-user2-meta.txt",
+          "frontend-views/curl-viewer-grants/VAL-CROSS-021-night-user2-response.json",
+          "frontend-views/curl-viewer-grants/setup-owner2-session-meta.txt"
+        ],
+        "responseSnippets": [
+          "pst: {\"data\":{\"date\":\"2026-03-28\",\"time_range\":{\"start\":\"2026-03-27T20:00:00.000Z\",\"end\":\"2026-03-28T08:00:00.000Z\"},\"insights\":[],\"annotations\":[{\"id\":2298,\"source\":\"user\",\"event_type\":\"meal\",\"label\":\"VAL-CROSS-022 meal 20260405T093140Z\",\"note\":\"val-cross-022-meal-night-20260405T093140Z\",\"occurred_at\":\"",
+          "tokyo: {\"data\":{\"date\":\"2026-03-28\",\"time_range\":{\"start\":\"2026-03-27T20:00:00.000Z\",\"end\":\"2026-03-28T08:00:00.000Z\"},\"insights\":[],\"annotations\":[{\"id\":2298,\"source\":\"user\",\"event_type\":\"meal\",\"label\":\"VAL-CROSS-022 meal 20260405T093140Z\",\"note\":\"val-cross-022-meal-night-20260405T093140Z\",\"occurred_at\":\"",
+          "user1: {\"data\":{\"date\":\"2026-03-28\",\"time_range\":{\"start\":\"2026-03-27T20:00:00.000Z\",\"end\":\"2026-03-28T08:00:00.000Z\"},\"insights\":[],\"annotations\":[{\"id\":2298,\"source\":\"user\",\"event_type\":\"meal\",\"label\":\"VAL-CROSS-022 meal 20260405T093140Z\",\"note\":\"val-cross-022-meal-night-20260405T093140Z\",\"occurred_at\":\"",
+          "user2: {\"data\":{\"date\":\"2026-03-28\",\"time_range\":{\"start\":\"2026-03-27T20:00:00.000Z\",\"end\":\"2026-03-28T08:00:00.000Z\"},\"insights\":[],\"annotations\":[],\"series\":{},\"hypnogram\":null,\"summary\":{},\"baselines\":{}}}"
+        ]
+      },
+      "issues": "Night endpoint returns fixed UTC window (20:00Z to 08:00Z) and ignores timezone differences; requests with timezone params and different users produced identical time_range values."
+    }
+  ],
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "Unable to create a truly expired token in-session (expires_in_days minimum is 1 day, no time-travel control, and raw tokens for historical expired grants are unavailable via API).",
+      "affectedAssertions": ["VAL-CROSS-012"],
+      "quickFixAttempted": "Created 1-day grant, validated current behavior, then revoked and re-tested invalid-share denial path via /api/viewer/validate and /api/views/night?grant_token=..."
+    }
+  ],
+  "commandsRun": [
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/audit?event_type=data.viewed&actor_type=viewer&limit=50' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-010-audit-data-viewed-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-010-audit-data-viewed-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' --cookie __session=REDACTED_MOCK_SESSION",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.193714
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-27&metrics=rhr,hrv,sleep_score,glucose' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-010-night-in-range-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-010-night-in-range-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -b /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/main-cookies.txt",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.031935
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-04-05&metrics=rhr,hrv,sleep_score,glucose' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-010-night-out-of-range-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-010-night-out-of-range-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -b /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/main-cookies.txt",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.019028
+    },
+    {
+      "command": "curl -sS -X GET http://localhost:3100/v/REDACTED_MOCK_TOKEN -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-010-open-share-url-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-010-open-share-url-response.txt -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n'",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 1.069489
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/viewer/data?metrics=rhr,hrv,sleep_score,glucose&start=2026-03-18&end=2026-04-02' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-010-viewer-data-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-010-viewer-data-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -b /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/main-cookies.txt",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.259203
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-27&metrics=rhr,hrv,sleep_score,glucose' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-011-night-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-011-night-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -b /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/main-cookies.txt",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.028603
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/recovery?start=2026-03-18&end=2026-03-30&metrics=rhr,hrv,sleep_score,glucose' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-011-recovery-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-011-recovery-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -b /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/main-cookies.txt",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.021751
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/trend?start=2026-03-18&end=2026-03-30&metrics=rhr,hrv,sleep_score,glucose' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-011-trend-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-011-trend-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -b /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/main-cookies.txt",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.018239
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-27&metrics=rhr,hrv,sleep_score&grant_token=REDACTED_MOCK_TOKEN' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-012-night-after-revoke-grant-token-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-012-night-after-revoke-grant-token-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n'",
+      "exitCode": 0,
+      "httpStatus": 401,
+      "timeSeconds": 0.013622
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-27&metrics=rhr,hrv,sleep_score&grant_token=REDACTED_MOCK_TOKEN' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-012-night-direct-grant-token-before-expiry-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-012-night-direct-grant-token-before-expiry-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n'",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.017506
+    },
+    {
+      "command": "curl -sS -X PATCH http://localhost:3100/api/shares/055c963c-6699-4f00-80d0-479aee57aea4 -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-012-revoke-share-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-012-revoke-share-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' --cookie __session=REDACTED_MOCK_SESSION --data '{\"action\": \"revoke\"}'",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.488674
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/viewer/validate -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-012-viewer-validate-after-revoke-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-012-viewer-validate-after-revoke-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' --data '{\"token\": \"VIJ5WKFYE5uQf-BsSU8vDO6tj5rK8RdR3nBJJ03Yoew\"}'",
+      "exitCode": 0,
+      "httpStatus": 404,
+      "timeSeconds": 0.015121
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-28&metrics=glucose,rhr,hrv' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-013-viewer-glucose-night-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-013-viewer-glucose-night-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -b /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/glucose-cookies.txt",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.018812
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-28&metrics=glucose,rhr,hrv' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-013-viewer-no-glucose-night-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-013-viewer-no-glucose-night-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -b /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/noglucose-cookies.txt",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.018284
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-28&metrics=active_calories,heart_rate,sleep_score' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-014-viewer-activity-night-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-014-viewer-activity-night-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -b /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/activity-cookies.txt",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.025562
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-28&metrics=active_calories,heart_rate,sleep_score' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-014-viewer-sleep-night-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-014-viewer-sleep-night-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -b /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/sleep-cookies.txt",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.020879
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-28&metrics=rhr,hrv&timezone=America/Los_Angeles' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-021-night-timezone-pst-param-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-021-night-timezone-pst-param-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' --cookie __session=REDACTED_MOCK_SESSION",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.016245
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-28&metrics=rhr,hrv&timezone=Asia/Tokyo' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-021-night-timezone-tokyo-param-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-021-night-timezone-tokyo-param-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' --cookie __session=REDACTED_MOCK_SESSION",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.022135
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-28&metrics=rhr,hrv' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-021-night-user1-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-021-night-user1-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' --cookie __session=REDACTED_MOCK_SESSION",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.02275
+    },
+    {
+      "command": "curl -sS -X GET 'http://localhost:3100/api/views/night?date=2026-03-28&metrics=rhr,hrv' -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-021-night-user2-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/VAL-CROSS-021-night-user2-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' --cookie __session=REDACTED_MOCK_SESSION",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.018076
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/viewer/validate -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/activity-viewer-validate-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/activity-viewer-validate-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' -c /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/activity-cookies.txt --data '{\"token\": \"Xjn_iz0d1u3Y2mUD73ddwrims-oTL02KmWUoobpuBYg\"}'",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.017897
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/viewer/validate -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/expiry-before-viewer-validate-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/expiry-before-viewer-validate-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' -c /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/expiry-before-cookies.txt --data '{\"token\": \"VIJ5WKFYE5uQf-BsSU8vDO6tj5rK8RdR3nBJJ03Yoew\"}'",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.023789
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/viewer/validate -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/glucose-viewer-validate-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/glucose-viewer-validate-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' -c /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/glucose-cookies.txt --data '{\"token\": \"dU87iGb3XxqpKLiZhe8Aclmj-4OKxmM3ZE7If_WFUwQ\"}'",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.017538
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/viewer/validate -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/main-viewer-validate-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/main-viewer-validate-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' -c /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/main-cookies.txt --data '{\"token\": \"dG80GRsjKIGq6BTNed7RlnKagfJHXLskuyr_CDiL6Mw\"}'",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.227107
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/viewer/validate -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/noglucose-viewer-validate-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/noglucose-viewer-validate-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' -c /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/noglucose-cookies.txt --data '{\"token\": \"ff5EjphQSRc_4c7LqkFb6ziy0nyqYcR_QOJZHdsW3uo\"}'",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.017415
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/annotations -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-annotation-meal-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-annotation-meal-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' --cookie __session=REDACTED_MOCK_SESSION --data '{\"event_type\": \"meal\", \"label\": \"viewer-grant-meal-20260405T093451Z\", \"note\": \"meal scope check\", \"occurred_at\": \"2026-03-27T21:30:00.000Z\"}'",
+      "exitCode": 0,
+      "httpStatus": 201,
+      "timeSeconds": 0.022936
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/annotations -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-annotation-workout-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-annotation-workout-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' --cookie __session=REDACTED_MOCK_SESSION --data '{\"event_type\": \"workout\", \"label\": \"viewer-grant-workout-20260405T093451Z\", \"note\": \"workout scope check\", \"occurred_at\": \"2026-03-27T22:00:00.000Z\"}'",
+      "exitCode": 0,
+      "httpStatus": 201,
+      "timeSeconds": 0.02073
+    },
+    {
+      "command": "npx dotenv -e .env.local -- tsx -e 'import { createSessionToken } from '\"'\"'./src/lib/auth/mock-auth'\"'\"'; (async()=>{const t=await createSessionToken('\"'\"'user_test_001'\"'\"'); process.stdout.write(t);})();'",
+      "exitCode": 0,
+      "httpStatus": null,
+      "timeSeconds": null
+    },
+    {
+      "command": "npx dotenv -e .env.local -- tsx -e 'import { createSessionToken } from '\"'\"'./src/lib/auth/mock-auth'\"'\"'; (async()=>{const t=await createSessionToken('\"'\"'user_test_002'\"'\"'); process.stdout.write(t);})();'",
+      "exitCode": 0,
+      "httpStatus": null,
+      "timeSeconds": null
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/shares -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-activity-only-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-activity-only-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' --cookie __session=REDACTED_MOCK_SESSION --data '{\"label\": \"activity-only-20260405T093451Z\", \"allowed_metrics\": [\"active_calories\", \"heart_rate\"], \"data_start\": \"2026-03-28\", \"data_end\": \"2026-03-28\", \"expires_in_days\": 30, \"note\": \"curl viewer grant validation\"}'",
+      "exitCode": 0,
+      "httpStatus": 201,
+      "timeSeconds": 0.017484
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/shares -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-expiry-check-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-expiry-check-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' --cookie __session=REDACTED_MOCK_SESSION --data '{\"label\": \"expiry-check-20260405T093451Z\", \"allowed_metrics\": [\"rhr\", \"hrv\", \"sleep_score\"], \"data_start\": \"2026-03-24\", \"data_end\": \"2026-03-28\", \"expires_in_days\": 1, \"note\": \"curl viewer grant validation\"}'",
+      "exitCode": 0,
+      "httpStatus": 201,
+      "timeSeconds": 0.025593
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/shares -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-glucose-only-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-glucose-only-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' --cookie __session=REDACTED_MOCK_SESSION --data '{\"label\": \"glucose-only-20260405T093451Z\", \"allowed_metrics\": [\"glucose\"], \"data_start\": \"2026-03-28\", \"data_end\": \"2026-03-28\", \"expires_in_days\": 30, \"note\": \"curl viewer grant validation\"}'",
+      "exitCode": 0,
+      "httpStatus": 201,
+      "timeSeconds": 0.021728
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/shares -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-main-rhr-hrv-sleep-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-main-rhr-hrv-sleep-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' --cookie __session=REDACTED_MOCK_SESSION --data '{\"label\": \"main-rhr-hrv-sleep-20260405T093451Z\", \"allowed_metrics\": [\"rhr\", \"hrv\", \"sleep_score\"], \"data_start\": \"2026-03-20\", \"data_end\": \"2026-03-28\", \"expires_in_days\": 30, \"note\": \"curl viewer grant validation\"}'",
+      "exitCode": 0,
+      "httpStatus": 201,
+      "timeSeconds": 0.287241
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/shares -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-no-glucose-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-no-glucose-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' --cookie __session=REDACTED_MOCK_SESSION --data '{\"label\": \"no-glucose-20260405T093451Z\", \"allowed_metrics\": [\"rhr\", \"hrv\"], \"data_start\": \"2026-03-28\", \"data_end\": \"2026-03-28\", \"expires_in_days\": 30, \"note\": \"curl viewer grant validation\"}'",
+      "exitCode": 0,
+      "httpStatus": 201,
+      "timeSeconds": 0.018075
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/shares -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-sleep-only-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/setup-share-sleep-only-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' --cookie __session=REDACTED_MOCK_SESSION --data '{\"label\": \"sleep-only-20260405T093451Z\", \"allowed_metrics\": [\"sleep_score\"], \"data_start\": \"2026-03-28\", \"data_end\": \"2026-03-28\", \"expires_in_days\": 30, \"note\": \"curl viewer grant validation\"}'",
+      "exitCode": 0,
+      "httpStatus": 201,
+      "timeSeconds": 0.023943
+    },
+    {
+      "command": "curl -sS -X POST http://localhost:3100/api/viewer/validate -D /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/sleep-viewer-validate-headers.txt -o /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/sleep-viewer-validate-response.json -w '__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -H 'Content-Type: application/json' -c /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/curl-viewer-grants/sleep-cookies.txt --data '{\"token\": \"l9oCvAsY6eQuiF8-661Di0nJ4XAFUIgEvsaWkwfQhgs\"}'",
+      "exitCode": 0,
+      "httpStatus": 200,
+      "timeSeconds": 0.018966
+    }
+  ],
+  "summary": "Tested 6 assertions: 4 passed, 1 failed, 1 blocked."
+}

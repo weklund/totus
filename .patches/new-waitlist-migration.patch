@@ -1,0 +1,15 @@
+diff --git a/apps/web/drizzle/0004_waitlist.sql b/apps/web/drizzle/0004_waitlist.sql
+new file mode 100644
+index 0000000..57d3eb3
+--- /dev/null
++++ b/apps/web/drizzle/0004_waitlist.sql
+@@ -0,0 +1,9 @@
++-- Waitlist table for landing page email capture + device interest
++-- See: /docs/customer-discovery-research.md §6 (MVP Must-Haves)
++
++CREATE TABLE waitlist (
++  id          SERIAL          PRIMARY KEY,
++  email       VARCHAR(320)    NOT NULL UNIQUE,
++  devices     VARCHAR(500),
++  created_at  TIMESTAMPTZ     NOT NULL DEFAULT NOW()
++);

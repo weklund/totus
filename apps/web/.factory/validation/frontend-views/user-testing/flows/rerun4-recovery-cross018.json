@@ -1,0 +1,87 @@
+{
+  "groupId": "rerun4-recovery-cross018",
+  "testedAt": "2026-04-05T11:53:15Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "ownerUser": "user_test_001",
+    "testDataPrefix": "rerun4-recovery",
+    "browserSessionId": "rerun4-recovery-cross018",
+    "s3Scenario": {
+      "start": "2026-03-22",
+      "end": "2026-03-26"
+    }
+  },
+  "toolsUsed": ["agent-browser", "curl", "tsx", "python3"],
+  "assertionResults": [
+    {
+      "id": "VAL-UIRCV-001",
+      "status": "pass",
+      "observed": "Recovery view rendered all required panels (Readiness, HRV, RHR, Body Temp Deviation) with aligned multi-day strips, visible baseline shading/average guides, and workout markers spanning the strip stack.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun4-recovery-cross018/VAL-UIRCV-001-003-recovery-s3-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun4-recovery-cross018/VAL-UIRCV-errors.txt",
+        "checks": [
+          "frontend-views/rerun4-recovery-cross018/VAL-UIRCV-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "status": "fail",
+      "observed": "S3 narrative was not visible in the Recovery UI capture: no \"10K run\" label, no \"3 days\" recovery insight text, and on-screen current values were Readiness 81 / HRV 57.5 instead of the expected S3 dip context. API check for same range showed S3 dip-recovery values and 10K annotation but insightsCount=0.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun4-recovery-cross018/VAL-UIRCV-001-003-recovery-s3-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun4-recovery-cross018/VAL-UIRCV-errors.txt",
+        "api": "frontend-views/rerun4-recovery-cross018/VAL-UIRCV-s3-recovery-api-response.json",
+        "checks": [
+          "frontend-views/rerun4-recovery-cross018/VAL-UIRCV-check.json",
+          "frontend-views/rerun4-recovery-cross018/VAL-UIRCV-s3-api-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-CROSS-018",
+      "status": "fail",
+      "observed": "For reference date 2026-01-02, the baseline window had 10 points (<14) but both night and recovery responses still returned populated rhr baselines (sample_count=10). Delta fields were null, but direction remained \"neutral\" and baseline objects were not suppressed.",
+      "evidence": {
+        "baselineWindow": "frontend-views/rerun4-recovery-cross018/VAL-CROSS-018-healthdata-baseline-window-response.json",
+        "night": "frontend-views/rerun4-recovery-cross018/VAL-CROSS-018-night-partial-history-response.json",
+        "recovery": "frontend-views/rerun4-recovery-cross018/VAL-CROSS-018-recovery-partial-history-response.json",
+        "checks": [
+          "frontend-views/rerun4-recovery-cross018/VAL-CROSS-018-evaluation.json"
+        ],
+        "metaFiles": [
+          "frontend-views/rerun4-recovery-cross018/VAL-CROSS-018-healthdata-baseline-window-meta.txt",
+          "frontend-views/rerun4-recovery-cross018/VAL-CROSS-018-night-partial-history-meta.txt",
+          "frontend-views/rerun4-recovery-cross018/VAL-CROSS-018-recovery-partial-history-meta.txt"
+        ]
+      }
+    }
+  ],
+  "passedAssertions": ["VAL-UIRCV-001"],
+  "failedAssertions": ["VAL-UIRCV-003", "VAL-CROSS-018"],
+  "blockedAssertions": [],
+  "frictions": [
+    {
+      "description": "Fresh browser session redirected to /sign-in before dashboard assertions could run.",
+      "resolved": true,
+      "resolution": "Generated local mock auth token for user_test_001 and set __session cookie in the isolated browser session.",
+      "affectedAssertions": ["VAL-UIRCV-001", "VAL-UIRCV-003"]
+    },
+    {
+      "description": "agent-browser network request listing returned no captured request details for this run.",
+      "resolved": true,
+      "resolution": "Collected equivalent request/response evidence using curl artifacts for recovery and cross assertion APIs.",
+      "affectedAssertions": ["VAL-UIRCV-003", "VAL-CROSS-018"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Validated 3 assertions: 1 passed (VAL-UIRCV-001) and 2 failed (VAL-UIRCV-003, VAL-CROSS-018). Recovery panel structure is present, but S3 narrative expectation and <14-day baseline suppression behavior were not met on observed surface."
+}

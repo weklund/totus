@@ -1,0 +1,293 @@
+{
+  "groupId": "browser-night-api-integration",
+  "testedAt": "2026-04-05T09:40:43.899813Z",
+  "isolation": {
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100",
+    "browserSessionId": "0a629f9ae2f9__u2",
+    "ownerUser": "user_test_001",
+    "localOnly": true
+  },
+  "toolsUsed": ["agent-browser", "curl", "tsx", "jq"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-001",
+      "title": "Annotation created via API appears as marker on Night View",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/annotations meal at 2026-03-28T21:30:00Z with unique label u2-meal-20260405T093253Z",
+          "expected": "201 created annotation",
+          "observed": "201; annotation id=2300 created"
+        },
+        {
+          "action": "GET /api/views/night?date=2026-03-29",
+          "expected": "annotations[] includes created meal annotation",
+          "observed": "200; annotations[] includes id=2300 with occurred_at=2026-03-28T21:30:00.000Z"
+        },
+        {
+          "action": "Open /dashboard?view=night&date=2026-03-29 and hover meal marker",
+          "expected": "Vertical marker rendered on shared night axis with tooltip",
+          "observed": "Marker line rendered across panels and tooltip shows label/time/note for the created meal annotation"
+        }
+      ],
+      "evidence": {
+        "api": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-001-post-payload.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-001-post-status.txt",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-001-post-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-001-night-get-status.txt",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-001-night-get-response.json"
+        ],
+        "screenshots": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-001-marker-tooltip-night-2026-03-29.png"
+        ],
+        "consoleErrors": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-001-003-console-errors.txt"
+        ],
+        "network": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-001-003-network.txt"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-003",
+      "title": "Insight appears on view when metric conditions met",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night?date=2026-03-29",
+          "expected": "insights[] contains dismissible insight with interpolated body and related metrics",
+          "observed": "200; insight low_sleep_score returned with body \"Your sleep score was 64, 18.9333... below your 30-day average...\" and related_metrics=[\"sleep_score\"]"
+        },
+        {
+          "action": "Open /dashboard?view=night&date=2026-03-29",
+          "expected": "InsightCard visible with Dismiss control",
+          "observed": "Insight card displayed with visible dismiss (X) button"
+        }
+      ],
+      "evidence": {
+        "api": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-003-insight-get-status.txt",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-003-insight-get-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-003-insight-summary.json"
+        ],
+        "screenshots": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-003-015-016-night-2026-03-29.png"
+        ],
+        "consoleErrors": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-001-003-console-errors.txt"
+        ],
+        "network": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-001-003-network.txt"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-004",
+      "title": "Dismissed insight no longer shown on any view",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "From pre-dismiss night response, select insight type elevated_rhr for 2026-03-28 and POST /api/insights/elevated_rhr/2026-03-28/dismiss",
+          "expected": "Dismiss endpoint succeeds",
+          "observed": "200; response { dismissed: true }"
+        },
+        {
+          "action": "GET /api/views/night?date=2026-03-28 after dismiss",
+          "expected": "Dismissed insight omitted",
+          "observed": "200; dismissed insight type elevated_rhr absent from insights[]"
+        },
+        {
+          "action": "Check dismissed_insights table row for (user_test_001, elevated_rhr, 2026-03-28)",
+          "expected": "Row exists exactly once",
+          "observed": "count=1 with dismissedAt timestamp"
+        },
+        {
+          "action": "Reload browser Night view for date=2026-03-28",
+          "expected": "No InsightCard shown",
+          "observed": "No insight card rendered on page"
+        }
+      ],
+      "evidence": {
+        "api": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-003-predismiss-get-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-004-insight-type.txt",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-004-dismiss-post-status.txt",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-004-dismiss-post-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-004-postdismiss-get-status.txt",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-004-postdismiss-get-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-004-all-views-check.json"
+        ],
+        "db": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-004-dismissed-insights-db.json"
+        ],
+        "screenshots": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-004-night-2026-03-28-after-dismiss.png"
+        ],
+        "consoleErrors": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-004-console-errors.txt"
+        ],
+        "network": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-004-network.txt"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-015",
+      "title": "Summary strip delta matches chart baseline band deviation",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night?date=2026-03-20 and compute delta",
+          "expected": "summary.rhr.delta equals summary.rhr.value - baselines.rhr.avg exactly",
+          "observed": "200; rhr value=69, baseline avg=62.333333333333336, delta=6.666666666666664, computed=6.666666666666664"
+        },
+        {
+          "action": "Open /dashboard?view=night&date=2026-03-20",
+          "expected": "Summary strip delta and chart deviation are directionally consistent",
+          "observed": "UI shows Resting Heart Rate +6.7 vs avg with elevated chart line context for the same date"
+        }
+      ],
+      "evidence": {
+        "api": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-night-2026-03-20-status.txt",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-night-2026-03-20-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-015-night-2026-03-20-arithmetic.json"
+        ],
+        "screenshots": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-015-night-2026-03-20.png"
+        ],
+        "consoleErrors": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-015-console-errors.txt"
+        ],
+        "network": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-015-network.txt"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-016",
+      "title": "Delta direction polarity is correct in API and UI",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Validate API directions on date=2026-03-20",
+          "expected": "RHR above avg => worse; HRV above avg => better",
+          "observed": "rhr: 69 > 62.3333 direction=worse; hrv: 78.3 > 56.8067 direction=better"
+        },
+        {
+          "action": "Validate API directions on date=2026-03-24",
+          "expected": "HRV below avg => worse",
+          "observed": "hrv: 23.3 < 58.6833 direction=worse"
+        },
+        {
+          "action": "Verify UI colors/signals on 2026-03-20 and 2026-03-24",
+          "expected": "Better shown as positive/green; worse shown as warning color and down/up arrows per polarity",
+          "observed": "2026-03-20: HRV shown positive green while RHR shown worse; 2026-03-24: HRV shown worse with warning styling"
+        }
+      ],
+      "evidence": {
+        "api": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-night-2026-03-20-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-night-2026-03-24-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-016-polarity-check.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-016-direction-scan-summary.json"
+        ],
+        "screenshots": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-015-night-2026-03-20.png",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-016-night-2026-03-24-hrv-worse.png"
+        ],
+        "consoleErrors": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-016-console-errors-2026-03-24.txt"
+        ],
+        "network": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-016-network-2026-03-24.txt"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-024",
+      "title": "Duration annotation spanning night boundary included",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "POST /api/annotations workout with occurred_at=2026-03-29T19:00:00Z and ended_at=2026-03-29T20:30:00Z (crosses 8 PM boundary)",
+          "expected": "201 created annotation",
+          "observed": "201; annotation id=2301 created"
+        },
+        {
+          "action": "GET /api/views/night?date=2026-03-30",
+          "expected": "Night annotations[] includes spanning workout due overlap with 8 PM start",
+          "observed": "200; annotations[] does NOT include label u2-workout-20260405T093253Z"
+        },
+        {
+          "action": "Cross-check annotation existence and UI",
+          "expected": "Annotation visible in Night view at chart left edge",
+          "observed": "Recovery API includes the annotation, but Night UI (2026-03-30) shows no corresponding marker/label (label-not-found)"
+        }
+      ],
+      "evidence": {
+        "api": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-post-payload.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-post-status.txt",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-post-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-night-get-status.txt",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-night-get-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-recovery-get-status.txt",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-recovery-get-response.json",
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-overlap-check.json"
+        ],
+        "screenshots": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-night-2026-03-30.png"
+        ],
+        "consoleErrors": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-console-errors.txt"
+        ],
+        "network": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-network.txt"
+        ],
+        "analysis": [
+          "frontend-views/browser-night-api-integration/VAL-CROSS-024-label-presence.txt"
+        ]
+      },
+      "issues": "Spanning workout annotation exists in API (recovery) but is excluded from night view overlap surface; Night UI has no marker at left edge."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Assigned browser session reached /sign-in initially instead of pre-authenticated dashboard.",
+      "resolved": true,
+      "resolution": "Injected owner __session cookie generated via mock-auth token helper, then continued all UI checks in the same assigned session.",
+      "affectedAssertions": [
+        "VAL-CROSS-001",
+        "VAL-CROSS-003",
+        "VAL-CROSS-004",
+        "VAL-CROSS-015",
+        "VAL-CROSS-016",
+        "VAL-CROSS-024"
+      ]
+    },
+    {
+      "description": "agent-browser errors output is empty when no console issues are present.",
+      "resolved": true,
+      "resolution": "Normalized empty console-error captures to explicit \"none\" text files for report evidence.",
+      "affectedAssertions": [
+        "VAL-CROSS-001",
+        "VAL-CROSS-003",
+        "VAL-CROSS-004",
+        "VAL-CROSS-015",
+        "VAL-CROSS-016",
+        "VAL-CROSS-024"
+      ]
+    }
+  ],
+  "blockers": [],
+  "overallStatus": "fail",
+  "summary": "Tested 6 assigned assertions for Night API+UI integration: 5 passed (VAL-CROSS-001, 003, 004, 015, 016) and 1 failed (VAL-CROSS-024). Failure shows a boundary-spanning workout annotation is created and visible in recovery data but missing from night view API/UI overlap rendering."
+}

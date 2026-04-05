@@ -1,0 +1,155 @@
+{
+  "groupId": "rerun3-curl-cross006-recheck",
+  "testedAt": "2026-04-05T11:36:05.321325Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "baseUrl": "http://localhost:3100",
+    "inngestUrl": "http://localhost:8288",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "ownerUser": "user_test_001",
+    "assignedAssertions": ["VAL-CROSS-006"],
+    "boundary": "local app/db/inngest only; curl-first validation with local DB read checks and no source edits"
+  },
+  "toolsUsed": ["curl", "tsx", "node", "python3"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-006",
+      "title": "Inngest baseline job produces fresh baselines used by view endpoints",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /dev on Inngest dev server to verify function registration after ingress setup correction",
+          "expected": "Dashboard baseline functions are registered and app sync URL points to http://localhost:3100/api/inngest",
+          "observed": "functionsCount=11, requiredSlugsPresent=['totus-dashboard/baselines.refresh', 'totus-dashboard/baselines.refresh.user'], startUrls=['http://localhost:3100/api/inngest']"
+        },
+        {
+          "action": "POST /e/local dashboard/baselines.refresh.user for user_test_001 and poll metric_baselines for reference_date=today",
+          "expected": "Trigger accepted and refreshed baseline rows appear with computed_at later than trigger timestamp",
+          "observed": "triggerStatus=200 ids=['01KNEPT7E1EMC3C4G0YA3W65H4']; pollSuccess=True lastAttempt={'attempt': 2, 'observedAt': '2026-04-05T11:35:27.639Z', 'count': 8, 'maxComputedAt': '2026-04-05T11:35:25.658Z', 'refreshedAfterTrigger': True}"
+        },
+        {
+          "action": "GET /api/views/night for today and compare rhr baseline with independent manual 30-day computation from /api/health-data window [D-30, D-1]",
+          "expected": "avg within \u00b10.5, stddev matches, and upper/lower formula invariants hold",
+          "observed": "todayComparison={'api': {'avg': 63.4, 'stddev': 6.042074698865172, 'upper': 69.44207469886517, 'lower': 57.35792530113483}, 'manual': {'avg': 63.4, 'stddev': 6.042074698865172, 'count': 30}, 'avgWithinTolerance': True, 'stddevClose': True, 'upperFormulaMatches': True, 'lowerFormulaMatches': True}"
+        },
+        {
+          "action": "GET /api/views/night for anchor date (today-7) and compare with anchor-window manual computation",
+          "expected": "Anchor-date baseline matches its own window and differs from today window, proving date anchoring",
+          "observed": "anchorComparison={'api': {'avg': 63.333333333333336, 'stddev': 6.084588911522472, 'upper': 69.4179222448558, 'lower': 57.24874442181086}, 'manual': {'avg': 63.333333333333336, 'stddev': 6.084588911522473, 'count': 30}, 'avgWithinTolerance': True, 'stddevClose': True, 'upperFormulaMatches': True, 'lowerFormulaMatches': True}; anchoringCheck={'requestedDatesDiffer': True, 'apiAvgDiff': 0.06666666666666288, 'manualAvgDiff': 0.06666666666666288, 'anchorMatchesItsWindow': True}"
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "inngestDev": 200,
+          "inngestTrigger": 200,
+          "nightToday": 200,
+          "healthToday": 200,
+          "nightAnchor": 200,
+          "healthAnchor": 200
+        },
+        "network": [
+          "GET http://localhost:8288/dev -> 200",
+          "POST http://localhost:8288/e/local -> 200",
+          "GET http://localhost:3100/api/views/night?date=2026-04-05&metrics=rhr -> 200",
+          "GET http://localhost:3100/api/health-data?start=2026-03-06&end=2026-04-04&metrics=rhr -> 200",
+          "GET http://localhost:3100/api/views/night?date=2026-03-29&metrics=rhr -> 200",
+          "GET http://localhost:3100/api/health-data?start=2026-02-27&end=2026-03-28&metrics=rhr -> 200"
+        ],
+        "keyResponseSnippets": {
+          "inngestRegistration": {
+            "functionsCount": 11,
+            "requiredSlugsPresent": [
+              "totus-dashboard/baselines.refresh",
+              "totus-dashboard/baselines.refresh.user"
+            ],
+            "allRequiredPresent": true,
+            "startUrls": ["http://localhost:3100/api/inngest"]
+          },
+          "triggerResponse": {
+            "ids": ["01KNEPT7E1EMC3C4G0YA3W65H4"],
+            "status": 200
+          },
+          "jobMaterialization": {
+            "success": true,
+            "lastAttempt": {
+              "attempt": 2,
+              "observedAt": "2026-04-05T11:35:27.639Z",
+              "count": 8,
+              "maxComputedAt": "2026-04-05T11:35:25.658Z",
+              "refreshedAfterTrigger": true
+            }
+          },
+          "todayComparison": {
+            "api": {
+              "avg": 63.4,
+              "stddev": 6.042074698865172,
+              "upper": 69.44207469886517,
+              "lower": 57.35792530113483
+            },
+            "manual": {
+              "avg": 63.4,
+              "stddev": 6.042074698865172,
+              "count": 30
+            },
+            "avgWithinTolerance": true,
+            "stddevClose": true,
+            "upperFormulaMatches": true,
+            "lowerFormulaMatches": true
+          },
+          "anchorComparison": {
+            "api": {
+              "avg": 63.333333333333336,
+              "stddev": 6.084588911522472,
+              "upper": 69.4179222448558,
+              "lower": 57.24874442181086
+            },
+            "manual": {
+              "avg": 63.333333333333336,
+              "stddev": 6.084588911522473,
+              "count": 30
+            },
+            "avgWithinTolerance": true,
+            "stddevClose": true,
+            "upperFormulaMatches": true,
+            "lowerFormulaMatches": true
+          },
+          "anchoringCheck": {
+            "requestedDatesDiffer": true,
+            "apiAvgDiff": 0.06666666666666288,
+            "manualAvgDiff": 0.06666666666666288,
+            "anchorMatchesItsWindow": true
+          }
+        },
+        "files": [
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-baseline-poll.json",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-evaluation.json",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-healthdata-window-anchor-headers.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-healthdata-window-anchor-meta.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-healthdata-window-anchor-response.json",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-healthdata-window-today-headers.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-healthdata-window-today-meta.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-healthdata-window-today-response.json",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-inngest-dev-state-headers.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-inngest-dev-state-meta.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-inngest-dev-state.json",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-inngest-trigger-headers.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-inngest-trigger-meta.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-inngest-trigger-response.json",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-night-anchor-headers.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-night-anchor-meta.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-night-anchor-response.json",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-night-today-headers.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-night-today-meta.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-night-today-response.json",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-trigger-ts.txt",
+          "frontend-views/rerun3-curl-cross006-recheck/VAL-CROSS-006-window-context.json"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Re-tested 1 assigned assertion (VAL-CROSS-006): passed after ingress correction with Inngest registration verified, baseline refresh materialization observed, and API baselines matching independent manual window computations including anchor-date behavior."
+}

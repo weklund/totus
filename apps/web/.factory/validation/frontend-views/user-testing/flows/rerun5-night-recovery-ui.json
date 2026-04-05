@@ -1,0 +1,89 @@
+{
+  "groupId": "rerun5-night-recovery-ui",
+  "testedAt": "2026-04-05T12:18:54Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "appUrl": "http://localhost:3100/dashboard",
+    "boundary": "local browser/UI validation only on localhost:3100",
+    "ownerUser": "user_test_001",
+    "auth": "mock __session cookie",
+    "browserSessionId": "rerun5-night-recovery-ui",
+    "seededDates": {
+      "nightS1Date": "2026-03-29",
+      "recoveryS3Range": "2026-03-22..2026-03-26"
+    }
+  },
+  "toolsUsed": ["agent-browser", "curl", "tsx", "python3"],
+  "assertionResults": [
+    {
+      "id": "VAL-CROSS-007",
+      "title": "Fresh baselines render as normal range bands on frontend",
+      "status": "fail",
+      "contractExpectation": "When API baselines are available, Heart Rate chart should render a low-opacity baseline band (example y=56..66 at <=15% opacity) spanning full chart width.",
+      "observed": "On Night view (2026-03-29), expanded Heart Rate chart showed only the regular area-series fill (recharts-area-area with computed fillOpacity 0.6). No explicit baseline/reference band element at <=0.15 opacity was found. API response had baseline objects but no heart_rate baseline key required by this contract example.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun5-night-recovery-ui/VAL-CROSS-007-night-overview-2026-03-29.png",
+          "frontend-views/rerun5-night-recovery-ui/VAL-CROSS-007-heart-rate-expanded-2026-03-29.png"
+        ],
+        "consoleErrors": "frontend-views/rerun5-night-recovery-ui/VAL-CROSS-007-console-errors.txt",
+        "network": "frontend-views/rerun5-night-recovery-ui/VAL-CROSS-007-network-requests.txt",
+        "apiArtifacts": [
+          "frontend-views/rerun5-night-recovery-ui/VAL-CROSS-007-night-api.headers.txt",
+          "frontend-views/rerun5-night-recovery-ui/VAL-CROSS-007-night-api.json",
+          "frontend-views/rerun5-night-recovery-ui/VAL-CROSS-007-api-check.json"
+        ],
+        "domChecks": [
+          "frontend-views/rerun5-night-recovery-ui/VAL-CROSS-007-baseline-band-dom.json",
+          "frontend-views/rerun5-night-recovery-ui/VAL-CROSS-007-heart-rate-svg-inspection.json"
+        ]
+      },
+      "issues": "Frontend did not present the contract baseline-band rendering on the tested surface."
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "title": "S3 scenario — post-workout recovery arc visible at a glance",
+      "status": "fail",
+      "contractExpectation": "Recovery view should visibly show 10K run marker, readiness/HRV dip-and-recovery arc (42->~82, 26->~48), traffic-light progression, and insight narrative mentioning '3 days'.",
+      "observed": "At URL view=recovery&start=2026-03-22&end=2026-03-26, UI rendered April 1-5 values (Readiness 81, HRV 57.5) and an 'Elevated resting heart rate' insight. No visible '10K run' label and no '3 days' narrative text were present. Network capture from browser showed requests to /api/views/recovery?start=2026-04-01&end=2026-04-05. Supplemental curl for the assigned S3 range returned the expected dip-recovery series and included a '10K run' annotation, but insight body said 'over 4 days' (not '3 days').",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun5-night-recovery-ui/VAL-UIRCV-003-recovery-arc-2026-03-22-2026-03-26.png"
+        ],
+        "consoleErrors": "frontend-views/rerun5-night-recovery-ui/VAL-UIRCV-003-console-errors.txt",
+        "network": "frontend-views/rerun5-night-recovery-ui/VAL-UIRCV-003-network-requests.txt",
+        "uiChecks": [
+          "frontend-views/rerun5-night-recovery-ui/VAL-UIRCV-003-ui-check.json",
+          "frontend-views/rerun5-night-recovery-ui/VAL-UIRCV-003-body-text.txt"
+        ],
+        "apiArtifacts": [
+          "frontend-views/rerun5-night-recovery-ui/VAL-UIRCV-003-recovery-api.headers.txt",
+          "frontend-views/rerun5-night-recovery-ui/VAL-UIRCV-003-recovery-api.json",
+          "frontend-views/rerun5-night-recovery-ui/VAL-UIRCV-003-api-check.json"
+        ]
+      },
+      "issues": "Assigned S3 narrative contract was not satisfied by the UI behavior observed in this rerun."
+    }
+  ],
+  "passedAssertions": [],
+  "failedAssertions": ["VAL-CROSS-007", "VAL-UIRCV-003"],
+  "blockedAssertions": [],
+  "frictions": [
+    {
+      "description": "agent-browser request capture for the Night API assertion was empty.",
+      "resolved": true,
+      "resolution": "Collected equivalent API evidence via curl headers/body artifacts for VAL-CROSS-007.",
+      "affectedAssertions": ["VAL-CROSS-007"]
+    },
+    {
+      "description": "Direct click on the Heart Rate expand control was intercepted by an overlay in the annotated session.",
+      "resolved": true,
+      "resolution": "Used DOM-targeted click via agent-browser eval to expand the Heart Rate panel and capture evidence.",
+      "affectedAssertions": ["VAL-CROSS-007"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Validated 2 assigned assertions for rerun5-night-recovery-ui: both failed (VAL-CROSS-007 and VAL-UIRCV-003) with supporting UI/DOM/API evidence captured under the mission evidence directory."
+}

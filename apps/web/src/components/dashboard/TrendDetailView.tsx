@@ -443,9 +443,9 @@ function TrendMetricPanel({
         : "→";
   const trendColor =
     trend.direction === "rising"
-      ? "text-[#E8845A]"
+      ? "text-[var(--totus-red)]"
       : trend.direction === "falling"
-        ? "text-[#E8845A]"
+        ? "text-[var(--totus-red)]"
         : "text-muted-foreground";
 
   // Determine if the trend is positive or negative based on metric polarity

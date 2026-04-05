@@ -1,0 +1,201 @@
+{
+  "groupId": "rerun-night-surface",
+  "testedAt": "2026-04-05T10:11:55Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "browserSessionId": "f2004cfaceb5__u1",
+    "ownerUser": "user_test_001",
+    "localOnly": true
+  },
+  "toolsUsed": ["agent-browser", "curl", "tsx"],
+  "assertions": [
+    {
+      "id": "VAL-UINGT-001",
+      "title": "Intraday series render with shared time axis (8 PM \u2013 8 AM)",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open /dashboard?view=night&date=2026-03-28 and inspect panels",
+          "expected": "Glucose and heart-rate MetricStrips plus hypnogram share one 8 PM\u20138 AM axis",
+          "observed": "No glucose strip rendered; only one heart-rate strip/panel context is visible and hypnogram panel shows 'No sleep stage data available'."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-night-surface/VAL-UINGT-001-004-night-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun-night-surface/night-2026-03-28-errors.txt",
+        "network": "frontend-views/rerun-night-surface/night-2026-03-28-network.txt"
+      },
+      "issues": "Required multi-strip shared overnight axis (glucose + heart-rate + hypnogram) was not present on the rerun surface."
+    },
+    {
+      "id": "VAL-UINGT-002",
+      "title": "Sleep hypnogram renders with stage differentiation",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Inspect Night sleep panel for stage bars and legend",
+          "expected": "Distinct awake/light/deep/REM bars with legend",
+          "observed": "Panel displayed 'No sleep stage data available' and no stage bars/legend were rendered."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-night-surface/VAL-UINGT-001-004-night-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun-night-surface/night-2026-03-28-errors.txt",
+        "network": "frontend-views/rerun-night-surface/night-2026-03-28-network.txt"
+      },
+      "issues": "Hypnogram stage differentiation requirement not met on rerun."
+    },
+    {
+      "id": "VAL-UINGT-003",
+      "title": "Summary strip with polarity-colored delta badges",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Check SummaryStrip metrics on Night view",
+          "expected": "Sleep Score, Deep Sleep, Sleep Latency, HRV, and RHR all shown with polarity-aware deltas",
+          "observed": "Only Sleep Score, Deep Sleep, HRV, and RHR were shown; Sleep Latency metric/delta was missing."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-night-surface/VAL-UINGT-001-004-night-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun-night-surface/night-2026-03-28-errors.txt",
+        "network": "frontend-views/rerun-night-surface/night-2026-03-28-network.txt"
+      },
+      "issues": "Summary strip contract failed because Sleep Latency delta badge is absent."
+    },
+    {
+      "id": "VAL-UINGT-004",
+      "title": "S1 scenario \u2014 meal \u2192 glucose spike \u2192 HR \u2192 sleep disruption causal chain",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Verify S1 chain on Night view",
+          "expected": "Meal marker, glucose spike, HR follow-on, hypnogram latency/deep-sleep impact, and specified red deltas",
+          "observed": "Glucose panel and hypnogram stage rendering were absent; required S1 causal chain was not fully visible on screen."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-night-surface/VAL-UINGT-001-004-night-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun-night-surface/night-2026-03-28-errors.txt",
+        "network": "frontend-views/rerun-night-surface/night-2026-03-28-network.txt"
+      },
+      "issues": "S1 end-to-end causal visualization contract not satisfied in rerun."
+    },
+    {
+      "id": "VAL-CROSS-019",
+      "title": "Night view window spans yesterday 8 PM to today 8 AM correctly",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "GET /api/views/night?date=2026-03-28",
+          "expected": "time_range start/end = previous day 8 PM to requested day 8 AM",
+          "observed": "API returned start=2026-03-27T20:00:00.000Z and end=2026-03-28T08:00:00.000Z (correct)."
+        },
+        {
+          "action": "Open Night UI for 2026-03-28",
+          "expected": "Frontend time axis labels visibly span 8 PM\u20138 AM",
+          "observed": "Required full 8 PM\u20138 AM axis labeling was not visible on the captured UI state."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-night-surface/VAL-UINGT-001-004-night-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun-night-surface/night-2026-03-28-errors.txt",
+        "network": "GET /api/views/night?date=2026-03-28 -> frontend-views/rerun-night-surface/VAL-CROSS-019-night-2026-03-28.meta.txt; details in frontend-views/rerun-night-surface/VAL-CROSS-019-night-2026-03-28.json and frontend-views/rerun-night-surface/VAL-CROSS-019-range-check.json"
+      },
+      "issues": "Cross assertion failed on frontend axis rendering despite correct API window bounds."
+    },
+    {
+      "id": "VAL-CROSS-020",
+      "title": "Night view for in-progress night handles incomplete data",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Capture runtime clock and request today's night payload",
+          "expected": "In an in-progress night, chart should end near current time and avoid misleading flatline to window end",
+          "observed": "Runtime (local=2026-04-05T06:08:50-0400, utc=2026-04-05T10:08:50Z) was outside this surface's active overnight window interpretation; returned window was complete (end=2026-04-05T08:00:00.000Z)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-night-surface/VAL-CROSS-020-night-2026-04-05.png"
+        ],
+        "consoleErrors": "frontend-views/rerun-night-surface/VAL-CROSS-020-errors.txt",
+        "network": "GET /api/views/night?date=2026-04-05 -> frontend-views/rerun-night-surface/VAL-CROSS-020-night-2026-04-05.meta.txt; details in frontend-views/rerun-night-surface/VAL-CROSS-020-night-2026-04-05.json, frontend-views/rerun-night-surface/VAL-CROSS-020-partial-check.json, and frontend-views/rerun-night-surface/VAL-CROSS-020-network.txt"
+      },
+      "issues": "Blocked by runtime precondition: could not execute during an in-progress window for this environment's night-window calculation."
+    },
+    {
+      "id": "VAL-CROSS-024",
+      "title": "Duration annotation spanning night boundary included",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "POST workout annotation (occurred_at=2026-03-29T19:00:00Z, ended_at=2026-03-29T20:30:00Z)",
+          "expected": "Annotation created",
+          "observed": "201 created (id=2628)."
+        },
+        {
+          "action": "GET /api/views/night?date=2026-03-30",
+          "expected": "Overlapping duration annotation included",
+          "observed": "API includes the created annotation in night payload (overlap check true)."
+        },
+        {
+          "action": "Check Night UI marker behavior for same date",
+          "expected": "Boundary-spanning marker rendered at chart left edge (8 PM clamp)",
+          "observed": "UI did not clearly surface the created annotation as a left-edge boundary marker; created label text not discoverable in rendered page text capture."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-night-surface/VAL-CROSS-024-night-2026-03-30.png",
+          "frontend-views/rerun-night-surface/VAL-CROSS-024-night-2026-03-30-annotated.png"
+        ],
+        "consoleErrors": "frontend-views/rerun-night-surface/VAL-CROSS-024-errors.txt",
+        "network": "POST /api/annotations -> frontend-views/rerun-night-surface/VAL-CROSS-024-post.meta.txt; GET /api/views/night?date=2026-03-30 -> frontend-views/rerun-night-surface/VAL-CROSS-024-night-2026-03-30.meta.txt; overlap analysis in frontend-views/rerun-night-surface/VAL-CROSS-024-overlap-check.json"
+      },
+      "issues": "API overlap inclusion passes, but required left-edge marker rendering was not conclusively met in UI evidence."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Assigned browser session initially redirected to /sign-in.",
+      "resolved": true,
+      "resolution": "Generated local mock-auth token for user_test_001 and set __session cookie in session f2004cfaceb5__u1.",
+      "affectedAssertions": [
+        "VAL-UINGT-001",
+        "VAL-UINGT-002",
+        "VAL-UINGT-003",
+        "VAL-UINGT-004",
+        "VAL-CROSS-019",
+        "VAL-CROSS-020",
+        "VAL-CROSS-024"
+      ]
+    },
+    {
+      "description": "Initial agent-browser network capture for 2026-03-28 returned 'No requests captured'.",
+      "resolved": true,
+      "resolution": "Collected API request/response evidence via curl artifacts for assertion-level network proof.",
+      "affectedAssertions": ["VAL-CROSS-019", "VAL-CROSS-020"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Could not meet in-progress-night runtime condition during rerun execution window.",
+      "affectedAssertions": ["VAL-CROSS-020"],
+      "quickFixAttempted": "Captured runtime clock and re-requested today's night payload; response remained a completed window in this environment."
+    }
+  ],
+  "summary": "Reran 7 assigned assertions: 6 failed (VAL-UINGT-001/002/003/004, VAL-CROSS-019, VAL-CROSS-024) and 1 blocked (VAL-CROSS-020 precondition not met)."
+}

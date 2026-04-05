@@ -1,0 +1,187 @@
+{
+  "groupId": "vitest-db-jobs-core",
+  "testedAt": "2026-04-05T07:03:57Z",
+  "isolation": {
+    "milestone": "api-and-jobs",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "tool": "vitest",
+    "boundary": "Local repo + local postgres (totus-db) only; no application code changes."
+  },
+  "toolsUsed": ["vitest", "npm", "rg"],
+  "assertions": [
+    {
+      "id": "VAL-DB-001",
+      "title": "Annotation fields encrypted at rest",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted annotation API vitest cases for encrypted-at-rest and decrypted readback behavior",
+          "expected": "POST stores BYTEA ciphertext not equal to plaintext; API read surface returns decrypted original strings",
+          "observed": "Passed cases: \"creates annotation and returns 201 with decrypted fields\", \"stores label and note as encrypted BYTEA (not plaintext)\", and \"returns annotations with decrypted fields sorted by occurred_at\""
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "api-and-jobs/vitest-db-jobs-core/vitest-annotations-db1.log"
+        ],
+        "exitCodeFile": "api-and-jobs/vitest-db-jobs-core/vitest-annotations-db1.exitcode",
+        "command": "npm --prefix /Users/weae1504/Projects/totus/apps/web run test -- src/app/api/annotations/__tests__/route.test.ts -t 'creates annotation and returns 201 with decrypted fields|stores label and note as encrypted BYTEA (not plaintext)|returns annotations with decrypted fields sorted by occurred_at' --reporter=verbose"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DB-002",
+      "title": "Baseline values encrypted at rest",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Run targeted baselines-refresh vitest cases tied to VAL-DB-002/VAL-JOBS-003",
+          "expected": "Direct evidence that raw metric_baselines.value_encrypted is non-JSON until decrypted, then payload has finite BaselinePayload fields",
+          "observed": "Passed cases verify encryption call-path and BaselinePayload shape in mocked flow (\"encrypts BaselinePayload with user's DEK...\", \"encrypted payload conforms to BaselinePayload interface\")"
+        },
+        {
+          "action": "Search test coverage for raw metric_baselines ciphertext parse-failure assertion",
+          "expected": "At least one test reading metric_baselines.value_encrypted from DB and proving JSON.parse fails pre-decrypt",
+          "observed": "No direct test found for raw-column JSON.parse failure on metric_baselines; search hits are comments/mocked plaintext parsing"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "api-and-jobs/vitest-db-jobs-core/vitest-baselines-refresh-db-jobs.log",
+          "api-and-jobs/vitest-db-jobs-core/coverage-db2-search.log",
+          "api-and-jobs/vitest-db-jobs-core/coverage-db2-global-search.log"
+        ],
+        "exitCodeFile": "api-and-jobs/vitest-db-jobs-core/vitest-baselines-refresh-db-jobs.exitcode"
+      },
+      "issues": "Assertion-specific raw at-rest parse-failure evidence for metric_baselines.value_encrypted is not directly covered by existing targeted vitest cases."
+    },
+    {
+      "id": "VAL-DB-003",
+      "title": "Dismissed insights unique constraint",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted dismiss endpoint vitest idempotency/row-count cases",
+          "expected": "Duplicate dismissal yields a single row and unchanged dismissed_at",
+          "observed": "Passed cases: \"creates a row in dismissed_insights table\", \"idempotent: only one row exists after two calls\", and \"idempotent: dismissed_at unchanged after second call\""
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "api-and-jobs/vitest-db-jobs-core/vitest-dismiss-db3.log"
+        ],
+        "exitCodeFile": "api-and-jobs/vitest-db-jobs-core/vitest-dismiss-db3.exitcode",
+        "command": "npm --prefix /Users/weae1504/Projects/totus/apps/web run test -- src/app/api/insights/__tests__/dismiss.test.ts -t 'creates a row in dismissed_insights table|idempotent: only one row exists after two calls|idempotent: dismissed_at unchanged after second call' --reporter=verbose"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-DB-004",
+      "title": "CASCADE deletion cleans up derived tables",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Search schema vitest coverage for cascade deletion checks involving metric_baselines, user_annotations, and dismissed_insights",
+          "expected": "Test showing row counts before/after deleting a user across all three derived tables",
+          "observed": "Current cascade tests in schema suite target provider_connections, health_data_daily, and share_grants; no direct cascade row-count test found for the three dashboard-derived tables"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "api-and-jobs/vitest-db-jobs-core/coverage-db4-schema-search.log"
+        ]
+      },
+      "issues": "No assertion-scoped vitest case found that verifies cascade cleanup for metric_baselines + user_annotations + dismissed_insights after user deletion."
+    },
+    {
+      "id": "VAL-JOBS-001",
+      "title": "Job configuration — cron, concurrency, retries",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Run targeted baselines-refresh function configuration tests",
+          "expected": "Direct assertions for cron '30 */6 * * *', concurrency.limit=5, retries=3",
+          "observed": "Passed configuration tests only confirm exports/registration (baselinesRefresh defined, baselinesRefreshUser defined, exports index, route registration)"
+        },
+        {
+          "action": "Search configuration test file for explicit cron/concurrency/retries value assertions",
+          "expected": "Assertions binding required config values",
+          "observed": "Search returned only comment mentions for cron/concurrency/retries; no direct value assertion found"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "api-and-jobs/vitest-db-jobs-core/vitest-baselines-refresh-db-jobs.log",
+          "api-and-jobs/vitest-db-jobs-core/coverage-jobs001-search.log"
+        ],
+        "exitCodeFile": "api-and-jobs/vitest-db-jobs-core/vitest-baselines-refresh-db-jobs.exitcode"
+      },
+      "issues": "Required config values are not directly asserted by targeted existing tests."
+    },
+    {
+      "id": "VAL-JOBS-002",
+      "title": "Batch processing of users with data-only filtering",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted baselines-refresh batch/data-filter/race-condition vitest cases",
+          "expected": "Batch size 50 behavior, users-with-data filtering, and race-condition empty-result handling are validated",
+          "observed": "Passed cases: \"processAllUsers processes users in batches of 50\", \"excludes users with zero health_data_daily rows (query-level filter)\", and \"handles empty baseline results gracefully (no error, zero rows)\""
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "api-and-jobs/vitest-db-jobs-core/vitest-baselines-refresh-db-jobs.log"
+        ],
+        "exitCodeFile": "api-and-jobs/vitest-db-jobs-core/vitest-baselines-refresh-db-jobs.exitcode"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-JOBS-003",
+      "title": "Baselines encrypted with per-user DEK before storage",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted baselines-refresh encryption vitest case",
+          "expected": "Encryption invoked per metric with user DEK and writes performed per metric row",
+          "observed": "Passed case: \"encrypts BaselinePayload with user's DEK and stores in metric_baselines\" (test verifies per-metric encrypt calls and per-metric insert calls)"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "api-and-jobs/vitest-db-jobs-core/vitest-baselines-refresh-db-jobs.log"
+        ],
+        "exitCodeFile": "api-and-jobs/vitest-db-jobs-core/vitest-baselines-refresh-db-jobs.exitcode"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Several assigned assertions (VAL-DB-002, VAL-DB-004, VAL-JOBS-001) lack direct assertion-scoped checks in current targeted vitest surface, requiring coverage-gap verification via test search logs.",
+      "resolved": false,
+      "resolution": "Captured targeted coverage-search evidence and marked those assertions blocked rather than inferring pass/fail.",
+      "affectedAssertions": ["VAL-DB-002", "VAL-DB-004", "VAL-JOBS-001"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "No direct targeted vitest case found for raw metric_baselines.value_encrypted parse-failure-before-decrypt requirement.",
+      "affectedAssertions": ["VAL-DB-002"],
+      "quickFixAttempted": "Ran targeted baselines-refresh tests and repository test-coverage searches; found only mocked call-path/payload-shape checks."
+    },
+    {
+      "description": "No direct targeted vitest case found for cascade cleanup across metric_baselines, user_annotations, and dismissed_insights after deleting a user.",
+      "affectedAssertions": ["VAL-DB-004"],
+      "quickFixAttempted": "Searched schema test cascade coverage; only provider_connections, health_data_daily, and share_grants cascade assertions are present."
+    },
+    {
+      "description": "Function configuration tests do not assert cron/concurrency/retries values required by VAL-JOBS-001.",
+      "affectedAssertions": ["VAL-JOBS-001"],
+      "quickFixAttempted": "Ran function-configuration targeted tests and searched for explicit value checks; found only export/registration checks and comments."
+    }
+  ],
+  "summary": "Tested 7 assigned assertions via targeted vitest runs: 4 passed (VAL-DB-001, VAL-DB-003, VAL-JOBS-002, VAL-JOBS-003), 0 failed, 3 blocked (VAL-DB-002, VAL-DB-004, VAL-JOBS-001). All targeted commands exited 0."
+}

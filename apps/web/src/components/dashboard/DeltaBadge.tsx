@@ -20,8 +20,8 @@ interface DeltaBadgeProps {
  * DeltaBadge — shows a delta-from-average value with polarity-aware color
  * and directional arrow.
  *
- * - Coral (#E8845A) for "worse" (bad deviation from baseline)
- * - Emerald (#2FA87B) for "better" (good deviation from baseline)
+ * - Red (--totus-red) for "worse" (bad deviation from baseline)
+ * - Emerald (--totus-emerald) for "better" (good deviation from baseline)
  * - Slate for "neutral" (neither better nor worse)
  * - Arrow direction (▲/▼) follows the sign of the delta
  *
@@ -55,7 +55,7 @@ export function DeltaBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-0.5 text-xs font-medium",
+        "inline-flex items-center gap-0.5 text-xs font-medium tabular-nums",
         colorClass,
       )}
       role="status"
@@ -79,9 +79,9 @@ export function DeltaBadge({
 function getDirectionColor(direction: SummaryMetric["direction"]): string {
   switch (direction) {
     case "worse":
-      return "text-[#E8845A]";
+      return "text-[var(--totus-red)]";
     case "better":
-      return "text-[#2FA87B]";
+      return "text-[var(--totus-emerald)]";
     case "neutral":
     default:
       return "text-muted-foreground";

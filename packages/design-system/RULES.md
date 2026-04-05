@@ -1,0 +1,114 @@
+# Totus Design System — Do's and Don'ts
+
+Hard guardrails for maintaining visual consistency and health-data clarity.
+Every contributor should read this before touching UI code.
+
+---
+
+## Color
+
+**Do:**
+- Use `--totus-coral` exclusively for CTAs and interactive affordances
+- Use `--totus-red` exclusively for danger, errors, and health alerts
+- Use `--totus-emerald` for success states and "in-range" health indicators
+- Use semantic tokens (`--totus-primary`, `--totus-danger`, etc.) in feature code
+- Use appearance tokens (`--totus-ocean`, `--totus-coral`) only in brand/marketing surfaces
+
+**Don't:**
+- Never use red/coral decoratively — both carry functional meaning
+- Never use `--totus-coral` for error states (use `--totus-red`)
+- Never use `--totus-red` for CTAs (use `--totus-coral`)
+- Never mix status colors: green = good, red = bad, amber = caution. No exceptions.
+- Never use emerald to mean "interactive" — it means "healthy/positive"
+
+---
+
+## Typography
+
+**Do:**
+- Use `tabular-nums` on all numeric health metrics (HRV, RHR, scores, durations)
+- Use font-weight 400 for body, 500 for emphasis, 600 for headings
+- Use DM Mono for raw data values in technical/export contexts
+- Include units next to every numeric value (bpm, ms, min, steps)
+
+**Don't:**
+- Never use font-weight below 400 for metric values — thin weights reduce legibility
+- Never display raw numbers without context (always show units, ranges, or baselines)
+- Never use more than 3 font weights on a single view
+- Never use more than 4 type sizes on a single dashboard view
+
+---
+
+## Layout & Spacing
+
+**Do:**
+- Use the 4px spacing grid consistently (`--totus-space-*` tokens)
+- Use generous whitespace around data-dense sections (metric strips, charts)
+- Use card-based layouts to visually group related metrics
+- Use section color alternation (light/dark background) to separate content zones
+
+**Don't:**
+- Never use arbitrary spacing values — stick to the token scale
+- Never crowd multiple charts without breathing room between them
+- Never rely solely on borders to separate sections — use spacing + background
+
+---
+
+## Health Data Display
+
+**Do:**
+- Always show baseline context alongside metric values (30-day avg, normal range bands)
+- Use color-coded delta badges for deviations (emerald = better, red = worse)
+- Lead with the most clinically relevant metric for each view
+- Show data provenance (which device/source) when multiple sources exist
+
+**Don't:**
+- Never display a health metric without its unit
+- Never use proprietary scores without showing the underlying metric
+- Never auto-interpret data as medical advice — present data, not diagnoses
+- Never use animation on health status indicators — they should feel stable and trustworthy
+
+---
+
+## Dark Mode
+
+**Do:**
+- Use off-white (`#e2e8f0`) for body text, not pure white
+- Use the dark mode font-weight bump (450) for better legibility
+- Use semantic tokens — they flip automatically in dark mode
+- Test chart colors for sufficient contrast on dark backgrounds
+
+**Don't:**
+- Never use pure black (`#000000`) as a background — use `#0f1824`
+- Never use pure white (`#ffffff`) for body text in dark mode
+- Never invert light mode colors manually — use the semantic token system
+- Never use low-opacity colors for important health data in dark mode
+
+---
+
+## Border Radius
+
+**Do:**
+- Use `--totus-radius` (12px) for cards and containers
+- Use `--totus-radius-pill` (24px) for CTA buttons
+- Use `--totus-radius-sm` (6px) for inputs and small interactive elements
+- Use `--totus-radius-badge` (4px) for inline tags and badges
+
+**Don't:**
+- Never use fully rounded (9999px) for anything except avatars
+- Never mix radius scales within a single card or container
+- Never use sharp corners (0px) — everything gets at least badge radius
+
+---
+
+## Shadows
+
+**Do:**
+- Use ocean-tinted shadows (`--totus-shadow-*`) in light mode
+- Use shadows to elevate interactive elements (cards, modals, tooltips)
+- Use `shadow-sm` for subtle lift, `shadow-md` for cards, `shadow-lg` for modals
+
+**Don't:**
+- Never use black shadows in light mode — always use the brand-tinted tokens
+- Never apply shadows to inline elements (badges, text)
+- Never stack multiple shadow levels on nested elements

@@ -1,0 +1,228 @@
+{
+  "groupId": "rerun-nav-shared",
+  "testedAt": "2026-04-05T10:17:11Z",
+  "isolation": {
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "browserSessionId": "f2004cfaceb5__u2",
+    "boundary": "Local app routes only; assigned assertions only; no code changes"
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertions": [
+    {
+      "id": "VAL-UICMP-003",
+      "title": "DateNavigation with picker, arrows, presets, and view toggle",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Verify today boundary in Night view",
+          "expected": "Forward arrow disabled at today",
+          "observed": "At /dashboard?view=night (today), Next day button was disabled."
+        },
+        {
+          "action": "Use date picker and view toggles",
+          "expected": "Date picker selects date and view switches preserve date context",
+          "observed": "Date picker opened from date button and selecting Apr 3 updated URL; switching Night/Recovery/Trend preserved date=2026-04-04 context."
+        },
+        {
+          "action": "Use Trend range presets",
+          "expected": "7D/1Y presets update trend range state",
+          "observed": "7D and 1Y tabs switched selected range state while keeping trend date context."
+        },
+        {
+          "action": "Check earliest-date backward boundary",
+          "expected": "Previous-day button disables at earliest data date",
+          "observed": "At old date 2023-08-01, Previous day remained enabled (not clamped/disabled)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-nav-shared/VAL-UICMP-003-night-initial-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-003-date-picker-open-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-003-date-picker-selected-apr3-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-003-recovery-preserved-date-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-003-trend-7d-preset-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-003-trend-1y-preset-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-003-old-date-prev-still-enabled-annotated.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "Supplementary curl checks: GET /api/views/night -> 200, /api/views/recovery -> 200, /api/views/trend -> 200."
+      },
+      "issues": "Earliest-date boundary is not enforced: Previous-day button stayed enabled on old historical dates."
+    },
+    {
+      "id": "VAL-UICMP-004",
+      "title": "Loading, empty, and error states handled gracefully",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Open no-data date (2023-08-01)",
+          "expected": "Meaningful empty-state message",
+          "observed": "Displayed 'No data available for this night'."
+        },
+        {
+          "action": "Open partial-data date (2026-04-04)",
+          "expected": "Available content plus missing-metric message",
+          "observed": "Rendered Night content and showed 'No sleep stage data available'."
+        },
+        {
+          "action": "Simulate API failure",
+          "expected": "User-friendly error with retry",
+          "observed": "Aborted /api/views/night requests produced 'Failed to load night data' with visible Retry button."
+        },
+        {
+          "action": "Simulate slow fetch",
+          "expected": "Loading placeholder visible during fetch",
+          "observed": "With delayed fetch patch, loading-state check found skeleton placeholders (skeleton count: 5) before response completion."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-nav-shared/VAL-UICMP-004-empty-state-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-004-partial-data-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-004-error-state-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-004-loading-state-annotated.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "Normal night fetch returned 200; temporary in-session route abort reproduced failure state with retry UI."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UICMP-006",
+      "title": "Responsive layout at desktop, tablet, and mobile viewports",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Capture desktop layout (1440x900)",
+          "expected": "Desktop view renders correctly with no horizontal overflow",
+          "observed": "Desktop rendered without horizontal overflow (scrollWidth=1440, clientWidth=1440)."
+        },
+        {
+          "action": "Capture tablet layout (768x1024)",
+          "expected": "Tablet remains fully usable without horizontal cutoff",
+          "observed": "Tablet rendered without horizontal overflow (scrollWidth=768, clientWidth=768)."
+        },
+        {
+          "action": "Capture mobile layout (375x812)",
+          "expected": "Single-column full-width without horizontal scrolling",
+          "observed": "Mobile showed horizontal overflow (scrollWidth=478, clientWidth=375) and horizontal scroll."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-nav-shared/VAL-UICMP-006-desktop-1440x900.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-006-tablet-768x1024.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-006-mobile-375x812-top.png",
+          "frontend-views/rerun-nav-shared/VAL-UICMP-006-mobile-375x812-scrolled.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "N/A (layout assertion)"
+      },
+      "issues": "Mobile viewport still overflows horizontally (375px viewport rendered 478px document width)."
+    },
+    {
+      "id": "VAL-CROSS-007",
+      "title": "Fresh baselines render as normal range bands on frontend",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open Night view (2026-04-04) and expand Heart Rate strip",
+          "expected": "Heart Rate baseline band rendered across chart at low opacity",
+          "observed": "Chart rendered area with fill-opacity 0.6; no <=0.15 baseline-band styling found."
+        },
+        {
+          "action": "Verify baseline payload from API",
+          "expected": "heart_rate baseline present (avg/stddev/upper/lower) for band rendering",
+          "observed": "Night API baselines included deep_sleep/hrv/rhr/sleep_score only; heart_rate baseline was null/absent."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-nav-shared/VAL-CROSS-007-heart-rate-baseline-band-annotated.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "GET /api/views/night?date=2026-04-04 -> 200; baselines keys: deep_sleep, hrv, rhr, sleep_score (heart_rate missing)."
+      },
+      "issues": "Required Heart Rate baseline band contract is unmet: missing heart_rate baseline data and observed chart fill opacity is 0.6 (not <=0.15)."
+    },
+    {
+      "id": "VAL-CROSS-008",
+      "title": "Trend view date click navigates to Night Detail view",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Open Trend view (date=2026-04-04) with 7D + Daily state",
+          "expected": "Trend chart displays clickable date points",
+          "observed": "Trend chart rendered interactive point region and active point state after point focus."
+        },
+        {
+          "action": "Click a specific trend date point",
+          "expected": "Navigate to Night detail for selected date",
+          "observed": "After activating and clicking the focused point, navigation occurred to /dashboard?view=night&date=2026-04-04."
+        },
+        {
+          "action": "Verify Night request fired",
+          "expected": "Network shows /api/views/night request",
+          "observed": "Network log captured repeated GET /api/views/night?date=2026-04-04 (fetch)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-nav-shared/VAL-CROSS-008-trend-before-point-activation-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-CROSS-008-night-after-active-dot-click-annotated.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "GET /api/views/night?date=2026-04-04 (fetch) observed immediately after point click flow."
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-009",
+      "title": "View navigation preserves context on browser back",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Start from Trend with custom context (7D + Daily), then navigate to Night via date-point click",
+          "expected": "Prerequisite flow reaches Night",
+          "observed": "Night route loaded at /dashboard?view=night&date=2026-04-04."
+        },
+        {
+          "action": "Use browser Back",
+          "expected": "Return to Trend with prior range/metric context preserved",
+          "observed": "Returned to /dashboard?view=trend&date=2026-04-04 but selected tabs reset to Trend + 30D + Weekly (not prior 7D + Daily)."
+        },
+        {
+          "action": "Check routing/reload behavior",
+          "expected": "No full page reload",
+          "observed": "In-page probe value persisted and no new requests were captured after Back."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-nav-shared/VAL-CROSS-008-night-after-active-dot-click-annotated.png",
+          "frontend-views/rerun-nav-shared/VAL-CROSS-009-trend-after-back-from-night-annotated.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "No requests captured on browser Back in this run; state reset still occurred."
+      },
+      "issues": "Back navigation returned to Trend URL/date but did not preserve prior range/metric context (reset to 30D/Weekly)."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Heart Rate strip header click was intermittently blocked by annotation marker overlay intercepting pointer events.",
+      "resolved": true,
+      "resolution": "Used scripted header click to expand the strip for evidence capture.",
+      "affectedAssertions": ["VAL-CROSS-007"]
+    },
+    {
+      "description": "Trend point navigation required focusing a chart point first; direct chart-region click did not immediately navigate.",
+      "resolved": true,
+      "resolution": "Activated a specific point and then clicked the focused point to trigger Trend -> Night navigation.",
+      "affectedAssertions": ["VAL-CROSS-008", "VAL-CROSS-009"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 6 assertions: 2 passed (VAL-UICMP-004, VAL-CROSS-008) and 4 failed (VAL-UICMP-003, VAL-UICMP-006, VAL-CROSS-007, VAL-CROSS-009)."
+}

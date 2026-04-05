@@ -1,5 +1,5 @@
 import type { Pool as PoolType } from "pg";
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import {
   afterAll,
   afterEach,
@@ -736,9 +736,11 @@ describe("GET /api/annotations", () => {
       .from(auditEvents)
       .where(
         sql`${auditEvents.ownerId} = ${TEST_USER_ID} AND ${auditEvents.eventType} = 'data.viewed'`,
-      );
+      )
+      .orderBy(desc(auditEvents.createdAt))
+      .limit(1);
 
-    expect(events.length).toBeGreaterThanOrEqual(1);
+    expect(events.length).toBe(1);
     expect(events[0].resourceType).toBe("annotation");
     const detail = events[0].resourceDetail as Record<string, unknown>;
     expect(detail.start).toBe("2026-03-28");
@@ -1005,9 +1007,11 @@ describe("PATCH /api/annotations/:id", () => {
       .from(auditEvents)
       .where(
         sql`${auditEvents.ownerId} = ${TEST_USER_ID} AND ${auditEvents.eventType} = 'annotation.updated'`,
-      );
+      )
+      .orderBy(desc(auditEvents.createdAt))
+      .limit(1);
 
-    expect(events.length).toBeGreaterThanOrEqual(1);
+    expect(events.length).toBe(1);
     expect(events[0].resourceType).toBe("annotation");
     const detail = events[0].resourceDetail as Record<string, unknown>;
     expect(detail.annotation_id).toBe(annotation.id);
@@ -1166,9 +1170,11 @@ describe("DELETE /api/annotations/:id", () => {
       .from(auditEvents)
       .where(
         sql`${auditEvents.ownerId} = ${TEST_USER_ID} AND ${auditEvents.eventType} = 'annotation.deleted'`,
-      );
+      )
+      .orderBy(desc(auditEvents.createdAt))
+      .limit(1);
 
-    expect(events.length).toBeGreaterThanOrEqual(1);
+    expect(events.length).toBe(1);
     expect(events[0].resourceType).toBe("annotation");
     const detail = events[0].resourceDetail as Record<string, unknown>;
     expect(detail.annotation_id).toBe(annotation.id);

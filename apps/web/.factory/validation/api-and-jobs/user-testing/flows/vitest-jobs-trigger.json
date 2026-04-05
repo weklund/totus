@@ -1,0 +1,84 @@
+{
+  "groupId": "vitest-jobs-trigger",
+  "testedAt": "2026-04-05T07:02:01.929614+00:00",
+  "isolation": {
+    "milestone": "api-and-jobs",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "tool": "vitest",
+    "boundary": "Local repo and local DB only; no source files modified."
+  },
+  "toolsUsed": ["vitest", "npm", "rg"],
+  "assertions": [
+    {
+      "id": "VAL-JOBS-004",
+      "title": "Upsert semantics — update on conflict",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted vitest for test name: upserts baselines using onConflictDoUpdate",
+          "expected": "Upsert path is exercised via onConflictDoUpdate for metric_baselines writes",
+          "observed": "Passed: baselines-refresh.test.ts > refreshBaselinesForUser logic > upserts baselines using onConflictDoUpdate"
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "api-and-jobs/vitest-jobs-trigger/vitest-jobs-trigger.log",
+          "api-and-jobs/vitest-jobs-trigger/assigned-assertions-snippet.txt"
+        ],
+        "command": "npm --prefix \"/Users/weae1504/Projects/totus/apps/web\" run test -- \"src/inngest/functions/__tests__/baselines-refresh.test.ts\" --reporter=verbose --testNamePattern=\"upserts baselines using onConflictDoUpdate|refreshBaselinesForUser processes only the specified userId|dashboard/baselines\\.refresh\\.user event type is defined in client\"",
+        "exitCode": 0
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-JOBS-005",
+      "title": "Per-user refresh triggered after sync completion",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Run targeted vitest for per-user scope and event-type tests",
+          "expected": "Simulate integration/sync.connection completion and assert dashboard/baselines.refresh.user emitted with data.userId = X; assert writes scoped to X",
+          "observed": "Passed tests confirm per-user scoping (refreshBaselinesForUser processes only the specified userId) and event type definition, but no executed test in this targeted suite simulates sync completion and asserts actual event emission payload."
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "api-and-jobs/vitest-jobs-trigger/vitest-jobs-trigger.log",
+          "api-and-jobs/vitest-jobs-trigger/assigned-assertions-snippet.txt"
+        ],
+        "exitCode": 0
+      },
+      "issues": "Targeted vitest coverage located and executed does not include a sync-completion emission assertion for dashboard/baselines.refresh.user with explicit data.userId payload."
+    },
+    {
+      "id": "VAL-JOBS-007",
+      "title": "Per-user baseline refresh triggered after sync",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Run targeted vitest for sync-trigger-related job tests",
+          "expected": "Test verifies event emission after successful sync completion",
+          "observed": "Executed targeted tests verify per-user refresh function scoping and event type presence, but no executed assertion verifies post-sync emission timing/payload."
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "api-and-jobs/vitest-jobs-trigger/vitest-jobs-trigger.log",
+          "api-and-jobs/vitest-jobs-trigger/assigned-assertions-snippet.txt"
+        ],
+        "exitCode": 0
+      },
+      "issues": "No targeted vitest assertion found/executed that directly validates dashboard/baselines.refresh.user emission after sync completion."
+    }
+  ],
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "Assertion contracts for VAL-JOBS-005 and VAL-JOBS-007 require explicit sync-completion event emission verification, but the located targeted tests cover per-user scoping and event type definition rather than emission assertion.",
+      "affectedAssertions": ["VAL-JOBS-005", "VAL-JOBS-007"],
+      "quickFixAttempted": "Searched assertion IDs and event names across src/ tests and executed the closest targeted suite (baselines-refresh.test.ts with name-pattern filtering)."
+    }
+  ],
+  "summary": "Tested 3 assertions with targeted vitest: 1 passed (VAL-JOBS-004), 2 blocked (VAL-JOBS-005, VAL-JOBS-007) due missing direct sync-completion event-emission assertion coverage in executed tests."
+}

@@ -2,13 +2,14 @@
 
 import { motion } from "framer-motion";
 import {
-  BarChart3,
+  Layers,
   Share2,
-  ShieldCheck,
+  Lock,
   Check,
   Copy,
   Eye,
   Clock,
+  ShieldCheck,
 } from "lucide-react";
 
 interface DemoStep {
@@ -68,9 +69,9 @@ function ShareVisual() {
   return (
     <div className="space-y-3">
       {/* Share modal mock */}
-      <div className="rounded-lg border border-[var(--totus-mist)] bg-white p-3 dark:border-[#2a3a4a] dark:bg-[#1a2332]">
+      <div className="rounded-lg border border-[var(--totus-mist)] bg-white p-3 dark:border-[#2a3a4a] dark:bg-[#1f2433]">
         <p className="mb-2 text-xs font-semibold text-[var(--totus-ink)] dark:text-[var(--totus-cloud)]">
-          Share with Dr. Patel
+          Share with Coach Kim
         </p>
         <div className="mb-2 space-y-1.5">
           {["Sleep Score", "HRV", "Resting HR"].map((m) => (
@@ -141,7 +142,7 @@ function ControlVisual() {
           whileInView={{ opacity: 1, x: 0 }}
           transition={{ delay: i * 0.15, duration: 0.4 }}
           viewport={{ once: true }}
-          className="flex items-center gap-3 rounded-lg border border-[var(--totus-mist)] bg-white px-3 py-2 dark:border-[#2a3a4a] dark:bg-[#1a2332]"
+          className="flex items-center gap-3 rounded-lg border border-[var(--totus-mist)] bg-white px-3 py-2 dark:border-[#2a3a4a] dark:bg-[#1f2433]"
         >
           <entry.icon
             className="size-4 shrink-0"
@@ -167,28 +168,28 @@ function ControlVisual() {
 const steps: DemoStep[] = [
   {
     step: 1,
-    icon: <BarChart3 className="size-5" />,
-    title: "Visualize everything",
+    icon: <Layers className="size-5" />,
+    title: "Unify your data",
     subtitle:
-      "Sleep, HRV, heart rate, steps, readiness — see months and years of trends in interactive charts.",
+      "Connect Oura, CGM, and wearables. Everything in one encrypted dashboard — no more spreadsheets or fragmented apps.",
     color: "var(--totus-emerald)",
     visual: <VisualizeVisual />,
   },
   {
     step: 2,
     icon: <Share2 className="size-5" />,
-    title: "Share with one link",
+    title: "Share on your terms",
     subtitle:
-      "Pick exactly which metrics and dates to share. Your doctor opens a clean viewer — no account needed.",
+      "Pick metrics, set an expiration. Your doctor or coach opens a clean viewer — no account needed.",
     color: "var(--totus-ocean)",
     visual: <ShareVisual />,
   },
   {
     step: 3,
-    icon: <ShieldCheck className="size-5" />,
-    title: "Stay in control",
+    icon: <Lock className="size-5" />,
+    title: "We never touch your data",
     subtitle:
-      "Every view is logged. Revoke any link instantly. Export or delete your data at any time.",
+      "Every view is logged. Revoke any link instantly. We never sell your data. No ads. Ever.",
     color: "var(--totus-coral)",
     visual: <ControlVisual />,
   },
@@ -207,7 +208,7 @@ export function ProductDemo() {
         >
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Three steps to{" "}
-            <span className="text-[var(--totus-ocean)]">own your data</span>
+            <span className="text-[var(--totus-ocean)]">take back control</span>
           </h2>
         </motion.div>
 

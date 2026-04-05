@@ -1,0 +1,71 @@
+{
+  "groupId": "retest-cross007-uircv003-round6",
+  "testedAt": "2026-04-05T12:43:58Z",
+  "isolation": {
+    "surface": "agent-browser",
+    "appUrl": "http://localhost:3100/dashboard",
+    "user": "user_test_001",
+    "nightDate": "2026-03-29",
+    "recoveryRange": {
+      "start": "2026-03-22",
+      "end": "2026-03-26"
+    }
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-007",
+      "title": "Fresh baselines render as normal range bands on frontend",
+      "status": "pass",
+      "reason": "Night view heart-rate strip rendered a dedicated baseline reference band element (`.baseline-band`) with `fill-opacity` 0.12 (<=15%) spanning the full plot width; API baseline values were present for the same date.",
+      "evidence": {
+        "screenshots": [
+          "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/VAL-CROSS-007-night-heart-rate-baseline-band.png",
+          "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/VAL-CROSS-007-heart-rate-expanded-band.png"
+        ],
+        "artifacts": [
+          "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/VAL-CROSS-007-dom-inspection.json",
+          "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/VAL-CROSS-007-night-api-response.json",
+          "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/VAL-CROSS-007-night-api-headers.txt"
+        ],
+        "consoleErrors": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/console-errors.txt",
+        "network": "GET /api/views/night?date=2026-03-29 -> 200 (captured via curl artifact because agent-browser request capture was empty)"
+      }
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "title": "S3 scenario post-workout recovery arc visible at a glance",
+      "status": "fail",
+      "reason": "Recovery arc and narrative are visible (Readiness 42->84, HRV 26->50, insight text includes 'over 3 days'), but the UI did not show an explicit visible '10K run' marker label in rendered page text; only generic 'workout' markers were visible, so the full assertion contract was not met.",
+      "evidence": {
+        "screenshots": [
+          "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/VAL-UIRCV-003-recovery-arc-overview.png",
+          "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/VAL-UIRCV-003-recovery-arc-fullpage.png"
+        ],
+        "artifacts": [
+          "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/VAL-UIRCV-003-dom-text-check.json",
+          "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/VAL-UIRCV-003-recovery-api-response.json",
+          "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/VAL-UIRCV-003-recovery-api-headers.txt"
+        ],
+        "consoleErrors": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/evidence/frontend-views/retest-cross007-uircv003-round6/console-errors.txt",
+        "network": "GET /api/views/recovery?start=2026-03-22&end=2026-03-26 -> 200 (captured via curl artifact because agent-browser request capture was empty)"
+      }
+    }
+  ],
+  "frictions": [
+    {
+      "description": "`agent-browser click` on Heart Rate strip header was blocked by an overlay despite visible element ref.",
+      "resolved": true,
+      "resolution": "Used in-page click via `agent-browser eval` to expand the strip and capture baseline-band evidence.",
+      "affectedAssertions": ["VAL-CROSS-007"]
+    },
+    {
+      "description": "`agent-browser network requests` returned no captured entries for dashboard API calls.",
+      "resolved": true,
+      "resolution": "Captured equivalent local request/response evidence with authenticated curl and stored headers/body artifacts.",
+      "affectedAssertions": ["VAL-CROSS-007", "VAL-UIRCV-003"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Retested 2 assertions: 1 passed (VAL-CROSS-007), 1 failed (VAL-UIRCV-003). Baseline band rendering now validates with explicit low-opacity full-width band evidence; recovery arc narrative is present but explicit visible '10K run' label evidence remains missing on the rendered UI."
+}
