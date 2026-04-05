@@ -174,8 +174,8 @@ export function AnnotationLayer({
               data-testid="annotation-marker"
             >
               <span aria-hidden="true">{icon}</span>
-              <span className="text-muted-foreground block text-[8px] leading-tight">
-                {annotation.event_type}
+              <span className="text-muted-foreground block max-w-[60px] truncate text-[8px] leading-tight">
+                {annotation.label}
               </span>
             </button>
 

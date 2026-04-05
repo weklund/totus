@@ -55,6 +55,23 @@ describe("AnnotationLayer", () => {
     expect(markers[1]).toHaveTextContent("🏃");
   });
 
+  it("displays annotation label text instead of event_type", () => {
+    render(
+      <AnnotationLayer
+        annotations={MOCK_ANNOTATIONS}
+        start={START}
+        end={END}
+      />,
+    );
+    const markers = screen.getAllByTestId("annotation-marker");
+    // Should show label text, not event_type
+    expect(markers[0]).toHaveTextContent("Late dinner");
+    expect(markers[1]).toHaveTextContent("Evening run");
+    // Should NOT show event_type as visible text
+    expect(markers[0]).not.toHaveTextContent("meal");
+    expect(markers[1]).not.toHaveTextContent("workout");
+  });
+
   it("shows tooltip on hover with event details", () => {
     render(
       <AnnotationLayer
