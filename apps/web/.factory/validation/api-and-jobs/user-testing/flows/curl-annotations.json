@@ -1,0 +1,233 @@
+{
+  "groupId": "curl-annotations",
+  "testedAt": "2026-04-05T07:05:30Z",
+  "isolation": {
+    "baseUrl": "http://localhost:3100",
+    "ownerUser": "user_test_001",
+    "auth": "generated __session cookie token",
+    "groupPrefix": "UT-ANN-1775372729",
+    "dateRange": {
+      "start": "2026-04-02",
+      "end": "2026-04-05"
+    }
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-ANNOT-001",
+      "title": "Full CRUD lifecycle — create, update, delete",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/annotations create lifecycle annotation",
+          "expected": "201 with created annotation id",
+          "observed": "201 id=1114"
+        },
+        {
+          "action": "PATCH /api/annotations/1114 partial update",
+          "expected": "200 with updated fields and newer updated_at",
+          "observed": "200 updated_at=2026-04-05T07:05:29.798Z"
+        },
+        {
+          "action": "DELETE /api/annotations/1114",
+          "expected": "200/204 and annotation removed",
+          "observed": "200"
+        },
+        {
+          "action": "DELETE /api/annotations/1114 again",
+          "expected": "404 on double-delete",
+          "observed": "404"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "api-and-jobs/curl-annotations/curl-annotations-http-log.json"
+        ],
+        "network": "POST /api/annotations -> 201, PATCH /api/annotations/1114 -> 200, DELETE -> 200, DELETE again -> 404"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ANNOT-002",
+      "title": "Field validation and constraints enforced",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST invalid payload (invalid event_type)",
+          "expected": "400 VALIDATION_ERROR with field details",
+          "observed": "400 code=VALIDATION_ERROR fields=['event_type']"
+        },
+        {
+          "action": "POST invalid payload (empty label)",
+          "expected": "400 VALIDATION_ERROR with field details",
+          "observed": "400 code=VALIDATION_ERROR fields=['label']"
+        },
+        {
+          "action": "POST invalid payload (label 256 chars)",
+          "expected": "400 VALIDATION_ERROR with field details",
+          "observed": "400 code=VALIDATION_ERROR fields=['label']"
+        },
+        {
+          "action": "POST invalid payload (note 1001 chars)",
+          "expected": "400 VALIDATION_ERROR with field details",
+          "observed": "400 code=VALIDATION_ERROR fields=['note']"
+        },
+        {
+          "action": "POST invalid payload (invalid occurred_at)",
+          "expected": "400 VALIDATION_ERROR with field details",
+          "observed": "400 code=VALIDATION_ERROR fields=['occurred_at']"
+        },
+        {
+          "action": "POST invalid payload (ended_at <= occurred_at)",
+          "expected": "400 VALIDATION_ERROR with field details",
+          "observed": "400 code=VALIDATION_ERROR fields=['ended_at']"
+        },
+        {
+          "action": "POST valid annotation without note",
+          "expected": "201 with note=null",
+          "observed": "201 note=None"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "api-and-jobs/curl-annotations/curl-annotations-http-log.json"
+        ],
+        "network": "Multiple invalid POST /api/annotations requests -> 400 VALIDATION_ERROR; valid no-note POST -> 201 with note=null"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ANNOT-003",
+      "title": "Merged timeline sorted by occurred_at",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/annotations?start=2026-04-02&end=2026-04-05",
+          "expected": "200 merged timeline with user+provider events sorted ascending",
+          "observed": "200 count=79 has_user=True has_provider=True sorted=True"
+        },
+        {
+          "action": "GET /api/annotations with event_type=meal",
+          "expected": "Only meal annotations returned",
+          "observed": "200 count=1 all_meal=True includes_created_meal=True"
+        },
+        {
+          "action": "GET /api/annotations for empty historical range",
+          "expected": "200 with empty annotations array",
+          "observed": "200 count=0"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "api-and-jobs/curl-annotations/curl-annotations-http-log.json"
+        ],
+        "network": "GET /api/annotations range -> 200; filtered meal GET -> 200; empty range GET -> 200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ANNOT-004",
+      "title": "Owner-only enforcement for writes",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "PATCH/DELETE annotation 1123 as different owner",
+          "expected": "404 for both operations",
+          "observed": "PATCH=404 DELETE=404"
+        },
+        {
+          "action": "POST/PATCH/DELETE as viewer session",
+          "expected": "401 or 403 for all write methods",
+          "observed": "POST=401 PATCH=401 DELETE=401"
+        },
+        {
+          "action": "GET/POST/PATCH/DELETE without auth",
+          "expected": "401 for all CRUD endpoints",
+          "observed": "GET=401 POST=401 PATCH=401 DELETE=401"
+        },
+        {
+          "action": "GET /api/audit from 2026-04-05T07:04:29Z",
+          "expected": "annotation.created/updated/deleted events exist for mutation annotation id",
+          "observed": "200 matching_types=['annotation.created', 'annotation.deleted', 'annotation.updated']"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "api-and-jobs/curl-annotations/curl-annotations-http-log.json",
+          "api-and-jobs/curl-annotations/curl-annotations-artifacts.json"
+        ],
+        "network": "Cross-owner PATCH/DELETE -> 404/404; viewer writes -> 401/401/401; unauth CRUD -> 401/401/401/401; audit query -> 200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ANNOT-005",
+      "title": "Viewer access scoped by annotation-to-metric mapping",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Viewer GET with glucose-only grant",
+          "expected": "meal visible, workout/travel hidden, medication/supplement/custom visible",
+          "observed": "status=200 ids=[1116, 1119, 1120, 1121]"
+        },
+        {
+          "action": "Viewer GET with active_calories+heart_rate grant",
+          "expected": "workout visible, meal/travel hidden, medication/supplement/custom visible",
+          "observed": "status=200 ids=[1117, 1119, 1120, 1121]"
+        },
+        {
+          "action": "Viewer GET with sleep_score grant",
+          "expected": "travel visible, meal/workout hidden, medication/supplement/custom visible",
+          "observed": "status=200 ids=[1118, 1119, 1120, 1121]"
+        },
+        {
+          "action": "Viewer GET with non-matching deep_sleep grant",
+          "expected": "meal/workout/travel hidden; medication/supplement/custom remain visible",
+          "observed": "status=200 ids=[1119, 1120, 1121]"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "api-and-jobs/curl-annotations/curl-annotations-http-log.json",
+          "api-and-jobs/curl-annotations/curl-annotations-artifacts.json"
+        ],
+        "network": "Viewer GET statuses (glucose/activity/sleep/unmatched): 200/200/200/200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-ANNOT-006",
+      "title": "Unicode preserved through encryption round-trip",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/annotations with Unicode label/note",
+          "expected": "201 echoing exact Unicode content",
+          "observed": "201 label=UT-ANN-1775372729 Dîner tardif 🍷 note=UT-ANN-1775372729 café crème — naïve façade ✅"
+        },
+        {
+          "action": "GET /api/annotations and locate created Unicode annotation",
+          "expected": "Stored label/note exactly match original Unicode strings",
+          "observed": "200 match=True"
+        }
+      ],
+      "evidence": {
+        "logs": [
+          "api-and-jobs/curl-annotations/curl-annotations-http-log.json"
+        ],
+        "network": "POST unicode annotation -> 201; GET annotations -> 200"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "VAL-ANNOT-001 contract text mentions a follow-up GET returning 404, but the API surface exposes PATCH/DELETE for /api/annotations/:id and list GET on /api/annotations. Removal was validated via second DELETE returning 404.",
+      "resolved": true,
+      "resolution": "Used double-delete behavior to confirm post-deletion not-found semantics.",
+      "affectedAssertions": ["VAL-ANNOT-001"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 6 assertions: 6 passed, 0 failed, 0 blocked, 0 skipped."
+}

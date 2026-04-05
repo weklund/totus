@@ -1,0 +1,100 @@
+{
+  "milestone": "api-and-jobs",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 43,
+    "passed": 34,
+    "failed": 4,
+    "blocked": 5
+  },
+  "passedAssertions": [
+    "VAL-ANNOT-001",
+    "VAL-ANNOT-002",
+    "VAL-ANNOT-003",
+    "VAL-ANNOT-004",
+    "VAL-ANNOT-005",
+    "VAL-ANNOT-006",
+    "VAL-DB-001",
+    "VAL-DB-003",
+    "VAL-INSGT-001",
+    "VAL-INSGT-002",
+    "VAL-INSGT-003",
+    "VAL-JOBS-002",
+    "VAL-JOBS-003",
+    "VAL-JOBS-004",
+    "VAL-JOBS-006",
+    "VAL-NIGHT-001",
+    "VAL-NIGHT-002",
+    "VAL-NIGHT-003",
+    "VAL-NIGHT-005",
+    "VAL-NIGHT-006",
+    "VAL-NIGHT-007",
+    "VAL-NIGHT-008",
+    "VAL-RECOV-001",
+    "VAL-RECOV-002",
+    "VAL-RECOV-003",
+    "VAL-RECOV-005",
+    "VAL-RECOV-006",
+    "VAL-RECOV-007",
+    "VAL-TREND-001",
+    "VAL-TREND-002",
+    "VAL-TREND-003",
+    "VAL-TREND-004",
+    "VAL-TREND-007",
+    "VAL-TREND-008"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-NIGHT-004",
+      "reason": "Direct grant_token query flow for /api/views/night is not reachable on this surface (401 Authentication is required despite valid token)."
+    },
+    {
+      "id": "VAL-RECOV-004",
+      "reason": "Viewer response was not properly clamped/scoped"
+    },
+    {
+      "id": "VAL-TREND-005",
+      "reason": "Correlation computation is not implemented in trend response (always empty array even when requested)."
+    },
+    {
+      "id": "VAL-TREND-006",
+      "reason": "grant_token direct viewer access to /api/views/trend is blocked by 401 (real surface), so viewer grant_token scoping behavior cannot be observed through the expected entry path."
+    }
+  ],
+  "blockedAssertions": [
+    {
+      "id": "VAL-DB-002",
+      "blockedBy": "Assertion-specific raw at-rest parse-failure evidence for metric_baselines.value_encrypted is not directly covered by existing targeted vitest cases."
+    },
+    {
+      "id": "VAL-DB-004",
+      "blockedBy": "No assertion-scoped vitest case found that verifies cascade cleanup for metric_baselines + user_annotations + dismissed_insights after user deletion."
+    },
+    {
+      "id": "VAL-JOBS-001",
+      "blockedBy": "Required config values are not directly asserted by targeted existing tests."
+    },
+    {
+      "id": "VAL-JOBS-005",
+      "blockedBy": "Targeted vitest coverage located and executed does not include a sync-completion emission assertion for dashboard/baselines.refresh.user with explicit data.userId payload."
+    },
+    {
+      "id": "VAL-JOBS-007",
+      "blockedBy": "No targeted vitest assertion found/executed that directly validates dashboard/baselines.refresh.user emission after sync completion."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added Flow Validator Guidance: curl section with isolation requirements and evidence capture expectations for API-surface validation.",
+      "source": "setup"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Corrected API auth guidance: use generated __session cookies for owner auth (middleware strips x-request-context), and documented /api/viewer/validate workaround for diagnosing viewer scope when grant_token query path returns 401.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

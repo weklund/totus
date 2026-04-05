@@ -1,0 +1,26 @@
+{
+  "featureId": "rolling-averages-service",
+  "reviewedAt": "2026-04-05T05:17:52Z",
+  "commitId": "82caa38",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Implementation matches the feature description and expected behavior. computeRollingAverages correctly computes inclusive [D-(windowDays-1), D] moving averages, skips missing days without zero-fill, and handles empty/single-point/partial-window scenarios. The accompanying tests cover required 7-day/30-day windows, gap handling, and early-date behavior.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill prescribes TDD ('Write tests first'), but this worker created the implementation file before the test file while still reporting followedProcedure=true. This suggests either adherence tracking is too permissive or the skill procedure is not being enforced consistently.",
+      "evidence": ".factory/skills/backend-worker/SKILL.md:36 requires tests-first; worker-transcripts.jsonl (session fe6c9682-8a62-40ac-8c93-a970f74889a0, line 5) shows Tool: Create rolling-averages.ts before Tool: Create rolling-averages.test.ts; handoff skillFeedback.followedProcedure=true"
+    },
+    {
+      "area": "conventions",
+      "observation": "Validation ID mapping for this feature appears inconsistent in mission metadata: features.json links rolling-averages-service to VAL-COMP-007 and VAL-COMP-008, but validation-contract defines rolling-average behavior under VAL-COMP-008 and VAL-COMP-009 (VAL-COMP-007 is a summaries requirement).",
+      "evidence": "mission/features.json:640-642 (fulfills [VAL-COMP-007, VAL-COMP-008]) vs mission/validation-contract.md:65-76 (VAL-COMP-007 summaries omission, VAL-COMP-008/009 rolling-average requirements)"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed feature rolling-averages-service at commit 82caa38. Diff and transcript skeleton were examined, and no blocking or non-blocking code defects were found for required behavior. Reported two shared-state observations (skill-procedure adherence tracking and validation-ID metadata mismatch)."
+}

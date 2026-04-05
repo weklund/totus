@@ -1,0 +1,34 @@
+{
+  "featureId": "night-detail-view-page",
+  "reviewedAt": "2026-04-05T09:11:46Z",
+  "commitId": "b6b8583",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "NightDetailView composes the expected W1 UI pieces and state handling, but it fails an explicit expected behavior: baseline bands for intraday glucose/heart-rate strips are not available from the default night-view fetch path.",
+    "issues": [
+      {
+        "file": "src/components/dashboard/NightDetailView.tsx",
+        "line": 203,
+        "severity": "blocking",
+        "description": "Baseline overlays are looked up by intraday strip metric key (`baselineMap[metricType]`), but the hook call (`useNightView(date)` at line 59) does not request intraday metrics. The night endpoint default baseline set is daily metrics (e.g., rhr/hrv; see `DEFAULT_NIGHT_METRICS` in `src/app/api/views/night/route.ts`), so baseline entries for `glucose`/`heart_rate` are absent in normal usage. This violates the feature expectation that baseline bands are visible on glucose and HR panels."
+      },
+      {
+        "file": "src/components/dashboard/__tests__/NightDetailView.test.tsx",
+        "line": 166,
+        "severity": "non_blocking",
+        "description": "Tests mock baselines keyed to intraday series metrics (`glucose`, `heart_rate`), which masks the real API-default contract mismatch and allows the baseline-band requirement to appear satisfied in unit tests while failing in integration behavior."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The frontend-worker skill does not call out that browser-side API calls depend on `NEXT_PUBLIC_APP_URL` matching the actual dev server URL/port, which can invalidate manual UI verification even when endpoints are healthy.",
+      "evidence": "Handoff `2026-04-05T08-36-29-271Z__night-detail-view-page__4a2f3c46-621d-4633-9bf5-45e7c3dbc14e.json` reports browser failure from `NEXT_PUBLIC_APP_URL=http://localhost:3000` while services run on 3100; `src/lib/api-client.ts:22` builds requests from `process.env.NEXT_PUBLIC_APP_URL`; `.factory/services.yaml` defines web on port 3100; handoff.skillFeedback suggests adding this gotcha to the skill."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed worker transcript skeleton and commit b6b8583. The feature is close, but baseline-band behavior required for glucose/HR strips is not satisfied under the real default night-view API contract, so this review fails with one blocking issue."
+}

@@ -27,7 +27,7 @@ const dateRanges = [
 
 export function DashboardPreview() {
   return (
-    <div className="overflow-hidden rounded-xl border border-[var(--totus-mist)] bg-white shadow-[var(--totus-shadow-lg)] dark:border-[#2a3a4a] dark:bg-[#1a2332]">
+    <div className="overflow-hidden rounded-xl border border-[var(--totus-mist)] bg-white shadow-[var(--totus-shadow-lg)] dark:border-[#2a3a4a] dark:bg-[#1f2433]">
       {/* Browser chrome */}
       <div className="flex items-center gap-2 border-b border-[var(--totus-mist)] px-4 py-2.5 dark:border-[#2a3a4a]">
         <div className="flex gap-1.5">

@@ -1,0 +1,129 @@
+{
+  "groupId": "rerun-recovery-trend",
+  "testedAt": "2026-04-05T10:09:46Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "browserSessionId": "f2004cfaceb5__u3",
+    "scope": "local-only surface; no app code changes"
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertions": [
+    {
+      "id": "VAL-UIRCV-001",
+      "title": "Multi-day sparklines with shared day axis and baseline bands",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open Recovery view at /dashboard?view=recovery&date=2026-03-28 (5-day range)",
+          "expected": "Readiness, HRV, RHR, Body Temp Deviation sparklines share a day axis with baseline bands and show post-event dip then convergence",
+          "observed": "Shared axis and event markers are present, but rendered metric set is Readiness/HRV/RHR/Sleep Score (Body Temp Deviation missing), and the expected post-event convergence pattern is not clearly present."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-recovery-trend/VAL-UIRCV-001-recovery-overview.png"
+        ],
+        "consoleErrors": "none",
+        "network": "GET /api/views/recovery?start=2026-03-24&end=2026-03-28 -> 200 (frontend-views/rerun-recovery-trend/network-recovery-response.txt)"
+      },
+      "issues": "Contract-required Body Temp Deviation panel was not rendered."
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "title": "S3 scenario — post-workout recovery arc visible at a glance",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Validate S3 scenario in Recovery view for Mar 24-28",
+          "expected": "Workout marker '10K run', Readiness 42→82 by Thu 27, HRV 26→48, red→yellow→green progression, and InsightCard mentions '3 days' recovery",
+          "observed": "Workout marker exists but not '10K run'; table values differ (Readiness 91,98,95,84,67 and HRV 23.3,49.9,70.1,79.6,76.4), and no InsightCard text indicating '3 days' recovery was observed."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-recovery-trend/VAL-UIRCV-003-recovery-s3-check.png"
+        ],
+        "consoleErrors": "none",
+        "network": "GET /api/views/recovery?start=2026-03-24&end=2026-03-28 -> 200 with returned daily values (frontend-views/rerun-recovery-trend/network-recovery-response.txt)"
+      },
+      "issues": "S3 fixture expectations are not met on the current local surface."
+    },
+    {
+      "id": "VAL-UITRD-002",
+      "title": "Correlation card with coefficients and share action",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open Trend view and inspect for correlation content and Share action",
+          "expected": "CorrelationCard displays coefficient/strength/direction labels and a clickable 'Share ↗' button",
+          "observed": "No correlation card content was rendered; DOM check returned hasCorrelation=false and only sidebar 'Shared Links' text matched share."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-recovery-trend/VAL-UITRD-002-correlation-card-check.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Trend requests captured, but no correlation UI surfaced (frontend-views/rerun-recovery-trend/trend-network-requests.txt, frontend-views/rerun-recovery-trend/trend-correlation-dom-check.json)"
+      },
+      "issues": "Correlation card and in-card Share action were absent in the tested Trend UI."
+    },
+    {
+      "id": "VAL-UITRD-003",
+      "title": "Resolution toggle and range presets work",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Verify default Trend state",
+          "expected": "Default 30D range with 7-day averaged rendering",
+          "observed": "Default state loaded with 30D selected and Weekly smoothing selected (7-day averaged behavior)."
+        },
+        {
+          "action": "Toggle Daily and Monthly resolution options",
+          "expected": "Daily/7-day/monthly modes change chart rendering",
+          "observed": "Selecting Daily triggered smoothing=none requests; selecting Monthly triggered smoothing=30d requests and changed displayed trend values."
+        },
+        {
+          "action": "Switch range presets between 90D and 7D",
+          "expected": "Time range and data window update accordingly",
+          "observed": "Preset selection updated to 90D and 7D, with corresponding trend API windows and chart values changing."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun-recovery-trend/VAL-UITRD-003-default-30d-weekly.png",
+          "frontend-views/rerun-recovery-trend/VAL-UITRD-003-daily-toggle.png",
+          "frontend-views/rerun-recovery-trend/VAL-UITRD-003-monthly-toggle.png",
+          "frontend-views/rerun-recovery-trend/VAL-UITRD-003-90d-preset.png",
+          "frontend-views/rerun-recovery-trend/VAL-UITRD-003-7d-preset.png"
+        ],
+        "consoleErrors": "none",
+        "network": "GET /api/views/trend requests observed with smoothing=7d/none/30d and windows for 30D, 90D, 7D (frontend-views/rerun-recovery-trend/trend-network-requests.txt); direct API check returned 200 (frontend-views/rerun-recovery-trend/network-trend-response.txt)"
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Assigned browser session initially landed on /sign-in when opening /dashboard.",
+      "resolved": true,
+      "resolution": "Generated local mock-auth __session token for user_test_001 and set cookie in session f2004cfaceb5__u3.",
+      "affectedAssertions": [
+        "VAL-UIRCV-001",
+        "VAL-UIRCV-003",
+        "VAL-UITRD-002",
+        "VAL-UITRD-003"
+      ]
+    },
+    {
+      "description": "agent-browser request log does not include HTTP status codes.",
+      "resolved": true,
+      "resolution": "Captured supporting request/response artifacts with curl for recovery and trend endpoints.",
+      "affectedAssertions": ["VAL-UIRCV-001", "VAL-UIRCV-003", "VAL-UITRD-003"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 4 assertions: 1 passed (VAL-UITRD-003) and 3 failed (VAL-UIRCV-001, VAL-UIRCV-003, VAL-UITRD-002)."
+}

@@ -1,0 +1,26 @@
+{
+  "featureId": "insight-dismissal-api",
+  "reviewedAt": "2026-04-05T06:32:51Z",
+  "commitId": "500523678b1d910c5d14264b0d5c0c93af3c3be8",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Implementation matches the feature contract: owner-only POST endpoint at /api/insights/[type]/[date]/dismiss with known-type validation, YYYY-MM-DD format validation, idempotent dismissed_insights upsert, insight.dismissed audit emission, and comprehensive integration tests for auth, validation, success path, idempotency, scoping, and audit behavior.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill requires manual API verification via curl and recording command/response in handoff, but this feature handoff includes only automated test/typecheck/lint commands while still marking followedProcedure=true. Skill procedure and actual execution expectations appear misaligned.",
+      "evidence": ".factory/skills/backend-worker/SKILL.md:56-60 requires manual curl verification; handoff file /Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/handoffs/2026-04-05T06-09-48-139Z__insight-dismissal-api__34dbd265-220d-4138-903f-93be269f1896.json:14-26 lists only npm test/typecheck/lint."
+    },
+    {
+      "area": "knowledge",
+      "observation": "Worker had to debug import resolution for nested dynamic route segments ([type]/[date]) in Vitest and switch to @ alias; this troubleshooting pattern is not captured in shared library docs.",
+      "evidence": "worker-transcripts.jsonl:16 includes \"relative import path with [type] and [date] brackets\" troubleshooting and switch to \"@/app/api/insights/[type]/[date]/dismiss/route\"; .factory/library has no matching guidance for dynamic route import patterns."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed transcript skeleton and commit diff for insight-dismissal-api; the feature satisfies required behavior with no blocking defects found, so review passes. Noted shared-state gaps around backend-worker manual verification expectations and missing knowledge-base guidance for nested dynamic route imports in tests."
+}

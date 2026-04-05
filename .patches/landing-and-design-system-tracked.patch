@@ -1,0 +1,518 @@
+diff --git a/apps/web/src/app/globals.css b/apps/web/src/app/globals.css
+index fa9736e..637aede 100644
+--- a/apps/web/src/app/globals.css
++++ b/apps/web/src/app/globals.css
+@@ -68,6 +68,8 @@
+   --color-brand-ocean-tint: var(--totus-ocean-tint);
+   --color-brand-emerald-tint: var(--totus-emerald-tint);
+   --color-brand-coral-tint: var(--totus-coral-tint);
++  --color-brand-red: var(--totus-red);
++  --color-brand-red-tint: var(--totus-red-tint);
+ 
+   /* ── Typography: font-sans / font-mono ── */
+   --font-sans: var(--totus-font-sans);
+@@ -191,4 +193,16 @@
+   body {
+     @apply bg-background text-foreground;
+   }
++  /* Light-on-dark text renders thinner — bump weight for legibility */
++  .dark body {
++    font-weight: 450;
++    -webkit-font-smoothing: antialiased;
++  }
++}
++
++/* ── Tabular figures for health metrics ── */
++/* Prevents layout shift when numeric values change (HRV, RHR, scores). */
++@utility tabular-nums {
++  font-feature-settings: "tnum";
++  font-variant-numeric: tabular-nums;
+ }
+diff --git a/apps/web/src/app/page.tsx b/apps/web/src/app/page.tsx
+index 85a1b0c..54913e6 100644
+--- a/apps/web/src/app/page.tsx
++++ b/apps/web/src/app/page.tsx
+@@ -2,6 +2,8 @@ import { LandingHeader } from "@/components/landing/LandingHeader";
+ import { Hero } from "@/components/landing/Hero";
+ import { ProductDemo } from "@/components/landing/ProductDemo";
+ import { TrustStrip } from "@/components/landing/TrustStrip";
++import { DeviceRoadmap } from "@/components/landing/DeviceRoadmap";
++import { WaitlistCapture } from "@/components/landing/WaitlistCapture";
+ import { CallToAction } from "@/components/landing/CallToAction";
+ import { Footer } from "@/components/landing/Footer";
+ 
+@@ -11,8 +13,10 @@ export default function Home() {
+       <LandingHeader />
+       <main className="flex-1">
+         <Hero />
+-        <ProductDemo />
+         <TrustStrip />
++        <ProductDemo />
++        <DeviceRoadmap />
++        <WaitlistCapture />
+         <CallToAction />
+       </main>
+       <Footer />
+diff --git a/apps/web/src/components/dashboard/DeltaBadge.tsx b/apps/web/src/components/dashboard/DeltaBadge.tsx
+index bc12445..0618458 100644
+--- a/apps/web/src/components/dashboard/DeltaBadge.tsx
++++ b/apps/web/src/components/dashboard/DeltaBadge.tsx
+@@ -20,8 +20,8 @@ interface DeltaBadgeProps {
+  * DeltaBadge — shows a delta-from-average value with polarity-aware color
+  * and directional arrow.
+  *
+- * - Coral (#E8845A) for "worse" (bad deviation from baseline)
+- * - Emerald (#2FA87B) for "better" (good deviation from baseline)
++ * - Red (--totus-red) for "worse" (bad deviation from baseline)
++ * - Emerald (--totus-emerald) for "better" (good deviation from baseline)
+  * - Slate for "neutral" (neither better nor worse)
+  * - Arrow direction (▲/▼) follows the sign of the delta
+  *
+@@ -55,7 +55,7 @@ export function DeltaBadge({
+   return (
+     <span
+       className={cn(
+-        "inline-flex items-center gap-0.5 text-xs font-medium",
++        "inline-flex items-center gap-0.5 tabular-nums text-xs font-medium",
+         colorClass,
+       )}
+       role="status"
+@@ -79,9 +79,9 @@ export function DeltaBadge({
+ function getDirectionColor(direction: SummaryMetric["direction"]): string {
+   switch (direction) {
+     case "worse":
+-      return "text-[#E8845A]";
++      return "text-[var(--totus-red)]";
+     case "better":
+-      return "text-[#2FA87B]";
++      return "text-[var(--totus-emerald)]";
+     case "neutral":
+     default:
+       return "text-muted-foreground";
+diff --git a/apps/web/src/components/dashboard/InsightCard.tsx b/apps/web/src/components/dashboard/InsightCard.tsx
+index 0cdcc91..c2fe330 100644
+--- a/apps/web/src/components/dashboard/InsightCard.tsx
++++ b/apps/web/src/components/dashboard/InsightCard.tsx
+@@ -45,7 +45,7 @@ export function InsightCard({ insight, date, onDismiss }: InsightCardProps) {
+       className={cn(
+         "bg-card relative rounded-xl border p-4",
+         insight.severity === "warning"
+-          ? "border-[#E8845A]/30 bg-[#E8845A]/5"
++          ? "border-[var(--totus-red)]/30 bg-[var(--totus-red)]/5"
+           : "border-border",
+       )}
+       role="article"
+diff --git a/apps/web/src/components/dashboard/MetricStrip.tsx b/apps/web/src/components/dashboard/MetricStrip.tsx
+index 9cfe711..f78edc5 100644
+--- a/apps/web/src/components/dashboard/MetricStrip.tsx
++++ b/apps/web/src/components/dashboard/MetricStrip.tsx
+@@ -146,7 +146,7 @@ export function MetricStrip({
+           />
+           <span className="text-xs font-medium">{label}</span>
+           {currentValue !== null && (
+-            <span className="text-muted-foreground text-xs">
++            <span className="text-muted-foreground tabular-nums text-xs">
+               {formatValue(currentValue)} {unit}
+             </span>
+           )}
+@@ -291,7 +291,7 @@ function StripTooltip({
+       }}
+     >
+       <p className="mb-1 text-[10px] font-medium">{formatTime(label)}</p>
+-      <p className="text-xs">
++      <p className="tabular-nums text-xs">
+         <span className="font-medium">{formatValue(value)}</span>{" "}
+         <span className="text-muted-foreground">{config?.unit ?? ""}</span>
+       </p>
+diff --git a/apps/web/src/components/dashboard/SummaryStrip.tsx b/apps/web/src/components/dashboard/SummaryStrip.tsx
+index 02d0431..1b59cd2 100644
+--- a/apps/web/src/components/dashboard/SummaryStrip.tsx
++++ b/apps/web/src/components/dashboard/SummaryStrip.tsx
+@@ -72,7 +72,7 @@ export function SummaryStrip({
+             <span className="text-muted-foreground mb-1 text-[10px] font-medium">
+               {label}
+             </span>
+-            <span className="text-lg leading-tight font-semibold">
++            <span className="tabular-nums text-lg leading-tight font-semibold">
+               {formatValue(metric.value)}{" "}
+               <span className="text-muted-foreground text-xs font-normal">
+                 {unit}
+diff --git a/apps/web/src/components/dashboard/TrendDetailView.tsx b/apps/web/src/components/dashboard/TrendDetailView.tsx
+index 8335c6b..df42af7 100644
+--- a/apps/web/src/components/dashboard/TrendDetailView.tsx
++++ b/apps/web/src/components/dashboard/TrendDetailView.tsx
+@@ -443,9 +443,9 @@ function TrendMetricPanel({
+         : "→";
+   const trendColor =
+     trend.direction === "rising"
+-      ? "text-[#E8845A]"
++      ? "text-[var(--totus-red)]"
+       : trend.direction === "falling"
+-        ? "text-[#E8845A]"
++        ? "text-[var(--totus-red)]"
+         : "text-muted-foreground";
+ 
+   // Determine if the trend is positive or negative based on metric polarity
+diff --git a/apps/web/src/components/dashboard/__tests__/DeltaBadge.test.tsx b/apps/web/src/components/dashboard/__tests__/DeltaBadge.test.tsx
+index 38f338d..7fc3944 100644
+--- a/apps/web/src/components/dashboard/__tests__/DeltaBadge.test.tsx
++++ b/apps/web/src/components/dashboard/__tests__/DeltaBadge.test.tsx
+@@ -9,7 +9,7 @@ describe("DeltaBadge", () => {
+     const badge = screen.getByTestId("delta-badge");
+     expect(badge).toHaveTextContent("▲");
+     expect(badge).toHaveTextContent("11 bpm");
+-    expect(badge).toHaveClass("text-[#E8845A]");
++    expect(badge).toHaveClass("text-[var(--totus-red)]");
+   });
+ 
+   it("shows down arrow and emerald color for better negative delta", () => {
+@@ -17,7 +17,7 @@ describe("DeltaBadge", () => {
+     const badge = screen.getByTestId("delta-badge");
+     expect(badge).toHaveTextContent("▼");
+     expect(badge).toHaveTextContent("5 ms");
+-    expect(badge).toHaveClass("text-[#2FA87B]");
++    expect(badge).toHaveClass("text-[var(--totus-emerald)]");
+   });
+ 
+   it("shows slate/muted color for neutral direction", () => {
+diff --git a/apps/web/src/components/dashboard/__tests__/SummaryStrip.test.tsx b/apps/web/src/components/dashboard/__tests__/SummaryStrip.test.tsx
+index d91d16d..6133579 100644
+--- a/apps/web/src/components/dashboard/__tests__/SummaryStrip.test.tsx
++++ b/apps/web/src/components/dashboard/__tests__/SummaryStrip.test.tsx
+@@ -74,9 +74,9 @@ describe("SummaryStrip", () => {
+     const badges = screen.getAllByTestId("delta-badge");
+     expect(badges).toHaveLength(4);
+ 
+-    // All are "worse" → should have coral color
++    // All are "worse" → should have danger/red color
+     for (const badge of badges) {
+-      expect(badge).toHaveClass("text-[#E8845A]");
++      expect(badge).toHaveClass("text-[var(--totus-red)]");
+     }
+   });
+ 
+diff --git a/apps/web/src/components/landing/CallToAction.tsx b/apps/web/src/components/landing/CallToAction.tsx
+index b04aa61..b9b2ae0 100644
+--- a/apps/web/src/components/landing/CallToAction.tsx
++++ b/apps/web/src/components/landing/CallToAction.tsx
+@@ -16,7 +16,7 @@ export function CallToAction() {
+         className="mx-auto max-w-3xl rounded-3xl bg-gradient-to-br from-[var(--totus-ocean)] to-[#14405a] px-8 py-14 text-center text-white md:px-16"
+       >
+         <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
+-          Ready to see your health data in one place?
++          Ready to take back control of your health data?
+         </h2>
+         <p className="mb-8 text-lg text-white/70">
+           Free during early access. Connect your Oura Ring in 30 seconds.
+diff --git a/apps/web/src/components/landing/DashboardPreview.tsx b/apps/web/src/components/landing/DashboardPreview.tsx
+index 61fc25e..7848ebe 100644
+--- a/apps/web/src/components/landing/DashboardPreview.tsx
++++ b/apps/web/src/components/landing/DashboardPreview.tsx
+@@ -27,7 +27,7 @@ const dateRanges = [
+ 
+ export function DashboardPreview() {
+   return (
+-    <div className="overflow-hidden rounded-xl border border-[var(--totus-mist)] bg-white shadow-[var(--totus-shadow-lg)] dark:border-[#2a3a4a] dark:bg-[#1a2332]">
++    <div className="overflow-hidden rounded-xl border border-[var(--totus-mist)] bg-white shadow-[var(--totus-shadow-lg)] dark:border-[#2a3a4a] dark:bg-[#1f2433]">
+       {/* Browser chrome */}
+       <div className="flex items-center gap-2 border-b border-[var(--totus-mist)] px-4 py-2.5 dark:border-[#2a3a4a]">
+         <div className="flex gap-1.5">
+diff --git a/apps/web/src/components/landing/Hero.tsx b/apps/web/src/components/landing/Hero.tsx
+index d0b371c..7c1afa7 100644
+--- a/apps/web/src/components/landing/Hero.tsx
++++ b/apps/web/src/components/landing/Hero.tsx
+@@ -37,7 +37,7 @@ export function Hero() {
+           transition={{ duration: 0.5 }}
+           className="mb-4 inline-flex rounded-full bg-[var(--totus-ocean-tint)] px-4 py-1.5 text-sm font-medium text-[var(--totus-ocean)]"
+         >
+-          Your personal health data vault
++          Your health data, finally in one place
+         </motion.div>
+ 
+         <motion.h1
+@@ -46,8 +46,10 @@ export function Hero() {
+           transition={{ duration: 0.6, delay: 0.1 }}
+           className="mx-auto mb-5 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl"
+         >
+-          See your health data clearly.{" "}
+-          <span className="text-[var(--totus-ocean)]">Share it securely.</span>
++          All your health data. One vault.{" "}
++          <span className="text-[var(--totus-ocean)]">
++            You hold the keys.
++          </span>
+         </motion.h1>
+ 
+         <motion.p
+@@ -56,8 +58,9 @@ export function Hero() {
+           transition={{ duration: 0.6, delay: 0.2 }}
+           className="mx-auto mb-8 max-w-xl text-lg text-[var(--totus-slate)]"
+         >
+-          Connect your Oura Ring. Visualize years of trends. Share a link that
+-          expires after your appointment.
++          Connect your Oura Ring (CGM and Garmin coming soon). See trends across
++          months and years. Share a secure link with your doctor or coach — it
++          expires when you want.
+         </motion.p>
+ 
+         <motion.div
+diff --git a/apps/web/src/components/landing/ProductDemo.tsx b/apps/web/src/components/landing/ProductDemo.tsx
+index b7c327c..c3b1962 100644
+--- a/apps/web/src/components/landing/ProductDemo.tsx
++++ b/apps/web/src/components/landing/ProductDemo.tsx
+@@ -2,13 +2,14 @@
+ 
+ import { motion } from "framer-motion";
+ import {
+-  BarChart3,
++  Layers,
+   Share2,
+-  ShieldCheck,
++  Lock,
+   Check,
+   Copy,
+   Eye,
+   Clock,
++  ShieldCheck,
+ } from "lucide-react";
+ 
+ interface DemoStep {
+@@ -68,9 +69,9 @@ function ShareVisual() {
+   return (
+     <div className="space-y-3">
+       {/* Share modal mock */}
+-      <div className="rounded-lg border border-[var(--totus-mist)] bg-white p-3 dark:border-[#2a3a4a] dark:bg-[#1a2332]">
++      <div className="rounded-lg border border-[var(--totus-mist)] bg-white p-3 dark:border-[#2a3a4a] dark:bg-[#1f2433]">
+         <p className="mb-2 text-xs font-semibold text-[var(--totus-ink)] dark:text-[var(--totus-cloud)]">
+-          Share with Dr. Patel
++          Share with Coach Kim
+         </p>
+         <div className="mb-2 space-y-1.5">
+           {["Sleep Score", "HRV", "Resting HR"].map((m) => (
+@@ -141,7 +142,7 @@ function ControlVisual() {
+           whileInView={{ opacity: 1, x: 0 }}
+           transition={{ delay: i * 0.15, duration: 0.4 }}
+           viewport={{ once: true }}
+-          className="flex items-center gap-3 rounded-lg border border-[var(--totus-mist)] bg-white px-3 py-2 dark:border-[#2a3a4a] dark:bg-[#1a2332]"
++          className="flex items-center gap-3 rounded-lg border border-[var(--totus-mist)] bg-white px-3 py-2 dark:border-[#2a3a4a] dark:bg-[#1f2433]"
+         >
+           <entry.icon
+             className="size-4 shrink-0"
+@@ -167,28 +168,28 @@ function ControlVisual() {
+ const steps: DemoStep[] = [
+   {
+     step: 1,
+-    icon: <BarChart3 className="size-5" />,
+-    title: "Visualize everything",
++    icon: <Layers className="size-5" />,
++    title: "Unify your data",
+     subtitle:
+-      "Sleep, HRV, heart rate, steps, readiness — see months and years of trends in interactive charts.",
++      "Connect Oura, CGM, and wearables. Everything in one encrypted dashboard — no more spreadsheets or fragmented apps.",
+     color: "var(--totus-emerald)",
+     visual: <VisualizeVisual />,
+   },
+   {
+     step: 2,
+     icon: <Share2 className="size-5" />,
+-    title: "Share with one link",
++    title: "Share on your terms",
+     subtitle:
+-      "Pick exactly which metrics and dates to share. Your doctor opens a clean viewer — no account needed.",
++      "Pick metrics, set an expiration. Your doctor or coach opens a clean viewer — no account needed.",
+     color: "var(--totus-ocean)",
+     visual: <ShareVisual />,
+   },
+   {
+     step: 3,
+-    icon: <ShieldCheck className="size-5" />,
+-    title: "Stay in control",
++    icon: <Lock className="size-5" />,
++    title: "We never touch your data",
+     subtitle:
+-      "Every view is logged. Revoke any link instantly. Export or delete your data at any time.",
++      "Every view is logged. Revoke any link instantly. We never sell your data. No ads. Ever.",
+     color: "var(--totus-coral)",
+     visual: <ControlVisual />,
+   },
+@@ -207,7 +208,9 @@ export function ProductDemo() {
+         >
+           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+             Three steps to{" "}
+-            <span className="text-[var(--totus-ocean)]">own your data</span>
++            <span className="text-[var(--totus-ocean)]">
++              take back control
++            </span>
+           </h2>
+         </motion.div>
+ 
+diff --git a/apps/web/src/components/landing/TrustStrip.tsx b/apps/web/src/components/landing/TrustStrip.tsx
+index 434542d..0489598 100644
+--- a/apps/web/src/components/landing/TrustStrip.tsx
++++ b/apps/web/src/components/landing/TrustStrip.tsx
+@@ -4,20 +4,19 @@ import { motion } from "framer-motion";
+ import { Shield, EyeOff, ClipboardList, Trash2 } from "lucide-react";
+ 
+ const items = [
+-  { icon: Shield, label: "AES-256 encrypted" },
+-  { icon: EyeOff, label: "Zero ads, zero data sales" },
++  { icon: Shield, label: "End-to-end encrypted" },
+   { icon: ClipboardList, label: "Full audit log" },
+-  { icon: Trash2, label: "Delete anytime" },
++  { icon: EyeOff, label: "We never sell your data. Ever." },
++  { icon: Trash2, label: "Export or delete anytime" },
+ ];
+ 
+ export function TrustStrip() {
+   return (
+-    <section className="px-4 py-10">
++    <section className="px-4 pb-10 pt-4">
+       <motion.div
+-        initial={{ opacity: 0 }}
+-        whileInView={{ opacity: 1 }}
+-        transition={{ duration: 0.5 }}
+-        viewport={{ once: true }}
++        initial={{ opacity: 0, y: 10 }}
++        animate={{ opacity: 1, y: 0 }}
++        transition={{ duration: 0.5, delay: 0.6 }}
+         className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-6 rounded-2xl border border-[var(--totus-mist)] bg-[var(--totus-cloud)] px-6 py-5 md:gap-10 dark:border-[#2a3a4a] dark:bg-[#0f1824]"
+       >
+         {items.map((item) => (
+diff --git a/apps/web/src/db/schema/index.ts b/apps/web/src/db/schema/index.ts
+index 56d9c08..4262e9d 100644
+--- a/apps/web/src/db/schema/index.ts
++++ b/apps/web/src/db/schema/index.ts
+@@ -16,6 +16,7 @@ export { apiKeys } from "./api-keys";
+ export { metricBaselines } from "./metric-baselines";
+ export { userAnnotations } from "./user-annotations";
+ export { dismissedInsights } from "./dismissed-insights";
++export { waitlist } from "./waitlist";
+ 
+ // Legacy aliases for backward compatibility during migration
+ // These re-export the new names under the old names so existing imports still work.
+diff --git a/packages/design-system/src/components/Logo.tsx b/packages/design-system/src/components/Logo.tsx
+index d05c37f..912632f 100644
+--- a/packages/design-system/src/components/Logo.tsx
++++ b/packages/design-system/src/components/Logo.tsx
+@@ -137,7 +137,7 @@ export function Logo({ height = 28, variant = 'color', wordmark = true, classNam
+   const wordmarkColor =
+     variant === 'white'
+       ? '#ffffff'
+-      : 'var(--totus-text, #1a2332)';
++      : 'var(--totus-text, #1f2433)';
+ 
+   return (
+     <span
+diff --git a/packages/design-system/src/theme.css b/packages/design-system/src/theme.css
+index 39dfb42..a24bad7 100644
+--- a/packages/design-system/src/theme.css
++++ b/packages/design-system/src/theme.css
+@@ -28,6 +28,8 @@
+   --color-brand-ocean-tint: var(--totus-ocean-tint);
+   --color-brand-emerald-tint: var(--totus-emerald-tint);
+   --color-brand-coral-tint: var(--totus-coral-tint);
++  --color-brand-red: var(--totus-red);
++  --color-brand-red-tint: var(--totus-red-tint);
+ 
+   /* ── Semantic colors → bg-semantic-primary, text-semantic-text-muted, etc. ── */
+   --color-semantic-primary: var(--totus-primary);
+diff --git a/packages/design-system/src/tokens.css b/packages/design-system/src/tokens.css
+index 365360d..a590b7a 100644
+--- a/packages/design-system/src/tokens.css
++++ b/packages/design-system/src/tokens.css
+@@ -12,17 +12,22 @@
+   --totus-emerald-rgb: 47 168 123;
+   --totus-coral: #e8845a;
+   --totus-coral-rgb: 232 132 90;
+-  --totus-ink: #1a2332;
+-  --totus-ink-rgb: 26 35 50;
+-  --totus-slate: #64748b;
++  --totus-ink: #1f2433;
++  --totus-ink-rgb: 31 36 51;
++  --totus-slate: #6b7280;
+   --totus-mist: #e2e8f0;
+   --totus-cloud: #f8f9fb;
+   --totus-white: #ffffff;
+ 
++  /* Danger — distinct from coral CTA, used only for alerts/errors */
++  --totus-red: #dc4a3a;
++  --totus-red-rgb: 220 74 58;
++
+   /* Tints (hover states, subtle backgrounds) */
+   --totus-ocean-tint: #e8f2f8;
+   --totus-emerald-tint: #e8f4f0;
+   --totus-coral-tint: #fdf0eb;
++  --totus-red-tint: #fdecea;
+ 
+   /* ── Semantic aliases (light mode) ── */
+   /* Use these in feature code so rebranding only requires updating the mapping. */
+@@ -32,7 +37,7 @@
+   --totus-cta-foreground: var(--totus-white);
+   --totus-success: var(--totus-emerald);
+   --totus-success-foreground: var(--totus-white);
+-  --totus-danger: var(--totus-coral);
++  --totus-danger: var(--totus-red);
+   --totus-danger-foreground: var(--totus-white);
+   --totus-background: var(--totus-cloud);
+   --totus-surface: var(--totus-white);
+@@ -60,7 +65,7 @@
+   /* ── Border radius ── */
+   --totus-radius-badge: 0.25rem;  /* 4px  — badges, tags */
+   --totus-radius-sm: 0.375rem;    /* 6px  — inputs, default buttons */
+-  --totus-radius: 0.5rem;         /* 8px  — cards, containers */
++  --totus-radius: 0.75rem;        /* 12px — cards, containers */
+   --totus-radius-icon: 0.875rem;  /* 14px — app icon */
+   --totus-radius-pill: 1.5rem;    /* 24px — CTA pill buttons */
+ 
+@@ -80,9 +85,9 @@
+   --totus-primary: #5ba3c9;          /* lighter ocean for dark bg */
+   --totus-primary-foreground: #0f1824;
+   --totus-background: #0f1824;
+-  --totus-surface: var(--totus-ink);  /* #1a2332 */
++  --totus-surface: var(--totus-ink);  /* #1f2433 */
+   --totus-surface-muted: #1e2d3d;
+-  --totus-text: var(--totus-cloud);
++  --totus-text: #e2e8f0;              /* off-white — reduces eye strain on dark bg */
+   --totus-text-muted: #94a3b8;
+   --totus-border-color: #2a3a4a;
+ 
+diff --git a/packages/design-system/src/tokens.ts b/packages/design-system/src/tokens.ts
+index 8655367..b694285 100644
+--- a/packages/design-system/src/tokens.ts
++++ b/packages/design-system/src/tokens.ts
+@@ -10,14 +10,16 @@ export const colors = {
+   ocean: '#1e5b7b',
+   emerald: '#2fa87b',
+   coral: '#e8845a',
+-  ink: '#1a2332',
+-  slate: '#64748b',
++  red: '#dc4a3a',
++  ink: '#1f2433',
++  slate: '#6b7280',
+   mist: '#e2e8f0',
+   cloud: '#f8f9fb',
+   white: '#ffffff',
+   oceanTint: '#e8f2f8',
+   emeraldTint: '#e8f4f0',
+   coralTint: '#fdf0eb',
++  redTint: '#fdecea',
+ } as const;
+ 
+ // ── Semantic aliases ──────────────────────────────────────────────────────────
+@@ -34,7 +36,7 @@ export const semantic = {
+   // Status
+   success: colors.emerald,
+   successForeground: colors.white,
+-  danger: colors.coral,
++  danger: colors.red,
+   dangerForeground: colors.white,
+ 
+   // Surfaces (light mode defaults)
+@@ -78,7 +80,7 @@ export const spacing = {
+ export const radius = {
+   badge: '0.25rem',   // 4px  — badges, tags
+   button: '0.375rem', // 6px  — inputs, default buttons
+-  card: '0.5rem',     // 8px  — cards, containers
++  card: '0.75rem',    // 12px — cards, containers
+   icon: '0.875rem',   // 14px — app icon (22% of 64px)
+   pill: '1.5rem',     // 24px — CTA pill buttons
+ } as const;

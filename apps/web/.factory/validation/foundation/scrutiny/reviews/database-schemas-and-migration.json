@@ -1,0 +1,33 @@
+{
+  "featureId": "database-schemas-and-migration",
+  "reviewedAt": "2026-04-05T05:19:19Z",
+  "commitId": "55fe94b335a01dbebc313971bb6cf9e02e76d0ee",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The three schema files and SQL migration define the requested dashboard tables and constraints, but the committed Drizzle metadata snapshot for this migration does not include those new tables, leaving migration state inconsistent for subsequent db:generate runs.",
+    "issues": [
+      {
+        "file": "drizzle/meta/0003_snapshot.json",
+        "line": 7,
+        "severity": "blocking",
+        "description": "The 0003 snapshot omits `public.metric_baselines`, `public.user_annotations`, and `public.dismissed_insights` (it only lists `public.audit_events`, `public.health_data`, `public.oura_connections`, `public.share_grants`, and `public.users`). This means migration metadata does not represent the schema introduced by `drizzle/0003_dashboard-tables.sql` and can cause future `npm run db:generate` runs to mis-diff/re-prompt for these tables."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "A known Drizzle migration-metadata drift (snapshot/journal mismatch around `0002_multi_provider_schema`) is not documented in AGENTS.md or .factory/library, even though it directly impacted this feature's migration workflow.",
+      "evidence": "Handoff `discoveredIssues` explicitly reports snapshot metadata out of sync and interactive `drizzle-kit generate` prompts; transcript skeleton shows multiple detours around db:generate before using `drizzle-kit generate --custom` and manual journal/snapshot adjustments; AGENTS.md and .factory/library/environment.md contain no note about this migration metadata caveat."
+    },
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill lacks procedural guidance for handling non-interactive Drizzle snapshot conflicts despite requiring `db:generate`; workers are left to ad-hoc manual recovery paths.",
+      "evidence": "Skill file `.factory/skills/backend-worker/SKILL.md` requires migration generation but has no fallback for interactive rename prompts/snapshot drift; this session deviated to `drizzle-kit generate --custom` and manual metadata edits, as seen in transcript skeleton and handoff."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed with one blocking issue: the migration snapshot metadata committed for this feature does not include the new dashboard tables, creating schema-state drift for future migration generation."
+}

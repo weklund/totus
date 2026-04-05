@@ -1,0 +1,46 @@
+{
+  "featureId": "react-query-hooks",
+  "reviewedAt": "2026-04-05T07:58:42Z",
+  "commitId": "03b4b8d",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "All 8 hooks were added and query invalidation is wired, but several query response interfaces do not match the actual API contracts, violating the feature requirement that hook types match endpoint response shapes.",
+    "issues": [
+      {
+        "file": "src/hooks/useNightView.ts",
+        "line": 35,
+        "severity": "blocking",
+        "description": "Night hook types `hypnogram` as an array, but the endpoint returns `hypnogram` as `{ stages: [...], total_duration_hr: number } | null` (see `src/app/api/views/night/route.ts` lines 433-439 and response assembly at line 273). Consumers using the hook type will be misled."
+      },
+      {
+        "file": "src/hooks/useNightView.ts",
+        "line": 41,
+        "severity": "blocking",
+        "description": "Night hook types `baselines` as `Record<string, BaselinePayload>`, but the endpoint maps baselines to `{ avg, stddev, upper, lower }` keys (see `src/app/api/views/night/route.ts` lines 542-543). This does not match `BaselinePayload` (`avg_30d`, `stddev_30d`, etc.)."
+      },
+      {
+        "file": "src/hooks/useRecoveryView.ts",
+        "line": 33,
+        "severity": "blocking",
+        "description": "Recovery hook types `daily` entries as `RecoveryDailyEntry` including a `date` field, but the API returns `daily` as `Record<string, { metrics: ... }>` keyed by date without an embedded `date` property (see `src/app/api/views/recovery/route.ts` line 301)."
+      },
+      {
+        "file": "src/hooks/useTrendView.ts",
+        "line": 30,
+        "severity": "blocking",
+        "description": "Trend hook types each metric `baseline` as `BaselinePayload | null`, but the endpoint returns `{ avg, stddev, upper, lower }` (see `src/app/api/views/trend/route.ts` lines 386-389). Hook type does not match actual response interface."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The frontend-worker skill procedure is overly component-centric for hooks-only features: it instructs test-first component work and manual agent-browser verification steps that are not applicable to data hooks.",
+      "evidence": "`.factory/skills/frontend-worker/SKILL.md` step 4 ('Write component tests first (TDD)') and step 8 ('Manual verification with agent-browser') conflicted with this hook-only feature; handoff `skillFeedback.deviations` explicitly documents skipping those steps as inapplicable."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed: implementation adds all requested hooks, but key response typings for night/recovery/trend queries do not match their backend contracts, creating incorrect TypeScript interfaces for consumers."
+}

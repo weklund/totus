@@ -4,20 +4,19 @@ import { motion } from "framer-motion";
 import { Shield, EyeOff, ClipboardList, Trash2 } from "lucide-react";
 
 const items = [
-  { icon: Shield, label: "AES-256 encrypted" },
-  { icon: EyeOff, label: "Zero ads, zero data sales" },
+  { icon: Shield, label: "End-to-end encrypted" },
   { icon: ClipboardList, label: "Full audit log" },
-  { icon: Trash2, label: "Delete anytime" },
+  { icon: EyeOff, label: "We never sell your data. Ever." },
+  { icon: Trash2, label: "Export or delete anytime" },
 ];
 
 export function TrustStrip() {
   return (
-    <section className="px-4 py-10">
+    <section className="px-4 pt-4 pb-10">
       <motion.div
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        viewport={{ once: true }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.6 }}
         className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-6 rounded-2xl border border-[var(--totus-mist)] bg-[var(--totus-cloud)] px-6 py-5 md:gap-10 dark:border-[#2a3a4a] dark:bg-[#0f1824]"
       >
         {items.map((item) => (

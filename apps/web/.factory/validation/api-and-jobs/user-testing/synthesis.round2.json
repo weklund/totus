@@ -1,0 +1,40 @@
+{
+  "milestone": "api-and-jobs",
+  "round": 2,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 9,
+    "passed": 7,
+    "failed": 2,
+    "blocked": 0
+  },
+  "passedAssertions": [
+    "VAL-DB-002",
+    "VAL-DB-004",
+    "VAL-JOBS-001",
+    "VAL-JOBS-005",
+    "VAL-JOBS-007",
+    "VAL-RECOV-004",
+    "VAL-TREND-006"
+  ],
+  "failedAssertions": [
+    {
+      "id": "VAL-NIGHT-004",
+      "reason": "In-range grant_token request now works (status=200), but out-of-range date did not clamp as required (status=403, responseDate=None); invalid/missing token auth behavior remained correct (401/401)."
+    },
+    {
+      "id": "VAL-TREND-005",
+      "reason": "Correlation contract not met (status=200, correlationsCount=0, rangeClassOk=True, manualOk=False, sparseOk=False, omittedOk=True)."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": ".factory/validation/api-and-jobs/user-testing/synthesis.round1.json",
+  "flowReports": [
+    ".factory/validation/api-and-jobs/user-testing/flows/rerun-vitest-core.json",
+    ".factory/validation/api-and-jobs/user-testing/flows/rerun-curl-views.json"
+  ],
+  "toolsUsed": ["vitest", "npm", "curl"],
+  "frictions": [],
+  "blockers": []
+}

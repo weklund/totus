@@ -15,3 +15,20 @@ export { EmptyDashboard } from "./EmptyDashboard";
 export { ProviderConnectionCard } from "./ProviderConnectionCard";
 export { AddProviderDialog } from "./AddProviderDialog";
 export { ProviderConnectionBar } from "./ProviderConnectionBar";
+
+// Dashboard shared component library
+export { DeltaBadge } from "./DeltaBadge";
+export { BaselineBand } from "./BaselineBand";
+export { MetricStrip } from "./MetricStrip";
+export type { MetricStripDataPoint } from "./MetricStrip";
+export { MetricStripContainer, useTimeAxis } from "./MetricStripContainer";
+export { InsightCard } from "./InsightCard";
+export { SummaryStrip } from "./SummaryStrip";
+export { AnnotationLayer } from "./AnnotationLayer";
+export { SleepHypnogram } from "./SleepHypnogram";
+export type { HypnogramSegment } from "./SleepHypnogram";
+export { DateNavigation } from "./DateNavigation";
+export { NightDetailView } from "./NightDetailView";
+export { RecoveryDetailView } from "./RecoveryDetailView";
+export { TrendDetailView } from "./TrendDetailView";
+export { DashboardViewRouter } from "./DashboardViewRouter";

@@ -1,0 +1,50 @@
+{
+  "featureId": "annotation-crud-api",
+  "reviewedAt": "2026-04-05T06:34:24Z",
+  "commitId": "0fde193",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The CRUD implementation is substantial and aligns on validation/encryption/audit shape, but it has blocking authorization gaps: API-key scope enforcement is missing on all mutation/read handlers, and viewer date-range scoping is not enforced on GET.",
+    "issues": [
+      {
+        "file": "apps/web/src/app/api/annotations/route.ts",
+        "line": 77,
+        "severity": "blocking",
+        "description": "POST and GET do not enforce API-key scopes (no enforceScope checks), so API keys without appropriate health scopes can create/read annotations. This violates least-privilege behavior and diverges from established route patterns that gate API-key access by scope."
+      },
+      {
+        "file": "apps/web/src/app/api/annotations/[id]/route.ts",
+        "line": 67,
+        "severity": "blocking",
+        "description": "PATCH and DELETE also omit API-key scope checks, allowing API-key principals lacking write scope to mutate annotation data. Owner-role checks alone are insufficient when authMethod is api_key."
+      },
+      {
+        "file": "apps/web/src/app/api/annotations/route.ts",
+        "line": 219,
+        "severity": "blocking",
+        "description": "Viewer access is filtered by metric mapping only, but date range is taken directly from request without clamping to grant dataStart/dataEnd. This can expose annotations outside the viewer's permitted time window."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Mission AGENTS API-route conventions document role checks and validation, but not API-key scope enforcement or viewer date-range clamping requirements for data endpoints.",
+      "evidence": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/AGENTS.md:22-25 (auth guidance only), contrasted with missing scope/clamp logic in apps/web/src/app/api/annotations/route.ts:77-237 and apps/web/src/app/api/annotations/[id]/route.ts:67-228"
+    },
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill says to read shares/health-data route patterns and follow LLD exactly, but lacks an explicit checklist item to preserve API-key scope checks and viewer grant date clamping when implementing new endpoints.",
+      "evidence": "apps/web/.factory/skills/backend-worker/SKILL.md:29-31,42; resulting omissions in apps/web/src/app/api/annotations/route.ts and apps/web/src/app/api/annotations/[id]/route.ts"
+    },
+    {
+      "area": "knowledge",
+      "observation": "Feature acceptance criteria emphasize CRUD, validation, encryption, and audit events but do not explicitly call out API-key scope enforcement, which reduced the chance of catching auth-scope regressions during implementation/review.",
+      "evidence": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a/features.json:623-637; annotation tests contain no API-key scope assertions (apps/web/src/app/api/annotations/__tests__/route.test.ts)"
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed feature annotation-crud-api (commit 0fde193) by inspecting feature metadata, handoff, transcript skeleton, worker skill context, and commit diff. Found blocking authorization defects: missing API-key scope enforcement across CRUD handlers and missing viewer date-range clamping on GET. Marking the feature as fail until these security/permission gaps are fixed."
+}

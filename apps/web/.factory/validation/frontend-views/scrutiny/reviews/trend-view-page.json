@@ -1,0 +1,28 @@
+{
+  "featureId": "trend-view-page",
+  "reviewedAt": "2026-04-05T09:10:58Z",
+  "commitId": "156257a6558d69a261946bb2ecc32d11696ee298",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The feature broadly implements the W3 trend view requirements (range presets, resolution toggle, raw dots + smoothed line, baseline bands, trend indicators, loading/empty states), but there is a blocking date-axis bug in chart timestamp conversion.",
+    "issues": [
+      {
+        "file": "src/components/dashboard/TrendDetailView.tsx",
+        "line": 362,
+        "severity": "blocking",
+        "description": "Chart points are timestamped with `new Date(d.date).getTime()` where `d.date` is `YYYY-MM-DD`. In JavaScript this is parsed as UTC, so users in negative timezones see the plotted day shifted backward (e.g., `2026-03-28` renders as Mar 27 in America/New_York). This makes trend dates inaccurate in the core visualization. Use local-date parsing (e.g., `parseISO(d.date)`) consistently for timestamp generation."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Shared docs do not currently call out a date-only parsing convention for frontend charts, which allowed a UTC/local-time parsing bug to slip into a core visualization path.",
+      "evidence": "AGENTS.md and .factory/library/architecture.md contain no frontend date parsing rule; implementation uses `new Date(d.date).getTime()` at src/components/dashboard/TrendDetailView.tsx:362 with date-only API strings."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed feature trend-view-page using handoff, transcript skeleton, skill guidance, and commit diff. Marked FAIL due to a blocking timezone/date parsing issue that shifts trend chart days for non-UTC users."
+}

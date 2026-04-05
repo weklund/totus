@@ -1,0 +1,94 @@
+{
+  "groupId": "comp-insights",
+  "testedAt": "2026-04-05T05:47:34Z",
+  "isolation": {
+    "milestone": "foundation",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "tool": "vitest",
+    "boundary": "Local repo and local services only; no production logic modified."
+  },
+  "toolsUsed": ["vitest", "npm", "rg"],
+  "assertions": [
+    {
+      "id": "VAL-COMP-010",
+      "title": "Insight rules fire based on metric status thresholds",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted VAL-COMP assertion suite in insights.test.ts",
+          "expected": "Rule firing/non-firing behavior and anomaly threshold behavior pass for elevated_rhr, low_sleep_score, suppressed_hrv, and multi_metric_deviation",
+          "observed": "PASS: 17 tests under \"VAL-COMP-010: individual rules fire correctly\" passed (critical/warning trigger and normal/good non-trigger checks, plus anomaly_score threshold checks)."
+        },
+        {
+          "action": "Run targeted severity mapping tests in insights.test.ts",
+          "expected": "critical -> warning and warning -> info mapping for metric rules; multi_metric_deviation warning severity",
+          "observed": "PASS: all 5 \"severity mapping\" tests passed, including elevated_rhr, low_sleep_score, suppressed_hrv, and multi_metric_deviation severity expectations."
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation/comp-insights/vitest-comp-insights.log",
+          "foundation/comp-insights/vitest-comp-insights-severity.log",
+          "foundation/comp-insights/command-results.txt"
+        ],
+        "commands": [
+          "npm --prefix /Users/weae1504/Projects/totus/apps/web run test -- src/lib/dashboard/__tests__/insights.test.ts -t VAL-COMP-010|VAL-COMP-011|VAL-COMP-012 --reporter=verbose",
+          "npm --prefix /Users/weae1504/Projects/totus/apps/web run test -- src/lib/dashboard/__tests__/insights.test.ts -t severity mapping --reporter=verbose"
+        ],
+        "exitCodes": [0, 0]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-011",
+      "title": "Insight priority ordering, max 3 cap, and dismissal exclusion",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted VAL-COMP assertion suite in insights.test.ts",
+          "expected": "Top-3 priority order enforced, cap at 3, and dismissed types excluded with lower-priority backfill",
+          "observed": "PASS: 8 tests under \"VAL-COMP-011: priority ordering, max 3 cap, dismissal exclusion\" passed, including ordering (5,10,20), cap behavior, dismissal skip/backfill, and empty outcomes when all dismissed."
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation/comp-insights/vitest-comp-insights.log",
+          "foundation/comp-insights/command-results.txt"
+        ],
+        "exitCode": 0
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-012",
+      "title": "Insight rules respect viewType scoping",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted VAL-COMP assertion suite in insights.test.ts",
+          "expected": "Rules fire only for allowed viewTypes and do not fire for disallowed viewTypes (e.g., trend)",
+          "observed": "PASS: 7 tests under \"VAL-COMP-012: viewType scoping\" passed, confirming elevated_rhr/low_sleep_score/suppressed_hrv do not fire on trend and allowed-scope behavior remains correct."
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation/comp-insights/vitest-comp-insights.log",
+          "foundation/comp-insights/command-results.txt"
+        ],
+        "exitCode": 0
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Severity mapping checks required a second targeted run because those tests are grouped under \"severity mapping\" rather than assertion-ID-tagged describe names.",
+      "resolved": true,
+      "resolution": "Executed a second scoped vitest command (-t \"severity mapping\") and captured separate log/exit code artifacts.",
+      "affectedAssertions": ["VAL-COMP-010"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 3 assertions: 3 passed, 0 failed, 0 blocked."
+}

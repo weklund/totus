@@ -1,0 +1,86 @@
+{
+  "groupId": "rerun-vitest-core",
+  "testedAt": "2026-04-05T07:27:46Z",
+  "isolation": {
+    "milestone": "api-and-jobs",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "resources": [
+      "local repo working tree",
+      "local postgres container totus-db on localhost:5432"
+    ],
+    "notes": "Validation-only; no application business logic modified."
+  },
+  "toolsUsed": ["vitest", "npm"],
+  "assertions": [
+    {
+      "id": "VAL-DB-002",
+      "status": "pass",
+      "reason": "Targeted Vitest case passed: value_encrypted is non-JSON ciphertext at rest and decrypts to finite BaselinePayload fields.",
+      "evidence": [
+        "api-and-jobs/rerun-vitest-core/val-db-002.log",
+        "api-and-jobs/rerun-vitest-core/val-db-002.exitcode"
+      ]
+    },
+    {
+      "id": "VAL-DB-004",
+      "status": "pass",
+      "reason": "Targeted Vitest case passed: deleting user cascades and leaves zero rows in metric_baselines, user_annotations, and dismissed_insights.",
+      "evidence": [
+        "api-and-jobs/rerun-vitest-core/val-db-004.log",
+        "api-and-jobs/rerun-vitest-core/val-db-004.exitcode"
+      ]
+    },
+    {
+      "id": "VAL-JOBS-001",
+      "status": "pass",
+      "reason": "Targeted Vitest cases passed for cron schedule (30 */6 * * *), concurrency limit (5), and retries (3).",
+      "evidence": [
+        "api-and-jobs/rerun-vitest-core/val-jobs-001.log",
+        "api-and-jobs/rerun-vitest-core/val-jobs-001.exitcode"
+      ]
+    },
+    {
+      "id": "VAL-JOBS-005",
+      "status": "pass",
+      "reason": "Targeted Vitest case passed: sync completion sends dashboard/baselines.refresh.user with data.userId payload.",
+      "evidence": [
+        "api-and-jobs/rerun-vitest-core/val-jobs-005-007.log",
+        "api-and-jobs/rerun-vitest-core/val-jobs-005-007.exitcode"
+      ]
+    },
+    {
+      "id": "VAL-JOBS-007",
+      "status": "pass",
+      "reason": "Same targeted sync-completion emission assertion passed, confirming per-user refresh event trigger after successful sync.",
+      "evidence": [
+        "api-and-jobs/rerun-vitest-core/val-jobs-005-007.log",
+        "api-and-jobs/rerun-vitest-core/val-jobs-005-007.exitcode"
+      ]
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "commandsRun": [
+    {
+      "command": "npm --prefix \"/Users/weae1504/Projects/totus/apps/web\" run test -- src/db/__tests__/dashboard-schemas.test.ts -t \"VAL-DB-002\" --reporter=verbose",
+      "exitCode": 0,
+      "evidenceLog": "api-and-jobs/rerun-vitest-core/val-db-002.log"
+    },
+    {
+      "command": "npm --prefix \"/Users/weae1504/Projects/totus/apps/web\" run test -- src/db/__tests__/dashboard-schemas.test.ts -t \"VAL-DB-004\" --reporter=verbose",
+      "exitCode": 0,
+      "evidenceLog": "api-and-jobs/rerun-vitest-core/val-db-004.log"
+    },
+    {
+      "command": "npm --prefix \"/Users/weae1504/Projects/totus/apps/web\" run test -- src/inngest/functions/__tests__/baselines-config.test.ts -t \"VAL-JOBS-001\" --reporter=verbose",
+      "exitCode": 0,
+      "evidenceLog": "api-and-jobs/rerun-vitest-core/val-jobs-001.log"
+    },
+    {
+      "command": "npm --prefix \"/Users/weae1504/Projects/totus/apps/web\" run test -- src/inngest/functions/__tests__/sync-connection.test.ts -t \"sends dashboard/baselines.refresh.user event with userId after successful sync\" --reporter=verbose",
+      "exitCode": 0,
+      "evidenceLog": "api-and-jobs/rerun-vitest-core/val-jobs-005-007.log"
+    }
+  ]
+}

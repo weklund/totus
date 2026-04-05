@@ -2,6 +2,8 @@ import { LandingHeader } from "@/components/landing/LandingHeader";
 import { Hero } from "@/components/landing/Hero";
 import { ProductDemo } from "@/components/landing/ProductDemo";
 import { TrustStrip } from "@/components/landing/TrustStrip";
+import { DeviceRoadmap } from "@/components/landing/DeviceRoadmap";
+import { WaitlistCapture } from "@/components/landing/WaitlistCapture";
 import { CallToAction } from "@/components/landing/CallToAction";
 import { Footer } from "@/components/landing/Footer";
 
@@ -11,8 +13,10 @@ export default function Home() {
       <LandingHeader />
       <main className="flex-1">
         <Hero />
-        <ProductDemo />
         <TrustStrip />
+        <ProductDemo />
+        <DeviceRoadmap />
+        <WaitlistCapture />
         <CallToAction />
       </main>
       <Footer />

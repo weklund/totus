@@ -1,0 +1,86 @@
+{
+  "milestone": "frontend-shared",
+  "round": 1,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run test -- --maxWorkers=8",
+      "exitCode": 1,
+      "observation": "Vitest exited 1 with exactly 9 known pre-existing failures confined to src/db/__tests__/schema.test.ts (8) and src/app/api/health-data/__tests__/route.test.ts (1), while src/db/__tests__/audit-immutability.test.ts remained skipped; no new failing test files were introduced."
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run typecheck",
+      "exitCode": 0,
+      "observation": "tsc --noEmit completed successfully with exit code 0."
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run lint",
+      "exitCode": 0,
+      "observation": "next lint completed with no ESLint warnings or errors."
+    }
+  },
+  "reviewsSummary": {
+    "total": 2,
+    "passed": 0,
+    "failed": 2,
+    "failedFeatures": ["react-query-hooks", "dashboard-shared-components"]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "react-query-hooks",
+      "severity": "blocking",
+      "description": "useNightView types hypnogram as an array, but the night endpoint returns an object `{ stages, total_duration_hr } | null`, creating a contract mismatch for consumers."
+    },
+    {
+      "featureId": "react-query-hooks",
+      "severity": "blocking",
+      "description": "useNightView types baselines as `Record<string, BaselinePayload>`, but `/api/views/night` returns `{ avg, stddev, upper, lower }` baseline objects."
+    },
+    {
+      "featureId": "react-query-hooks",
+      "severity": "blocking",
+      "description": "useRecoveryView defines daily entries with an embedded `date` field, but `/api/views/recovery` returns `daily` keyed by date with `{ metrics }` payloads and no nested date property."
+    },
+    {
+      "featureId": "react-query-hooks",
+      "severity": "blocking",
+      "description": "useTrendView types per-metric `baseline` as `BaselinePayload | null`, but `/api/views/trend` returns `{ avg, stddev, upper, lower } | null`."
+    },
+    {
+      "featureId": "dashboard-shared-components",
+      "severity": "blocking",
+      "description": "InsightCard dismiss behavior is not wired to `useDismissInsight` as required by the feature contract."
+    },
+    {
+      "featureId": "dashboard-shared-components",
+      "severity": "blocking",
+      "description": "Shared time-axis alignment is broken: MetricStripContainer provides numeric xDomain values while MetricStrip keeps ISO string x-values and switches to numeric time scale, causing domain/value type mismatch."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "skills/frontend-worker",
+      "suggestion": "Add a hooks-only execution path that does not require component-centric steps (component TDD and visual browser checks) when a feature scope is data hooks/types only.",
+      "evidence": "react-query-hooks review and transcript indicate the skill's component-focused procedure did not fit a hooks-only deliverable.",
+      "isSystemic": true
+    },
+    {
+      "target": "skills/frontend-worker",
+      "suggestion": "Make agent-browser verification mandatory only for features with explicit visual/UI interaction requirements; keep it optional for non-UI code paths.",
+      "evidence": "dashboard-shared-components review observed stated mandatory browser verification in the skill, while worker execution and handoff relied on automated tests only.",
+      "isSystemic": true
+    },
+    {
+      "target": "skills/frontend-worker",
+      "suggestion": "Refine strict tests-first wording to allow implementation/testing in small pairs or batches, while still requiring equivalent coverage and accurate deviation reporting.",
+      "evidence": "dashboard-shared-components review captured repeated friction with strict TDD ordering versus practical multi-component delivery flow.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [],
+  "previousRound": null
+}

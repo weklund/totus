@@ -1,0 +1,70 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { Check } from "lucide-react";
+
+interface Device {
+  name: string;
+  status: "live" | "coming-soon";
+}
+
+const devices: Device[] = [
+  { name: "Oura Ring", status: "live" },
+  { name: "Dexcom CGM", status: "coming-soon" },
+  { name: "Garmin", status: "coming-soon" },
+  { name: "WHOOP", status: "coming-soon" },
+  { name: "Withings", status: "coming-soon" },
+  { name: "Apple Health", status: "coming-soon" },
+];
+
+export function DeviceRoadmap() {
+  return (
+    <section className="px-4 py-16 md:py-20">
+      <div className="mx-auto max-w-4xl text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          viewport={{ once: true }}
+        >
+          <h2 className="mb-3 text-3xl font-bold tracking-tight sm:text-4xl">
+            Your devices.{" "}
+            <span className="text-[var(--totus-ocean)]">One dashboard.</span>
+          </h2>
+          <p className="mb-10 text-lg text-[var(--totus-slate)]">
+            We started with Oura. More integrations are on the way.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          viewport={{ once: true }}
+          className="flex flex-wrap items-center justify-center gap-3 md:gap-4"
+        >
+          {devices.map((device) => (
+            <div
+              key={device.name}
+              className="flex items-center gap-2 rounded-full border border-[var(--totus-mist)] bg-[var(--totus-cloud)] px-5 py-2.5 dark:border-[#2a3a4a] dark:bg-[#0f1824]"
+            >
+              <span className="text-sm font-medium text-[var(--totus-ink)] dark:text-[var(--totus-cloud)]">
+                {device.name}
+              </span>
+              {device.status === "live" ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--totus-emerald-tint)] px-2 py-0.5 text-[10px] font-semibold text-[var(--totus-emerald)]">
+                  <Check className="size-3" />
+                  Live
+                </span>
+              ) : (
+                <span className="rounded-full bg-[var(--totus-ocean-tint)] px-2 py-0.5 text-[10px] font-semibold text-[var(--totus-ocean)]">
+                  Coming soon
+                </span>
+              )}
+            </div>
+          ))}
+        </motion.div>
+      </div>
+    </section>
+  );
+}

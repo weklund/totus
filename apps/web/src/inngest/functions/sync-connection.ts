@@ -106,6 +106,12 @@ export const syncConnection = inngest.createFunction(
       });
     });
 
+    // Trigger per-user baseline refresh after successful sync
+    await step.sendEvent("trigger-baselines-refresh", {
+      name: "dashboard/baselines.refresh.user",
+      data: { userId },
+    });
+
     return { success: true };
   },
 );

@@ -1,0 +1,27 @@
+{
+  "milestone": "frontend-views",
+  "round": 7,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": [],
+  "failedAssertions": [
+    {
+      "id": "VAL-UIRCV-003",
+      "reason": "Partial contract match only: '10K run' is now visible and 3-day narrative is present, but strict clause wording mismatches remain (day/value wording drift and no explicit \ud83d\udfe1 stage in table progression)."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": ".factory/validation/frontend-views/user-testing/synthesis.round6.json",
+  "nonBlockingDeferredAssertions": [
+    {
+      "id": "VAL-UITRD-002",
+      "reason": "Deferred P1 scope per AGENTS.md Testing & Validation Guidance."
+    }
+  ]
+}

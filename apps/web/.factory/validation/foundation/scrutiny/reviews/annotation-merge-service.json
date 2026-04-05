@@ -1,0 +1,28 @@
+{
+  "featureId": "annotation-merge-service",
+  "reviewedAt": "2026-04-05T05:18:05Z",
+  "commitId": "540b5170a18a8c0fb963babf45aeb27cdb4c2b58",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Implementation correctly merges/decrypts/sorts annotations, but viewer filtering is incomplete for `meal` event scoping versus the LLD mapping.",
+    "issues": [
+      {
+        "file": "src/lib/dashboard/annotations.ts",
+        "line": 30,
+        "severity": "blocking",
+        "description": "LLD §9.2 requires `meal` annotations to be visible for `glucose`, `calories_consumed`, and any nutrition metric. The implementation only maps `meal` to `[\"glucose\", \"calories_consumed\"]`, so viewers granted nutrition metrics such as `protein_g`, `carbs_g`, `fat_g`, etc. will incorrectly not see meal annotations."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill mandates TDD (write failing tests before implementation), but this worker session implemented the service file before creating tests while still reporting `skillFeedback.followedProcedure: true`.",
+      "evidence": "Transcript skeleton order shows `Create src/lib/dashboard/annotations.ts` followed by `Create src/lib/dashboard/__tests__/annotations.test.ts`, with no prior failing-test run; handoff skillFeedback marks followedProcedure true."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed due to a blocking viewer-scope mismatch: `meal` annotation visibility does not honor the LLD requirement for any nutrition metric grants."
+}

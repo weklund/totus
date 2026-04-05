@@ -16,7 +16,7 @@ export function CallToAction() {
         className="mx-auto max-w-3xl rounded-3xl bg-gradient-to-br from-[var(--totus-ocean)] to-[#14405a] px-8 py-14 text-center text-white md:px-16"
       >
         <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-          Ready to see your health data in one place?
+          Ready to take back control of your health data?
         </h2>
         <p className="mb-8 text-lg text-white/70">
           Free during early access. Connect your Oura Ring in 30 seconds.

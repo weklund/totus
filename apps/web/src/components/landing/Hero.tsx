@@ -37,7 +37,7 @@ export function Hero() {
           transition={{ duration: 0.5 }}
           className="mb-4 inline-flex rounded-full bg-[var(--totus-ocean-tint)] px-4 py-1.5 text-sm font-medium text-[var(--totus-ocean)]"
         >
-          Your personal health data vault
+          Your health data, finally in one place
         </motion.div>
 
         <motion.h1
@@ -46,8 +46,8 @@ export function Hero() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="mx-auto mb-5 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl"
         >
-          See your health data clearly.{" "}
-          <span className="text-[var(--totus-ocean)]">Share it securely.</span>
+          All your health data. One vault.{" "}
+          <span className="text-[var(--totus-ocean)]">You hold the keys.</span>
         </motion.h1>
 
         <motion.p
@@ -56,8 +56,9 @@ export function Hero() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="mx-auto mb-8 max-w-xl text-lg text-[var(--totus-slate)]"
         >
-          Connect your Oura Ring. Visualize years of trends. Share a link that
-          expires after your appointment.
+          Connect your Oura Ring (CGM and Garmin coming soon). See trends across
+          months and years. Share a secure link with your doctor or coach — it
+          expires when you want.
         </motion.p>
 
         <motion.div

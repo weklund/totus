@@ -1,0 +1,277 @@
+{
+  "groupId": "browser-shared-components",
+  "testedAt": "2026-04-05T09:40:23Z",
+  "isolation": {
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100",
+    "browserSessionId": "0a629f9ae2f9__u4",
+    "boundary": "Local app/browser only, no code changes"
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertions": [
+    {
+      "id": "VAL-UICMP-001",
+      "title": "MetricStrip expand/collapse interaction",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Load Night view and capture collapsed strip",
+          "expected": "Collapsed strip shows compact chart + label/value state",
+          "observed": "Heart Rate strip rendered as compact row with label/value and chart in collapsed state."
+        },
+        {
+          "action": "Activate Heart Rate strip expand",
+          "expected": "Expanded view shows larger chart with y-axis/grid/markers",
+          "observed": "Expanded state appeared (button aria changed to 'click to collapse') and chart displayed axes/grid/point markers."
+        },
+        {
+          "action": "Activate strip again to collapse",
+          "expected": "Component returns to compact state",
+          "observed": "Strip returned to collapsed state (button aria changed back to 'click to expand')."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-shared-components/VAL-UICMP-001-collapsed.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-001-expanded-annotated.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-001-collapsed-after-toggle.png"
+        ],
+        "consoleErrors": "none observed (agent-browser errors returned no entries)",
+        "network": "GET /api/views/night?date=2026-04-04 -> 200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UICMP-002",
+      "title": "InsightCard with dismiss and conditional rendering",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Open date with visible insight card",
+          "expected": "Insight card shows narrative, related metrics, and dismiss control",
+          "observed": "Insight card rendered with narrative text and related metric list; dismiss control present."
+        },
+        {
+          "action": "Inspect dismiss button accessibility",
+          "expected": "Dismiss control is keyboard focusable and has aria-label",
+          "observed": "Dismiss button reported aria-label 'Dismiss insight: Below-average sleep score', tabIndex=0, disabled=false."
+        },
+        {
+          "action": "Activate dismiss",
+          "expected": "Card is removed from UI",
+          "observed": "Card disappeared after dismiss; DOM check reported insightArticleCount=0 and dismissButtonCount=0."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-shared-components/VAL-UICMP-002-before-dismiss.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-002-after-dismiss.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "GET /api/views/night?date=2026-04-05 -> 200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UICMP-003",
+      "title": "DateNavigation with picker, arrows, presets, and view toggle",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open date picker and select 2026-04-04",
+          "expected": "Calendar opens and selected date updates context",
+          "observed": "Calendar opened and URL updated to ?view=night&date=2026-04-04."
+        },
+        {
+          "action": "Use arrows at today boundary",
+          "expected": "Forward arrow disabled at today",
+          "observed": "At 2026-04-05 (today), Next day button was disabled as expected."
+        },
+        {
+          "action": "Switch between Night/Recovery/Trend and presets",
+          "expected": "View toggle/presets preserve date context and update range",
+          "observed": "View switched to Recovery/Trend with date preserved; 7D and 1Y presets updated trend state."
+        },
+        {
+          "action": "Navigate far backward",
+          "expected": "Back arrow disables at earliest data date",
+          "observed": "Back arrow remained enabled even on 2025-01-01 and older no-data dates (did not clamp/disable at earliest data boundary)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-shared-components/VAL-UICMP-003-after-today-click-annotated.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-003-selected-date-night-annotated.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-003-recovery-view-annotated.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-003-trend-view-annotated.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-003-trend-7d-annotated.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-003-trend-1y-annotated.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-003-back-not-disabled-old-date.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "GET /api/views/night -> 200, GET /api/views/recovery?start=2026-03-30&end=2026-04-05 -> 200, GET /api/views/trend?start=2026-03-07&end=2026-04-05&metrics=rhr,hrv,sleep_score -> 200"
+      },
+      "issues": "Earliest-date boundary behavior does not match contract: backward navigation never disables at earliest data date."
+    },
+    {
+      "id": "VAL-UICMP-004",
+      "title": "Loading, empty, and error states handled gracefully",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Navigate to old no-data date",
+          "expected": "Meaningful empty-state message",
+          "observed": "Displayed 'No data available for this night' with explanatory text."
+        },
+        {
+          "action": "Inspect partial-data date",
+          "expected": "Partial content remains usable with metric/state messaging",
+          "observed": "Night view rendered available strips and summary while showing missing sleep-stage text."
+        },
+        {
+          "action": "Force API failure by aborting /api/views/night",
+          "expected": "User-friendly error + retry while app shell stays usable",
+          "observed": "Displayed 'Failed to load night data' and Retry button; navigation shell remained functional."
+        },
+        {
+          "action": "Delay API responses to observe loading state",
+          "expected": "Skeleton/spinner placeholders visible during fetch",
+          "observed": "No progressbar/spinner/skeleton/loading text detected during delayed fetch (progressbars=0, spinners=0)."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-shared-components/VAL-UICMP-004-empty-state-annotated.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-004-partial-data-state.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-004-error-state-annotated.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-004-loading-dom-check.png"
+        ],
+        "consoleErrors": "none observed from agent-browser errors command",
+        "network": "GET /api/views/night?date=2026-04-04 -> 200; simulated aborted /api/views/night requests produced fetch failure UI"
+      },
+      "issues": "Loading placeholder requirement was not met in observed delayed-fetch state (no skeleton/spinner surfaced)."
+    },
+    {
+      "id": "VAL-UICMP-005",
+      "title": "Accessibility fundamentals",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check chart and delta semantics",
+          "expected": "Charts/metrics expose accessible labels and delta meaning",
+          "observed": "Metric strip control had descriptive aria-label; summary statuses exposed text like 'Sleep Score: worse, down 7.2 from average'."
+        },
+        {
+          "action": "Validate dismiss keyboard behavior",
+          "expected": "Dismiss button focusable and activatable via keyboard",
+          "observed": "Dismiss button focused and activated using Space; insight card removed."
+        },
+        {
+          "action": "Validate date navigation keyboard access/focus visibility",
+          "expected": "Date controls keyboard accessible with visible focus",
+          "observed": "Tab reached 'Previous day' control; Enter activated navigation; computed focus style included visible ring box-shadow."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-shared-components/VAL-UICMP-005-dismiss-focused.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-005-dismiss-activated-via-space.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-005-prev-day-focused-via-tab.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-005-nav-activated-via-enter.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "GET /api/views/night?date=2026-04-03 -> 200"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UICMP-006",
+      "title": "Responsive layout at desktop, tablet, and mobile viewports",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Capture desktop layout (1440x900)",
+          "expected": "Desktop stacked strips with shared alignment and minimal scroll",
+          "observed": "Desktop layout rendered expected stacked dashboard panels."
+        },
+        {
+          "action": "Capture tablet layout (768x1024)",
+          "expected": "No horizontal overflow/content cutoff",
+          "observed": "Tablet had no horizontal overflow (scrollWidth=clientWidth=768)."
+        },
+        {
+          "action": "Capture mobile layout (375x812)",
+          "expected": "Single-column full-width layout; compact markers; data reachable by vertical scroll",
+          "observed": "Markers collapsed to compact icon form, but document had horizontal overflow (scrollWidth 478 > clientWidth 375) and was horizontally scrollable by 103px."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-shared-components/VAL-UICMP-006-desktop-1440x900.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-006-tablet-768x1024.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-006-mobile-375x812-top.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-006-mobile-375x812-scrolled.png",
+          "frontend-views/browser-shared-components/VAL-UICMP-006-mobile-horizontal-overflow-check.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "GET /api/views/night?date=2026-04-04 -> 200"
+      },
+      "issues": "Mobile viewport violates full-width expectation due reproducible horizontal overflow/horizontal scrolling."
+    },
+    {
+      "id": "VAL-CROSS-007",
+      "title": "Fresh baselines render as normal range bands on frontend",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Load Night view and expand Heart Rate chart",
+          "expected": "Baseline band shaded across chart width at expected bounds and low opacity",
+          "observed": "Chart showed filled area with fill-opacity 0.6; no low-opacity (<=0.15) baseline-band element identified."
+        },
+        {
+          "action": "Verify API baseline payload for target date",
+          "expected": "Heart-rate baseline values present to drive band (example avg=61, stddev=5)",
+          "observed": "Night API baselines included deep_sleep/hrv/rhr/sleep_score only; heart_rate baseline key absent."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-shared-components/VAL-CROSS-007-heart-rate-baseline-band-annotated.png"
+        ],
+        "consoleErrors": "none observed",
+        "network": "GET /api/views/night?date=2026-04-04 -> 200; baselines keys: [deep_sleep, hrv, rhr, sleep_score] (heart_rate missing)"
+      },
+      "issues": "Contract not met: expected Heart Rate baseline band behavior/opacity could not be validated because heart_rate baseline data was absent and rendered fill did not match <=15% baseline-band requirement."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Direct /dashboard access redirected to /sign-in despite mock-auth expectation in guidance.",
+      "resolved": true,
+      "resolution": "Generated a local mock __session token for user_test_001 and set it in the assigned browser session cookie.",
+      "affectedAssertions": [
+        "VAL-UICMP-001",
+        "VAL-UICMP-002",
+        "VAL-UICMP-003",
+        "VAL-UICMP-004",
+        "VAL-UICMP-005",
+        "VAL-UICMP-006",
+        "VAL-CROSS-007"
+      ]
+    },
+    {
+      "description": "Pointer clicks on the Heart Rate strip were intermittently blocked by overlaid marker elements.",
+      "resolved": true,
+      "resolution": "Used keyboard focus + Enter to toggle chart expansion/collapse reliably.",
+      "affectedAssertions": ["VAL-UICMP-001", "VAL-CROSS-007"]
+    },
+    {
+      "description": "agent-browser network request log returned no captured requests for this session.",
+      "resolved": true,
+      "resolution": "Collected supplementary network/status evidence via authenticated local curl requests.",
+      "affectedAssertions": ["VAL-UICMP-003", "VAL-UICMP-004", "VAL-CROSS-007"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 7 assertions: 3 passed (VAL-UICMP-001, VAL-UICMP-002, VAL-UICMP-005) and 4 failed (VAL-UICMP-003, VAL-UICMP-004, VAL-UICMP-006, VAL-CROSS-007)."
+}

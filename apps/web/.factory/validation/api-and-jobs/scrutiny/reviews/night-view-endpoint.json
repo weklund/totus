@@ -1,0 +1,45 @@
+{
+  "featureId": "night-view-endpoint",
+  "reviewedAt": "2026-04-05T06:34:54Z",
+  "commitId": "fb85c61242c19f4a71905ad2e49de6851bfcae82",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Night endpoint implementation is substantial, but it misses two required behaviors from the feature contract: grant_token-based viewer access and viewer date clamping behavior. There is also a metrics filtering inconsistency for owner requests.",
+    "issues": [
+      {
+        "file": "apps/web/src/app/api/views/night/route.ts",
+        "line": 149,
+        "severity": "blocking",
+        "description": "Viewer date clamping is not applied to execution. enforcePermissions returns effective start/end dates, but the handler only keeps scope.metrics and continues using the original requested date to build time_range and queries. This contradicts the feature expectation to clamp viewer dates to grant bounds. Related evidence: route.ts lines 143-149 and 157-160; tests also assert 403 instead of clamped behavior at night.test.ts lines 467-477."
+      },
+      {
+        "file": "apps/web/src/app/api/views/night/route.ts",
+        "line": 121,
+        "severity": "blocking",
+        "description": "grant_token is parsed but never used to establish viewer auth/scoping, so direct grant-token deep-links are not actually supported by this endpoint. The LLD explicitly requires grant_token deep-link support (docs/dashboard-backend-lld.md lines 1371-1372). getResolvedContext only consumes middleware/header context and API-key flow (src/lib/auth/resolve-api-key.ts lines 128-134), and middleware has no grant_token handling."
+      },
+      {
+        "file": "apps/web/src/app/api/views/night/route.ts",
+        "line": 191,
+        "severity": "non_blocking",
+        "description": "Owner requests ignore metrics filtering for intraday series: the code always fetches all INTRADAY_SERIES_METRICS for owners, even when a narrower metrics query is provided. This is inconsistent with the query parameter contract of comma-separated metric selection."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "backend-worker skill instructions are out of sync with actual project practice: the skill mandates bun-based commands and manual curl verification, while this feature run used npm-based checks only and still marked followedProcedure=true.",
+      "evidence": ".factory/skills/backend-worker/SKILL.md lines 41, 49, 60-67 require bun commands and manual curl verification; handoff 2026-04-05T06-17-07-895Z__night-view-endpoint__74e1b27b-a474-4247-8884-e95da9b30ca5.json lines 16-32 list npm test/typecheck/lint only; lines 129-130 mark followedProcedure=true with no deviations."
+    },
+    {
+      "area": "knowledge",
+      "observation": "Shared docs and implementation are misaligned on viewer deep-link auth: LLD documents grant_token-based direct deep-links for view endpoints, but the active auth path relies on middleware-issued request context/cookies and does not process grant_token in middleware.",
+      "evidence": "docs/dashboard-backend-lld.md lines 1371-1372 state grant_token deep-link support; src/middleware.ts has no grant_token handling (search shows no matches); night route only parses grant_token at line 121 without using it for auth resolution."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed feature night-view-endpoint at commit fb85c61242c19f4a71905ad2e49de6851bfcae82 using handoff, transcript skeleton, and diff. Marked FAIL due to two blocking contract mismatches: grant_token deep-link support is not implemented and viewer date clamping behavior is not applied in the handler."
+}

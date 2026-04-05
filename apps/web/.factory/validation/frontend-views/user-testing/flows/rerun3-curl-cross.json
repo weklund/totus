@@ -1,0 +1,380 @@
+{
+  "groupId": "rerun3-curl-cross",
+  "testedAt": "2026-04-05T11:30:15.037172Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "baseUrl": "http://localhost:3100",
+    "inngestUrl": "http://localhost:8288",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "ownerUser": "user_test_001",
+    "assignedAssertions": ["VAL-CROSS-006", "VAL-CROSS-012", "VAL-CROSS-018"],
+    "testDataPrefix": "ut-r3-curl-",
+    "boundary": "local app/db/inngest only; curl-first validation with no source edits"
+  },
+  "toolsUsed": ["curl", "tsx", "python3"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-006",
+      "title": "Inngest baseline job produces fresh baselines used by view endpoints",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "POST /e/local event dashboard/baselines.refresh.user for user_test_001 then poll metric_baselines rows for reference_date=today",
+          "expected": "Inngest job completes and materializes/refreshes baseline row(s) after trigger timestamp",
+          "observed": "Event accepted (200, ids=['01KNEPA0Q941KPF5S5T3MG5KJM']), but polling attempts=15 never observed refreshed baseline rows (count stayed 0)."
+        },
+        {
+          "action": "GET /api/views/night for today and compare rhr baseline against independent 30-day manual computation from /api/health-data window [D-30,D-1]",
+          "expected": "API avg/stddev align (avg within \u00b10.5), upper/lower formulas hold",
+          "observed": "Matched today: api avg=63.4 stddev=6.042074698865172 vs manual avg=63.4 stddev=6.042074698865172."
+        },
+        {
+          "action": "GET /api/views/night for anchor date (today-7) and compare against independent anchor-window manual computation",
+          "expected": "Anchor-date baseline matches anchor window and differs from today window",
+          "observed": "Matched anchor: api avg=63.333333333333336 vs manual avg=63.333333333333336; apiAvgDiff(today,anchor)=0.06666666666666288."
+        },
+        {
+          "action": "Inspect Inngest dev state at /dev for registered functions/handlers",
+          "expected": "dashboard baseline handlers registered and executable",
+          "observed": "Inngest /dev returned functionsCount=0 handlers=None."
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "inngestTrigger": 200,
+          "nightToday": 200,
+          "healthToday": 200,
+          "nightAnchor": 200,
+          "healthAnchor": 200
+        },
+        "keyResponseSnippets": {
+          "inngestTrigger": {
+            "ids": ["01KNEPA0Q941KPF5S5T3MG5KJM"],
+            "status": 200
+          },
+          "jobMaterialization": {
+            "success": false,
+            "lastAttempt": {
+              "attempt": 15,
+              "observedAt": "2026-04-05T11:27:02.739Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            }
+          },
+          "todayComparison": {
+            "api": {
+              "avg": 63.4,
+              "stddev": 6.042074698865172,
+              "upper": 69.44207469886517,
+              "lower": 57.35792530113483
+            },
+            "manual": {
+              "avg": 63.4,
+              "stddev": 6.042074698865172,
+              "count": 30
+            },
+            "avgWithinTolerance": true,
+            "stddevClose": true,
+            "upperFormulaMatches": true,
+            "lowerFormulaMatches": true
+          },
+          "anchorComparison": {
+            "api": {
+              "avg": 63.333333333333336,
+              "stddev": 6.084588911522472,
+              "upper": 69.4179222448558,
+              "lower": 57.24874442181086
+            },
+            "manual": {
+              "avg": 63.333333333333336,
+              "stddev": 6.084588911522473,
+              "count": 30
+            },
+            "avgWithinTolerance": true,
+            "stddevClose": true,
+            "upperFormulaMatches": true,
+            "lowerFormulaMatches": true
+          },
+          "inngestDevState": {
+            "statusCode": 200,
+            "functionsCount": 0,
+            "handlers": null
+          }
+        },
+        "files": [
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-baseline-poll.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-evaluation.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-healthdata-window-anchor-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-healthdata-window-anchor-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-healthdata-window-anchor-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-healthdata-window-today-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-healthdata-window-today-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-healthdata-window-today-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-inngest-dev-state-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-inngest-dev-state.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-inngest-trigger-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-inngest-trigger-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-inngest-trigger-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-night-anchor-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-night-anchor-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-night-anchor-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-night-today-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-night-today-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-night-today-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-trigger-ts.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-006-window-context.json"
+        ]
+      },
+      "issues": "Blocked: could not confirm the required baseline refresh job completion path because no baseline materialization occurred after trigger, and local Inngest dev reported zero registered functions/handlers."
+    },
+    {
+      "id": "VAL-CROSS-012",
+      "title": "Expired share grant denies viewer access",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/shares with unique label prefix ut-r3-curl- and expires_in_days=1",
+          "expected": "Share created and token usable pre-expiry",
+          "observed": "Created share id=bb0fc27a-876d-45da-8e50-e6689224875d label=ut-r3-curl-20260405T112831Z-cross012 with initial grant_expires=2026-04-06T11:28:31.993Z."
+        },
+        {
+          "action": "POST /api/viewer/validate then GET /api/viewer/data before expiry",
+          "expected": "Validation succeeds and scoped data is returned",
+          "observed": "validateBefore=200, viewerDataBefore=200, metrics=['rhr', 'hrv']."
+        },
+        {
+          "action": "Force created share expiry in local DB, then re-run viewer data access",
+          "expected": "Viewer GET denied with 403 expiry message",
+          "observed": "After forced expiry at 2026-04-05T11:27:33.859Z, viewerDataAfter=403 body={'error': {'code': 'FORBIDDEN', 'message': 'Share grant has expired'}}."
+        },
+        {
+          "action": "GET /v/{token} after expiry",
+          "expected": "Expired page shown (no health data), no 500",
+          "observed": "viewerPageAfter=200, expired copy present=True and reason copy present=True."
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "createShare": 201,
+          "validateBefore": 200,
+          "viewerDataBefore": 200,
+          "viewerPageBefore": 200,
+          "viewerDataAfter": 403,
+          "validateAfter": 404,
+          "nightAfterGrantToken": 401,
+          "viewerPageAfter": 200
+        },
+        "keyResponseSnippets": {
+          "createdShare": {
+            "id": "bb0fc27a-876d-45da-8e50-e6689224875d",
+            "token": "1AhGewODexrF63sQ8iF6gsP6d8zMpy-kJi37Lvgzx98",
+            "grant_expires_initial": "2026-04-06T11:28:31.993Z",
+            "label": "ut-r3-curl-20260405T112831Z-cross012"
+          },
+          "forcedExpiry": {
+            "shareId": "bb0fc27a-876d-45da-8e50-e6689224875d",
+            "expiredAt": "2026-04-05T11:27:33.859Z",
+            "row": {
+              "id": "bb0fc27a-876d-45da-8e50-e6689224875d",
+              "grantExpires": "2026-04-05T11:27:33.859Z",
+              "revokedAt": null
+            }
+          },
+          "validateBefore": {
+            "data": {
+              "valid": true,
+              "owner_display_name": "Test User",
+              "label": "ut-r3-curl-20260405T112831Z-cross012",
+              "note": "ut-r3-curl-cross012 manual expiry path",
+              "allowed_metrics": ["rhr", "hrv", "sleep_score"],
+              "data_start": "2026-03-24",
+              "data_end": "2026-03-28",
+              "expires_at": "2026-04-06T11:28:31.993Z"
+            }
+          },
+          "viewerDataAfter": {
+            "error": {
+              "code": "FORBIDDEN",
+              "message": "Share grant has expired"
+            }
+          },
+          "validateAfter": {
+            "error": {
+              "code": "SHARE_NOT_FOUND",
+              "message": "The share link was not found or is no longer available"
+            }
+          },
+          "nightAfterGrantToken": {
+            "error": {
+              "code": "UNAUTHORIZED",
+              "message": "Invalid or expired share token"
+            }
+          },
+          "pageChecks": {
+            "beforeContainsExpiredCopy": false,
+            "afterContainsExpiredCopy": true
+          }
+        },
+        "files": [
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-create-share-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-create-share-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-create-share-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-evaluation.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-force-expire-db-update.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-cookies.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-data-after-expiry-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-data-after-expiry-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-data-after-expiry-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-data-before-expiry-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-data-before-expiry-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-data-before-expiry-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-night-after-expiry-grant-token-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-night-after-expiry-grant-token-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-night-after-expiry-grant-token-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-page-after-expiry-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-page-after-expiry-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-page-after-expiry.html",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-page-before-expiry-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-page-before-expiry-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-page-before-expiry.html",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-validate-after-expiry-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-validate-after-expiry-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-validate-after-expiry-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-validate-before-expiry-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-validate-before-expiry-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-012-viewer-validate-before-expiry-response.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-018",
+      "title": "User with < 14 days of data has suppressed baselines",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Confirm baseline window data volume for reference date 2026-01-02 via /api/health-data",
+          "expected": "Window has <14 points (insufficient-history condition)",
+          "observed": "Baseline window 2025-12-03..2026-01-01 returned pointCount=10."
+        },
+        {
+          "action": "GET /api/views/night?date=2026-01-02&metrics=rhr",
+          "expected": "Baselines suppressed/insufficient and summary suppression semantics applied (delta/direction omitted or null)",
+          "observed": "Night hasBaseline=True baseline={'avg': 62.5, 'stddev': 6.053924347066125, 'upper': 68.55392434706613, 'lower': 56.44607565293388, 'sample_count': 10} deltaField=None directionField=neutral."
+        },
+        {
+          "action": "GET /api/views/recovery?start=2026-01-02&end=2026-01-06&metrics=rhr",
+          "expected": "Baselines suppressed/insufficient and daily summary suppression semantics applied",
+          "observed": "Recovery hasBaseline=True baseline={'avg': 62.5, 'stddev': 6.053924347066125, 'upper': 68.55392434706613, 'lower': 56.44607565293388, 'sample_count': 10} dailyFlags={'2026-01-02': {'delta': None, 'direction': 'neutral', 'hasDeltaKey': True, 'hasDirectionKey': True}, '2026-01-03': {'delta': None, 'direction': 'neutral', 'hasDeltaKey': True, 'hasDirectionKey': True}, '2026-01-04': {'delta': None, 'direction': 'neutral', 'hasDeltaKey': True, 'hasDirectionKey': True}, '2026-01-05': {'delta': None, 'direction': 'neutral', 'hasDeltaKey': True, 'hasDirectionKey': True}, '2026-01-06': {'delta': None, 'direction': 'neutral', 'hasDeltaKey': True, 'hasDirectionKey': True}}."
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "baselineWindow": 200,
+          "night": 200,
+          "recovery": 200
+        },
+        "keyResponseSnippets": {
+          "baselineWindow": {
+            "start": "2025-12-03",
+            "end": "2026-01-01",
+            "pointCount": 10
+          },
+          "night": {
+            "hasBaseline": true,
+            "baseline": {
+              "avg": 62.5,
+              "stddev": 6.053924347066125,
+              "upper": 68.55392434706613,
+              "lower": 56.44607565293388,
+              "sample_count": 10
+            },
+            "summary": {
+              "value": 55,
+              "avg_30d": 62.5,
+              "stddev_30d": 6.053924347066125,
+              "delta": null,
+              "delta_pct": null,
+              "direction": "neutral",
+              "status": "normal"
+            }
+          },
+          "recovery": {
+            "hasBaseline": true,
+            "baseline": {
+              "avg": 62.5,
+              "stddev": 6.053924347066125,
+              "upper": 68.55392434706613,
+              "lower": 56.44607565293388,
+              "sample_count": 10
+            },
+            "dailyFlags": {
+              "2026-01-02": {
+                "delta": null,
+                "direction": "neutral",
+                "hasDeltaKey": true,
+                "hasDirectionKey": true
+              },
+              "2026-01-03": {
+                "delta": null,
+                "direction": "neutral",
+                "hasDeltaKey": true,
+                "hasDirectionKey": true
+              },
+              "2026-01-04": {
+                "delta": null,
+                "direction": "neutral",
+                "hasDeltaKey": true,
+                "hasDirectionKey": true
+              },
+              "2026-01-05": {
+                "delta": null,
+                "direction": "neutral",
+                "hasDeltaKey": true,
+                "hasDirectionKey": true
+              },
+              "2026-01-06": {
+                "delta": null,
+                "direction": "neutral",
+                "hasDeltaKey": true,
+                "hasDirectionKey": true
+              }
+            }
+          }
+        },
+        "files": [
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-evaluation.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-healthdata-baseline-window-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-healthdata-baseline-window-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-healthdata-baseline-window-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-night-partial-history-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-night-partial-history-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-night-partial-history-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-recovery-partial-history-headers.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-recovery-partial-history-meta.txt",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-recovery-partial-history-response.json",
+          "frontend-views/rerun3-curl-cross/VAL-CROSS-018-reference-context.json"
+        ]
+      },
+      "issues": "Contract not met: with only 10 baseline-window points, API still returns populated baselines for night/recovery and still emits non-null direction (\"neutral\") instead of fully suppressing baseline-driven fields."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "API create-share flow cannot mint an already-expired raw token (expires_in_days minimum is 1), so reproducible expiry validation required expiring only the freshly created test share directly in local DB.",
+      "resolved": true,
+      "resolution": "Backdated grant_expires for the created share ID and re-ran viewer endpoints/page checks to capture the true expired behavior.",
+      "affectedAssertions": ["VAL-CROSS-012"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Inngest baseline refresh completion path is not executable in this environment: event endpoint accepts submissions, but no baseline rows materialize and Inngest /dev reports no registered functions/handlers.",
+      "affectedAssertions": ["VAL-CROSS-006"],
+      "quickFixAttempted": "Triggered dashboard/baselines.refresh.user and polled metric_baselines for refreshed rows; also inspected /dev state to confirm function-registration gap."
+    }
+  ],
+  "summary": "Tested 3 assigned assertions: 1 passed (VAL-CROSS-012), 1 failed (VAL-CROSS-018), and 1 blocked (VAL-CROSS-006)."
+}

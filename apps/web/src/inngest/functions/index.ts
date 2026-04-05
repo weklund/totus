@@ -11,3 +11,4 @@ export { syncInitial } from "./sync-initial";
 export { syncManual } from "./sync-manual";
 export { tokenRefresh } from "./token-refresh";
 export { partitionEnsure } from "./partition-ensure";
+export { baselinesRefresh, baselinesRefreshUser } from "./baselines-refresh";

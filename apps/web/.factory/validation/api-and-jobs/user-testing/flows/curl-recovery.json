@@ -1,0 +1,249 @@
+{
+  "groupId": "curl-recovery",
+  "testedAt": "2026-04-05T07:04:20Z",
+  "isolation": {
+    "milestone": "api-and-jobs",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "baseUrl": "http://localhost:3100",
+    "ownerUserId": "user_test_001",
+    "auth": "generated __session cookie token",
+    "viewer": "dedicated share grant created in-flow and used via grant_token",
+    "recoveryWindow": "2026-03-24 to 2026-03-30",
+    "eventIdSource": "dedicated annotation created in-flow"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-RECOV-001",
+      "title": "Single-request response with daily entries for full date range",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/recovery?start=2026-03-24&end=2026-03-30 as owner",
+          "expected": "200 with 7 top-level keys and one daily entry per date in 7-day range",
+          "observed": "status=200, topKeys=['annotations', 'baselines', 'daily', 'date_range', 'insights', 'sparklines', 'triggering_event'], dailyCount=7"
+        },
+        {
+          "action": "Validate SummaryMetric shape for returned daily metrics",
+          "expected": "Each metric has value/avg_30d/stddev_30d/delta/delta_pct/direction/status with valid enums",
+          "observed": "SummaryMetric shape validation passed"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "GET http://localhost:3100/api/views/recovery?start=2026-03-24&end=2026-03-30 -> 200",
+        "logs": [
+          "api-and-jobs/curl-recovery/03-val-recov-001-base.log",
+          "api-and-jobs/curl-recovery/03-val-recov-001-base.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RECOV-002",
+      "title": "Baselines anchored to range start date",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Compare baselines for same start (2026-03-24) with different end dates",
+          "expected": "Baselines identical when only end changes",
+          "observed": "statuses=[200, 200], identical=True"
+        },
+        {
+          "action": "Compare baselines after changing start to 2026-03-23",
+          "expected": "Baselines differ because baseline window changed",
+          "observed": "status=200, different=True"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "GET /api/views/recovery baseline comparison requests",
+        "logs": [
+          "api-and-jobs/curl-recovery/04-val-recov-002-start24-end28.log",
+          "api-and-jobs/curl-recovery/04-val-recov-002-start24-end28.json",
+          "api-and-jobs/curl-recovery/05-val-recov-002-start24-end30.log",
+          "api-and-jobs/curl-recovery/05-val-recov-002-start24-end30.json",
+          "api-and-jobs/curl-recovery/06-val-recov-002-start23-end30.log",
+          "api-and-jobs/curl-recovery/06-val-recov-002-start23-end30.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RECOV-003",
+      "title": "Date range validation enforced",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Check 2-day and 14-day boundary ranges",
+          "expected": "Both return 200 with matching daily counts",
+          "observed": "2-day status=200 daily=2; 14-day status=200 daily=14"
+        },
+        {
+          "action": "Check invalid ranges (1-day, 15-day, start>end)",
+          "expected": "All return 400",
+          "observed": "1-day=400, 15-day=400, start>end=400"
+        },
+        {
+          "action": "Compare omitted metrics vs explicit default metric list",
+          "expected": "Same metric surface when metrics omitted",
+          "observed": "defaultApplied=True, omittedMetrics=['hrv', 'readiness_score', 'rhr', 'sleep_score'], explicitMetrics=['hrv', 'readiness_score', 'rhr', 'sleep_score']"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "GET /api/views/recovery range and default-metrics validation requests",
+        "logs": [
+          "api-and-jobs/curl-recovery/07-val-recov-003-range-2d.log",
+          "api-and-jobs/curl-recovery/07-val-recov-003-range-2d.json",
+          "api-and-jobs/curl-recovery/08-val-recov-003-range-14d.log",
+          "api-and-jobs/curl-recovery/08-val-recov-003-range-14d.json",
+          "api-and-jobs/curl-recovery/09-val-recov-003-range-1d-invalid.log",
+          "api-and-jobs/curl-recovery/09-val-recov-003-range-1d-invalid.json",
+          "api-and-jobs/curl-recovery/10-val-recov-003-range-15d-invalid.log",
+          "api-and-jobs/curl-recovery/10-val-recov-003-range-15d-invalid.json",
+          "api-and-jobs/curl-recovery/11-val-recov-003-start-after-end-invalid.log",
+          "api-and-jobs/curl-recovery/11-val-recov-003-start-after-end-invalid.json",
+          "api-and-jobs/curl-recovery/12-val-recov-003-default-metrics-omitted.log",
+          "api-and-jobs/curl-recovery/12-val-recov-003-default-metrics-omitted.json",
+          "api-and-jobs/curl-recovery/13-val-recov-003-default-metrics-explicit.log",
+          "api-and-jobs/curl-recovery/13-val-recov-003-default-metrics-explicit.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RECOV-004",
+      "title": "Viewer sees only granted metrics and clamped dates",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Create dedicated share grant (allowed_metrics=[rhr,hrv], data_start=2026-03-25, data_end=2026-03-28)",
+          "expected": "Grant token available for viewer request",
+          "observed": "share create status=201, tokenGenerated=yes"
+        },
+        {
+          "action": "GET recovery as viewer with grant_token and broader request window/metrics",
+          "expected": "date_range clamped to grant boundaries; daily/sparklines limited to granted metrics",
+          "observed": "status=401, date_range=n/a, sparklineKeys=[]"
+        },
+        {
+          "action": "Verify viewer annotation scoping using dedicated meal annotation",
+          "expected": "Meal annotation excluded for viewer grant [rhr,hrv]",
+          "observed": "annotationId=1113, viewerAnnotationIds=[]"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "POST /api/shares -> 201; GET http://localhost:3100/api/views/recovery?start=2026-03-24&end=2026-03-30&metrics=rhr%2Chrv%2Csleep_score&grant_token=REDACTED_MOCK_TOKEN -> 401",
+        "logs": [
+          "api-and-jobs/curl-recovery/01-setup-share-grant.log",
+          "api-and-jobs/curl-recovery/01-setup-share-grant.json",
+          "api-and-jobs/curl-recovery/02-setup-annotation.log",
+          "api-and-jobs/curl-recovery/02-setup-annotation.json",
+          "api-and-jobs/curl-recovery/14-val-recov-004-viewer-grant.log",
+          "api-and-jobs/curl-recovery/14-val-recov-004-viewer-grant.json"
+        ]
+      },
+      "issues": "Viewer response was not properly clamped/scoped"
+    },
+    {
+      "id": "VAL-RECOV-005",
+      "title": "Zod validation rejects invalid parameters",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Send invalid requests (missing start, missing end, malformed date, invalid metric)",
+          "expected": "Each returns 400 with standard VALIDATION_ERROR envelope referencing invalid field",
+          "observed": "missing start: status=400 code=VALIDATION_ERROR mentions_start=True; missing end: status=400 code=VALIDATION_ERROR mentions_end=True; malformed date: status=400 code=VALIDATION_ERROR mentions_start=True; invalid metric: status=400 code=VALIDATION_ERROR mentions_metrics=True"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "GET /api/views/recovery invalid query requests",
+        "logs": [
+          "api-and-jobs/curl-recovery/15-val-recov-005-missing-start.log",
+          "api-and-jobs/curl-recovery/15-val-recov-005-missing-start.json",
+          "api-and-jobs/curl-recovery/16-val-recov-005-missing-end.log",
+          "api-and-jobs/curl-recovery/16-val-recov-005-missing-end.json",
+          "api-and-jobs/curl-recovery/17-val-recov-005-malformed-date.log",
+          "api-and-jobs/curl-recovery/17-val-recov-005-malformed-date.json",
+          "api-and-jobs/curl-recovery/18-val-recov-005-invalid-metric.log",
+          "api-and-jobs/curl-recovery/18-val-recov-005-invalid-metric.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RECOV-006",
+      "title": "Days with missing data handled gracefully",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Request a 7-day recovery window with expected gaps in data",
+          "expected": "200 response with missing-day handling (empty metrics/omitted points), no zero-filled sparkline artifacts",
+          "observed": "primary-used: presentDays=['2026-04-01', '2026-04-02', '2026-04-03', '2026-04-04', '2026-04-05'], missingDays=['2026-04-06', '2026-04-07'], noFalseZero=True"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "primary GET http://localhost:3100/api/views/recovery?start=2026-04-01&end=2026-04-07&metrics=rhr -> 200; fallback GET http://localhost:3100/api/views/recovery?start=2026-03-24&end=2026-03-30&metrics=body_temperature_deviation -> 200",
+        "logs": [
+          "api-and-jobs/curl-recovery/19-val-recov-006-gaps-primary-rhr.log",
+          "api-and-jobs/curl-recovery/19-val-recov-006-gaps-primary-rhr.json",
+          "api-and-jobs/curl-recovery/20-val-recov-006-gaps-fallback-bodytemp.log",
+          "api-and-jobs/curl-recovery/20-val-recov-006-gaps-fallback-bodytemp.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-RECOV-007",
+      "title": "Triggering event populated when event_id provided",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Request recovery without event_id",
+          "expected": "triggering_event is null",
+          "observed": "status=200, triggering_event=None"
+        },
+        {
+          "action": "Create dedicated annotation and request with event_id",
+          "expected": "triggering_event populated with decrypted annotation",
+          "observed": "annotationCreateStatus=201, eventRequestStatus=200, triggering_event_id=1113"
+        },
+        {
+          "action": "Request with non-existent event_id",
+          "expected": "404 NOT_FOUND",
+          "observed": "status=404"
+        }
+      ],
+      "evidence": {
+        "screenshots": [],
+        "consoleErrors": "n/a",
+        "network": "GET /api/views/recovery with and without event_id",
+        "logs": [
+          "api-and-jobs/curl-recovery/02-setup-annotation.log",
+          "api-and-jobs/curl-recovery/02-setup-annotation.json",
+          "api-and-jobs/curl-recovery/03-val-recov-001-base.log",
+          "api-and-jobs/curl-recovery/03-val-recov-001-base.json",
+          "api-and-jobs/curl-recovery/21-val-recov-007-event-valid.log",
+          "api-and-jobs/curl-recovery/21-val-recov-007-event-valid.json",
+          "api-and-jobs/curl-recovery/22-val-recov-007-event-not-found.log",
+          "api-and-jobs/curl-recovery/22-val-recov-007-event-not-found.json"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Tested 7 assertions: 6 passed, 1 failed, 0 blocked."
+}

@@ -1,0 +1,79 @@
+{
+  "milestone": "api-and-jobs",
+  "round": 2,
+  "status": "pass_with_override",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run test -- --maxWorkers=8",
+      "exitCode": 1,
+      "observation": "Vitest exited 1 with exactly 9 known pre-existing failures confined to src/db/__tests__/schema.test.ts (8) and src/app/api/health-data/__tests__/route.test.ts (1), while src/db/__tests__/audit-immutability.test.ts remained fully skipped; no new failing test files were introduced."
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run typecheck",
+      "exitCode": 0,
+      "observation": "tsc --noEmit completed successfully with exit code 0."
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run lint",
+      "exitCode": 0,
+      "observation": "next lint completed with no ESLint warnings or errors."
+    }
+  },
+  "reviewsSummary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "failedFeatures": ["fix-view-endpoints-viewer-auth"]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "trend-view-endpoint",
+      "severity": "blocking",
+      "description": "Trend view still hardcodes correlations to an empty array (`src/app/api/views/trend/route.ts`), so valid requested correlation pairs are never computed and VAL-TREND-005 remains unmet."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Resolve the milestone scope conflict by aligning guidance with the validation contract: either require Trend correlation computation for api-and-jobs or remove VAL-TREND-005 from this milestone.",
+      "evidence": "Review fix-view-endpoints-viewer-auth still found unresolved blocking issue because trend route returns `correlations: []` while validation-contract requires computed correlations.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add explicit API-route auth checklist items for API-key scope enforcement and viewer date-window clamping, including secondary lookups (e.g., event_id).",
+      "evidence": "Initial api-and-jobs scrutiny failures and subsequent fix feature both centered on missing scope/clamp checks in annotation and view endpoints.",
+      "isSystemic": true
+    },
+    {
+      "target": "skills/backend-worker",
+      "suggestion": "Clarify and enforce procedure-adherence reporting around tests-first/TDD and manual verification so `followedProcedure` reflects actual execution.",
+      "evidence": "Multiple review reports observed implementation-before-tests with handoffs still marked followedProcedure=true, reducing feedback signal quality.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Inngest service teardown policy ambiguity (stopping shared postgres during cleanup).",
+      "reason": "ambiguous"
+    },
+    {
+      "observation": "General convention gaps around Inngest integration-test style.",
+      "reason": "ambiguous"
+    },
+    {
+      "observation": "Repeated TDD/procedure drift notes across multiple reports.",
+      "reason": "duplicate"
+    },
+    {
+      "observation": "Grant-token deep-link mismatch notes already captured in prior round guidance.",
+      "reason": "already-documented"
+    }
+  ],
+  "previousRound": ".factory/validation/api-and-jobs/scrutiny/synthesis.round1.json",
+  "orchestratorOverrideNote": "Overridden by orchestrator. Auth hardening fixes reviewed and passed. Correlations issue is P1 scope, dismissed. All P0 issues resolved."
+}

@@ -1,0 +1,21 @@
+{
+  "featureId": "fix-baseline-source-resolution",
+  "reviewedAt": "2026-04-05T05:37:22Z",
+  "commitId": "75d4418d32e052a7c8566735c9fed541971fea25",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix directly addresses the prior blocking defect: computeBaselinesOnDemand now resolves preferred sources per metric, selects `source` from health_data_daily, and filters non-preferred rows before baseline aggregation. Added multi-source unit tests verify preferred-source filtering, no-resolution fallback, single-source preservation, per-metric mixed-source handling, and insufficient-data behavior after filtering.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill requires TDD (write failing tests before implementation), but this fix session updated implementation code before adding new tests while still marking `followedProcedure: true`.",
+      "evidence": "Transcript skeleton shows edits to `src/lib/dashboard/baselines.ts` before adding the new multi-source test block in `src/lib/dashboard/__tests__/baselines.test.ts`; initial test run was on pre-existing tests only."
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/foundation/scrutiny/reviews/baseline-computation-service.json",
+  "summary": "Pass. Reviewed the fix feature transcript skeleton and both diffs (original failed feature and fix). The fix adequately resolves the source-resolution baseline bug identified in the prior review and includes targeted regression coverage."
+}

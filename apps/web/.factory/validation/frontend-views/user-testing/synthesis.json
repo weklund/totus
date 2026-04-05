@@ -1,0 +1,22 @@
+{
+  "milestone": "frontend-views",
+  "round": 10,
+  "status": "pass",
+  "assertionsSummary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "blocked": 0
+  },
+  "passedAssertions": ["VAL-UITRD-003"],
+  "failedAssertions": [],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": ".factory/validation/frontend-views/user-testing/synthesis.round9.json",
+  "nonBlockingDeferredAssertions": [
+    {
+      "id": "VAL-UITRD-002",
+      "reason": "Deferred P1 scope per AGENTS.md Testing & Validation Guidance."
+    }
+  ]
+}

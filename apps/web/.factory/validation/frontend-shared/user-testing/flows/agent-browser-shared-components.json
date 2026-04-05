@@ -1,0 +1,147 @@
+{
+  "groupId": "agent-browser-shared-components",
+  "milestone": "frontend-shared",
+  "testedAt": "2026-04-05T08:21:30Z",
+  "isolation": {
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "sessionId": "ba4dab68a136",
+    "boundary": "local-app-only"
+  },
+  "toolsUsed": ["agent-browser"],
+  "testedAssertions": [
+    {
+      "id": "VAL-UICMP-001",
+      "status": "blocked",
+      "reason": "MetricStrip shared-component surface was not reachable on real UI. /dashboard/night is not found and /dashboard did not render MetricStrip expand/collapse charts.",
+      "evidence": {
+        "screenshots": [
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-001-metricstrip-not-rendered.png",
+          "frontend-shared/agent-browser-shared-components/blocker-dashboard-night-route-missing.png",
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-empty-dashboard-desktop.png"
+        ],
+        "observedUiBehavior": "Observed either empty onboarding state ('Connect a data source to get started') or generic dashboard shell without MetricStrip rows.",
+        "consoleErrors": "none",
+        "network": "GET /api/auth/session observed; no MetricStrip-related view API calls captured in this flow."
+      }
+    },
+    {
+      "id": "VAL-UICMP-002",
+      "status": "blocked",
+      "reason": "InsightCard did not render on reachable dashboard pages, so dismiss action and conditional no-render state for shared InsightCard could not be exercised on real user surface.",
+      "evidence": {
+        "screenshots": [
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-002-insightcard-not-rendered.png",
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-empty-dashboard-desktop.png",
+          "frontend-shared/agent-browser-shared-components/blocker-dashboard-night-route-missing.png"
+        ],
+        "observedUiBehavior": "No 💡 insight narrative card or dismiss button present.",
+        "consoleErrors": "none",
+        "network": "GET /api/auth/session observed."
+      }
+    },
+    {
+      "id": "VAL-UICMP-003",
+      "status": "blocked",
+      "reason": "DateNavigation component contract (calendar picker + forward/back arrows + Night/Recovery/Trend toggle) was not available on reachable UI surface.",
+      "evidence": {
+        "screenshots": [
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-003-date-picker-open-no-arrow-view-toggle.png",
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-001-attempt-dashboard-view-night.png",
+          "frontend-shared/agent-browser-shared-components/blocker-dashboard-recovery-route-missing.png",
+          "frontend-shared/agent-browser-shared-components/blocker-dashboard-trend-route-missing.png"
+        ],
+        "observedUiBehavior": "Only date-range button and Daily/Weekly/Monthly tabs were visible; no arrow controls and no Night/Recovery/Trend view toggle on tested routes.",
+        "consoleErrors": "none",
+        "network": "GET /api/auth/session observed."
+      }
+    },
+    {
+      "id": "VAL-UICMP-004",
+      "status": "blocked",
+      "reason": "Could observe empty and loading-like states, but full shared-component state contract (including retryable in-app error path) could not be validated due missing target shared-component surface.",
+      "evidence": {
+        "screenshots": [
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-empty-dashboard-desktop.png",
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-001-metricstrip-not-rendered.png",
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-004-offline-state.png"
+        ],
+        "observedUiBehavior": "Empty state message present; loading-like placeholders appeared in alternate dashboard state; offline reload produced browser-level disconnect/blank capture rather than in-app retry card.",
+        "consoleErrors": "none",
+        "network": "Offline reload returned net::ERR_INTERNET_DISCONNECTED; no in-app API error card with retry was reachable."
+      }
+    },
+    {
+      "id": "VAL-UICMP-005",
+      "status": "blocked",
+      "reason": "Accessibility checks specific to shared components (chart aria labels, DeltaBadge SR text, InsightCard dismiss keyboard activation) could not be executed because those elements were not present on tested UI.",
+      "evidence": {
+        "screenshots": [
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-005-keyboard-focus-sample.png",
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-002-insightcard-not-rendered.png"
+        ],
+        "observedUiBehavior": "Keyboard focus indicator confirmed for sidebar navigation item, but required shared-component interactive targets were absent.",
+        "consoleErrors": "none",
+        "network": "GET /api/auth/session observed."
+      }
+    },
+    {
+      "id": "VAL-UICMP-006",
+      "status": "blocked",
+      "reason": "Responsive behavior for shared strips/annotation markers could not be validated because those components were not rendered; only empty dashboard layout was available across breakpoints.",
+      "evidence": {
+        "screenshots": [
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-006-desktop-1280.png",
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-006-tablet-768.png",
+          "frontend-shared/agent-browser-shared-components/VAL-UICMP-006-mobile-375.png"
+        ],
+        "observedUiBehavior": "Layout adapts to desktop/tablet/mobile for empty state, but assertion-required strip/time-axis/annotation rendering was unavailable.",
+        "consoleErrors": "none",
+        "network": "GET /api/auth/session observed."
+      }
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Dashboard surface was inconsistent across reloads (alternated between onboarding empty-state and a generic toolbar + empty chart shell), reducing deterministic reproduction for component assertions.",
+      "resolved": false,
+      "resolution": "Retried navigation and reloaded /dashboard and query-string variants; behavior remained inconsistent.",
+      "affectedAssertions": [
+        "VAL-UICMP-001",
+        "VAL-UICMP-002",
+        "VAL-UICMP-003",
+        "VAL-UICMP-004",
+        "VAL-UICMP-005",
+        "VAL-UICMP-006"
+      ]
+    },
+    {
+      "description": "Date button interaction timed out in one run because the previously visible element became non-interactable during state transition.",
+      "resolved": true,
+      "resolution": "Re-snapshotted and captured evidence of current surface state instead of proceeding with invalid element refs.",
+      "affectedAssertions": ["VAL-UICMP-003"]
+    },
+    {
+      "description": "Offline simulation triggered browser-level net::ERR_INTERNET_DISCONNECTED on reload, yielding a blank capture instead of an in-app retry card.",
+      "resolved": false,
+      "resolution": "Restored online mode and continued with remaining assertions.",
+      "affectedAssertions": ["VAL-UICMP-004"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Required shared-component test surface for Night/Recovery/Trend UI was unavailable on local routes. /dashboard/night, /dashboard/recovery, and /dashboard/trend resolved to not-found pages.",
+      "affectedAssertions": [
+        "VAL-UICMP-001",
+        "VAL-UICMP-002",
+        "VAL-UICMP-003",
+        "VAL-UICMP-004",
+        "VAL-UICMP-005",
+        "VAL-UICMP-006"
+      ],
+      "quickFixAttempted": "Validated auth by setting __session for seeded user_test_001, retried /dashboard and view query-string variants, and captured route-level evidence."
+    }
+  ],
+  "overallStatus": "blocked",
+  "summary": "Tested 6 assigned assertions on the real browser surface; all 6 are blocked because the shared-component validation surface was not reachable on available dashboard routes."
+}

@@ -1,0 +1,149 @@
+{
+  "groupId": "browser-trend-navigation",
+  "testedAt": "2026-04-05T09:36:10Z",
+  "isolation": {
+    "browserSessionId": "0a629f9ae2f9__u5",
+    "appUrl": "http://localhost:3100",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "scope": "local-only resources and independent state"
+  },
+  "toolsUsed": ["agent-browser"],
+  "assertions": [
+    {
+      "id": "VAL-UITRD-001",
+      "title": "Rolling average lines with raw data dots and trend indicators",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Open Trend view with seeded user data",
+          "expected": "30D Trend view renders rolling-average lines, raw dots, trend indicators, and baseline bands",
+          "observed": "Trend view rendered metric strips with indicators like '63.3→62.9 bpm (-0.7%)'; DOM showed lineCurves=3, scatterSymbols=21, referenceAreas=3, referenceLines=3, trendIndicators=3"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-trend-navigation/VAL-UITRD-001-trend-default-30d-7dayavg.png"
+        ],
+        "consoleErrors": "none",
+        "network": "N/A (UI rendering assertion)"
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-UITRD-002",
+      "title": "Correlation card with coefficients and share action",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Inspect Trend view for correlation card content and share action",
+          "expected": "CorrelationCard visible with coefficient/strength labels and 'Share ↗' button",
+          "observed": "No correlation card rendered; DOM checks returned correlationCards=0 and shareButtons=0"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-trend-navigation/VAL-UITRD-002-correlation-card-share.png"
+        ],
+        "consoleErrors": "none",
+        "network": "N/A (UI rendering assertion)"
+      },
+      "issues": "Correlation card and share action are absent on the tested Trend UI state."
+    },
+    {
+      "id": "VAL-UITRD-003",
+      "title": "Resolution toggle and range presets work",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Verify default state",
+          "expected": "Default is 30D range with 7-Day Avg",
+          "observed": "Default selection was 30D + Weekly (7-day smoothing)"
+        },
+        {
+          "action": "Switch Daily / Weekly / Monthly and compare rendering",
+          "expected": "Daily raw-dot rendering, Weekly rolling-average rendering, Monthly aggregated monthly points",
+          "observed": "Daily/Weekly toggles changed chart mode (Daily: lineCurves=0 areaCurves=3; Weekly: lineCurves=3 areaCurves=0), but Monthly did not aggregate points (Monthly scatterSymbols remained 270 on 90D, same as Weekly)"
+        },
+        {
+          "action": "Switch range presets (7D/90D)",
+          "expected": "Time axis/data update to selected window",
+          "observed": "Preset tabs switched correctly and trend indicator values changed between 7D and 90D states"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-trend-navigation/VAL-UITRD-003-daily-toggle.png",
+          "frontend-views/browser-trend-navigation/VAL-UITRD-003-monthly-toggle.png",
+          "frontend-views/browser-trend-navigation/VAL-UITRD-003-range-90d-weekly.png",
+          "frontend-views/browser-trend-navigation/VAL-UITRD-003-range-7d-weekly.png"
+        ],
+        "consoleErrors": "none",
+        "network": "N/A (UI interaction assertion)"
+      },
+      "issues": "Monthly mode did not show monthly aggregation behavior required by the assertion."
+    },
+    {
+      "id": "VAL-CROSS-008",
+      "title": "Trend view date click navigates to Night Detail view",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Click cursor-interactive trend chart area/date region",
+          "expected": "Navigate to Night view for selected date; URL updates with night date and network shows GET /api/views/night",
+          "observed": "Stayed on Trend URL (http://localhost:3100/dashboard?view=trend); no navigation and request log showed 'No requests captured' after click"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-trend-navigation/VAL-CROSS-008-trend-before-date-click.png",
+          "frontend-views/browser-trend-navigation/VAL-CROSS-008-after-date-click-no-navigation.png"
+        ],
+        "consoleErrors": "none",
+        "network": "No GET /api/views/night request observed after click"
+      },
+      "issues": "Date click did not trigger navigation to Night detail view."
+    },
+    {
+      "id": "VAL-CROSS-009",
+      "title": "View navigation preserves context on browser back",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "Attempt prerequisite flow (Trend date click -> Night view)",
+          "expected": "Reach Night view via date click, then test browser back context preservation",
+          "observed": "Prerequisite navigation did not occur (VAL-CROSS-008 failed), so back-navigation preservation for that flow could not be executed"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/browser-trend-navigation/VAL-CROSS-008-after-date-click-no-navigation.png"
+        ],
+        "consoleErrors": "none",
+        "network": "Blocked by missing Trend->Night navigation event"
+      },
+      "issues": "Blocked by VAL-CROSS-008 failure (no date-click navigation path available)."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Signing in with a fresh mock email showed empty Trend charts; seeded dashboard data was only available after setting a mock session cookie for user_test_001.",
+      "resolved": true,
+      "resolution": "Generated local mock __session token for user_test_001 and injected it into the assigned browser session before running assertions.",
+      "affectedAssertions": [
+        "VAL-UITRD-001",
+        "VAL-UITRD-002",
+        "VAL-UITRD-003",
+        "VAL-CROSS-008",
+        "VAL-CROSS-009"
+      ]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Trend chart date-click did not navigate to Night view, preventing prerequisite flow for back-navigation validation.",
+      "affectedAssertions": ["VAL-CROSS-008", "VAL-CROSS-009"],
+      "quickFixAttempted": "Retried click on cursor-interactive trend chart region after refreshing refs; URL remained unchanged and no /api/views/night request appeared."
+    }
+  ],
+  "summary": "Tested 5 assertions: 1 passed, 3 failed, 1 blocked."
+}

@@ -137,7 +137,7 @@ export function Logo({ height = 28, variant = 'color', wordmark = true, classNam
   const wordmarkColor =
     variant === 'white'
       ? '#ffffff'
-      : 'var(--totus-text, #1a2332)';
+      : 'var(--totus-text, #1f2433)';
 
   return (
     <span

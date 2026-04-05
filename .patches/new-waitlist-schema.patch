@@ -1,0 +1,20 @@
+diff --git a/apps/web/src/db/schema/waitlist.ts b/apps/web/src/db/schema/waitlist.ts
+new file mode 100644
+index 0000000..c9d1e09
+--- /dev/null
++++ b/apps/web/src/db/schema/waitlist.ts
+@@ -0,0 +1,14 @@
++import { pgTable, serial, timestamp, varchar } from "drizzle-orm/pg-core";
++
++/**
++ * Waitlist signups from the landing page.
++ * Captures email + device interest for demand validation.
++ */
++export const waitlist = pgTable("waitlist", {
++  id: serial("id").primaryKey(),
++  email: varchar("email", { length: 320 }).notNull().unique(),
++  devices: varchar("devices", { length: 500 }),
++  createdAt: timestamp("created_at", { withTimezone: true })
++    .notNull()
++    .defaultNow(),
++});

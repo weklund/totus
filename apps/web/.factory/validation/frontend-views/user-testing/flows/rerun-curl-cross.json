@@ -1,0 +1,458 @@
+{
+  "groupId": "rerun-curl-cross",
+  "testedAt": "2026-04-05T10:13:17.513945Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "baseUrl": "http://localhost:3100",
+    "inngestUrl": "http://localhost:8288",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "ownerUser": "user_test_001",
+    "assignedAssertions": [
+      "VAL-CROSS-006",
+      "VAL-CROSS-012",
+      "VAL-CROSS-018",
+      "VAL-CROSS-021"
+    ],
+    "boundary": "curl-only validation on local services and local DB-backed behavior"
+  },
+  "toolsUsed": ["curl", "tsx", "node", "python3"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-006",
+      "title": "Inngest baseline job produces fresh baselines used by view endpoints",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "POST /e/local event dashboard/baselines.refresh.user for user_test_001",
+          "expected": "Event accepted and metric_baselines rows materialize for reference_date=today after job completion",
+          "observed": "Inngest accepted event (status 200, id=01KNEJ0HFSSPJYZSWEFCXZJTT0), but DB polling attempts 1-10 saw count=0 for metric_baselines(user_test_001,rhr,2026-04-05)"
+        },
+        {
+          "action": "GET /api/views/night for today + independent 30-day manual average/stddev from /api/health-data",
+          "expected": "API baseline avg within \u00b10.5 of manual, and upper/lower formulas hold",
+          "observed": "Matched: api avg=63.4 stddev=6.042074698865172 manual avg=63.4 stddev=6.042074698865172"
+        },
+        {
+          "action": "GET /api/views/night for anchor date (today-7) + independent 30-day manual computation",
+          "expected": "Anchor-date baseline matches anchor-date window, not current date",
+          "observed": "Matched on anchor date 2026-03-29: api avg=63.333333333333336 manual avg=63.333333333333336 (diff today-vs-anchor api=0.06666666666666288)"
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "inngestTrigger": 200,
+          "nightToday": 200,
+          "healthToday": 200,
+          "nightAnchor": 200,
+          "healthAnchor": 200
+        },
+        "jobMaterialization": {
+          "success": false,
+          "attempts": [
+            {
+              "attempt": 1,
+              "observedAt": "2026-04-05T10:11:30.186Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            },
+            {
+              "attempt": 2,
+              "observedAt": "2026-04-05T10:11:32.190Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            },
+            {
+              "attempt": 3,
+              "observedAt": "2026-04-05T10:11:34.195Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            },
+            {
+              "attempt": 4,
+              "observedAt": "2026-04-05T10:11:36.199Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            },
+            {
+              "attempt": 5,
+              "observedAt": "2026-04-05T10:11:38.203Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            },
+            {
+              "attempt": 6,
+              "observedAt": "2026-04-05T10:11:40.209Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            },
+            {
+              "attempt": 7,
+              "observedAt": "2026-04-05T10:11:42.213Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            },
+            {
+              "attempt": 8,
+              "observedAt": "2026-04-05T10:11:44.217Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            },
+            {
+              "attempt": 9,
+              "observedAt": "2026-04-05T10:11:46.222Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            },
+            {
+              "attempt": 10,
+              "observedAt": "2026-04-05T10:11:48.227Z",
+              "count": 0,
+              "maxComputedAt": null,
+              "refreshedAfterTrigger": false
+            }
+          ]
+        },
+        "keyResponseSnippets": {
+          "inngestTrigger": {
+            "ids": ["01KNEJ0HFSSPJYZSWEFCXZJTT0"],
+            "status": 200
+          },
+          "todayComparison": {
+            "api": {
+              "avg": 63.4,
+              "stddev": 6.042074698865172,
+              "upper": 69.44207469886517,
+              "lower": 57.35792530113483
+            },
+            "manual": {
+              "avg": 63.4,
+              "stddev": 6.042074698865172
+            },
+            "avgWithinTolerance": true,
+            "stddevClose": true,
+            "upperFormulaMatches": true,
+            "lowerFormulaMatches": true
+          },
+          "anchorComparison": {
+            "api": {
+              "avg": 63.333333333333336,
+              "stddev": 6.084588911522472,
+              "upper": 69.4179222448558,
+              "lower": 57.24874442181086
+            },
+            "manual": {
+              "avg": 63.333333333333336,
+              "stddev": 6.084588911522473
+            },
+            "avgWithinTolerance": true,
+            "stddevClose": true,
+            "upperFormulaMatches": true,
+            "lowerFormulaMatches": true
+          }
+        },
+        "files": [
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-inngest-trigger-headers.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-inngest-trigger-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-inngest-trigger-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-baseline-poll.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-night-today-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-night-today-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-healthdata-window-today-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-healthdata-window-today-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-night-anchor-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-night-anchor-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-healthdata-window-anchor-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-healthdata-window-anchor-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-006-evaluation.json"
+        ]
+      },
+      "issues": "Unable to confirm the required job-completion path because baseline rows never materialized in metric_baselines after event submission; only on-demand baseline math could be validated."
+    },
+    {
+      "id": "VAL-CROSS-012",
+      "title": "Expired share grant denies viewer access",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "POST /api/shares with expires_in_days=1",
+          "expected": "Create grant suitable for expiry-path validation",
+          "observed": "Created share 7bbb7dea-a445-4fbd-9f48-00facf054bc3 with grant_expires=2026-04-06T10:11:53.013Z"
+        },
+        {
+          "action": "POST /api/viewer/validate then GET /api/views/night before expiry",
+          "expected": "Pre-expiry access succeeds",
+          "observed": "validateBefore=200, nightBefore=200"
+        },
+        {
+          "action": "Attempt expiry-path setup via API-only flow (/api/shares + /api/viewer/validate + view APIs)",
+          "expected": "Obtain an actually expired share token for 403 expiry response check",
+          "observed": "Could not obtain expired raw token in-session: created grant remained active (~86395s until expiry), GET /api/shares?status=expired returned 0 entries, and list/detail endpoints do not expose raw token for expired grants"
+        },
+        {
+          "action": "PATCH revoke and retest token denial behavior",
+          "expected": "Not a substitute for expiry, but confirms invalid-token path shape",
+          "observed": "After revoke: viewer/validate=404 SHARE_NOT_FOUND; night?grant_token=401 UNAUTHORIZED"
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "createShare": 201,
+          "validateBefore": 200,
+          "nightBefore": 200,
+          "expiredList": 200,
+          "shareDetail": 200,
+          "revokeShare": 200,
+          "validateAfterRevoke": 404,
+          "nightAfterRevokeGrantToken": 401
+        },
+        "keyResponseSnippets": {
+          "createdShare": {
+            "id": "7bbb7dea-a445-4fbd-9f48-00facf054bc3",
+            "token": "IEj8Bh6-qVCb4r-Ay-L2OEM9c89uzFtoTDN3ESpurgE",
+            "share_url": "http://localhost:3100/v/REDACTED_MOCK_TOKEN",
+            "label": "rerun-cross-expiry-20260405T101151Z",
+            "allowed_metrics": ["rhr", "hrv", "sleep_score"],
+            "data_start": "2026-03-24",
+            "data_end": "2026-03-28",
+            "grant_expires": "2026-04-06T10:11:53.013Z",
+            "note": "rerun-curl-cross expiry validation",
+            "created_at": "2026-04-05T10:11:53.015Z"
+          },
+          "validateBefore": {
+            "data": {
+              "valid": true,
+              "owner_display_name": "Test User",
+              "label": "rerun-cross-expiry-20260405T101151Z",
+              "note": "rerun-curl-cross expiry validation",
+              "allowed_metrics": ["rhr", "hrv", "sleep_score"],
+              "data_start": "2026-03-24",
+              "data_end": "2026-03-28",
+              "expires_at": "2026-04-06T10:11:53.013Z"
+            }
+          },
+          "validateAfterRevoke": {
+            "error": {
+              "code": "SHARE_NOT_FOUND",
+              "message": "The share link was not found or is no longer available"
+            }
+          },
+          "nightAfterRevoke": {
+            "error": {
+              "code": "UNAUTHORIZED",
+              "message": "Invalid or expired share token"
+            }
+          }
+        },
+        "files": [
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-create-share-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-create-share-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-viewer-validate-before-expiry-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-viewer-validate-before-expiry-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-viewer-night-before-expiry-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-viewer-night-before-expiry-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-owner-list-expired-shares-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-owner-list-expired-shares-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-owner-share-detail-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-owner-share-detail-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-revoke-share-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-revoke-share-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-viewer-validate-after-revoke-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-viewer-validate-after-revoke-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-viewer-night-after-revoke-grant-token-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-viewer-night-after-revoke-grant-token-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-012-evaluation.json"
+        ]
+      },
+      "issues": "Blocked: API-only flow cannot create an already-expired raw token in-session (expires_in_days minimum is 1, and expired-share listing/detail endpoints do not reveal raw token), so the required expired-token 403 check is not directly executable."
+    },
+    {
+      "id": "VAL-CROSS-018",
+      "title": "User with < 14 days of data has suppressed baselines",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "GET /api/health-data baseline window for reference date 2026-01-02",
+          "expected": "Confirm partial-history window (<14 data points)",
+          "observed": "Window 2025-12-03..2026-01-01 returned 10 rhr points"
+        },
+        {
+          "action": "GET /api/views/night?date=2026-01-02&metrics=rhr",
+          "expected": "baselines suppressed/insufficient and summary delta/direction omitted/null",
+          "observed": "night hasBaseline=True baseline={'avg': 62.5, 'stddev': 6.053924347066125, 'upper': 68.55392434706613, 'lower': 56.44607565293388} summaryHasDelta=False summaryHasDirection=True"
+        },
+        {
+          "action": "GET /api/views/recovery?start=2026-01-02&end=2026-01-06&metrics=rhr",
+          "expected": "baselines suppressed and daily delta/direction omitted/null",
+          "observed": "recovery hasBaseline=True dailyDeltaDirectionFlags={'2026-01-02': {'hasDelta': False, 'hasDirection': True}, '2026-01-03': {'hasDelta': False, 'hasDirection': True}, '2026-01-04': {'hasDelta': False, 'hasDirection': True}, '2026-01-05': {'hasDelta': False, 'hasDirection': True}, '2026-01-06': {'hasDelta': False, 'hasDirection': True}}"
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "baselineWindow": 200,
+          "night": 200,
+          "recovery": 200
+        },
+        "keyResponseSnippets": {
+          "baselineWindow": {
+            "start": "2025-12-03",
+            "end": "2026-01-01",
+            "pointCount": 10
+          },
+          "night": {
+            "date": "2026-01-02",
+            "hasBaseline": true,
+            "baseline": {
+              "avg": 62.5,
+              "stddev": 6.053924347066125,
+              "upper": 68.55392434706613,
+              "lower": 56.44607565293388
+            },
+            "summaryHasDelta": false,
+            "summaryHasDirection": true,
+            "summary": {
+              "value": 55,
+              "avg_30d": 62.5,
+              "stddev_30d": 6.053924347066125,
+              "delta": null,
+              "delta_pct": null,
+              "direction": "neutral",
+              "status": "normal"
+            }
+          },
+          "recovery": {
+            "dateRange": {
+              "start": "2026-01-02",
+              "end": "2026-01-06"
+            },
+            "hasBaseline": true,
+            "baseline": {
+              "avg": 62.5,
+              "stddev": 6.053924347066125,
+              "upper": 68.55392434706613,
+              "lower": 56.44607565293388
+            },
+            "dailyDeltaDirectionFlags": {
+              "2026-01-02": {
+                "hasDelta": false,
+                "hasDirection": true
+              },
+              "2026-01-03": {
+                "hasDelta": false,
+                "hasDirection": true
+              },
+              "2026-01-04": {
+                "hasDelta": false,
+                "hasDirection": true
+              },
+              "2026-01-05": {
+                "hasDelta": false,
+                "hasDirection": true
+              },
+              "2026-01-06": {
+                "hasDelta": false,
+                "hasDirection": true
+              }
+            }
+          }
+        },
+        "files": [
+          "frontend-views/rerun-curl-cross/VAL-CROSS-018-healthdata-baseline-window-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-018-healthdata-baseline-window-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-018-night-partial-history-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-018-night-partial-history-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-018-recovery-partial-history-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-018-recovery-partial-history-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-018-evaluation.json"
+        ]
+      },
+      "issues": "Contract not met: with only 10 baseline-window points, API still returns populated baselines for night/recovery and still returns direction fields instead of suppressing baseline-driven fields entirely."
+    },
+    {
+      "id": "VAL-CROSS-021",
+      "title": "Night view respects user timezone for window calculation",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "GET /api/views/night?date=2026-03-28&timezone=America/Los_Angeles",
+          "expected": "UTC window corresponds to Mar 27 8 PM -> Mar 28 8 AM in America/Los_Angeles",
+          "observed": "time_range={'start': '2026-03-28T03:00:00.000Z', 'end': '2026-03-28T15:00:00.000Z'}"
+        },
+        {
+          "action": "GET /api/views/night?date=2026-03-28&timezone=Asia/Tokyo",
+          "expected": "Different UTC window for Asia/Tokyo",
+          "observed": "time_range={'start': '2026-03-27T11:00:00.000Z', 'end': '2026-03-27T23:00:00.000Z'}"
+        },
+        {
+          "action": "Compare observed windows with timezone-derived expected UTC conversions",
+          "expected": "Different timezone settings produce different UTC ranges and match expected conversions",
+          "observed": "rangesDiffer=True, pstMatchesExpected=True, tokyoMatchesExpected=True"
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "pst": 200,
+          "tokyo": 200
+        },
+        "keyResponseSnippets": {
+          "observed": {
+            "pst": {
+              "start": "2026-03-28T03:00:00.000Z",
+              "end": "2026-03-28T15:00:00.000Z"
+            },
+            "tokyo": {
+              "start": "2026-03-27T11:00:00.000Z",
+              "end": "2026-03-27T23:00:00.000Z"
+            }
+          },
+          "expected": {
+            "pst": {
+              "start": "2026-03-28T03:00:00Z",
+              "end": "2026-03-28T15:00:00Z"
+            },
+            "tokyo": {
+              "start": "2026-03-27T11:00:00Z",
+              "end": "2026-03-27T23:00:00Z"
+            }
+          },
+          "checks": {
+            "rangesDiffer": true,
+            "pstMatchesExpected": true,
+            "tokyoMatchesExpected": true
+          }
+        },
+        "files": [
+          "frontend-views/rerun-curl-cross/VAL-CROSS-021-night-timezone-pst-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-021-night-timezone-pst-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-021-night-timezone-tokyo-meta.txt",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-021-night-timezone-tokyo-response.json",
+          "frontend-views/rerun-curl-cross/VAL-CROSS-021-evaluation.json"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [],
+  "blockers": [
+    {
+      "description": "VAL-CROSS-006 job-materialization check blocked: Inngest event submission succeeded but no metric_baselines rows appeared for user_test_001 reference_date=today across 10 polling attempts (~20s).",
+      "affectedAssertions": ["VAL-CROSS-006"],
+      "quickFixAttempted": "Triggered dashboard/baselines.refresh.user via http://localhost:8288/e/local and polled metric_baselines directly after trigger timestamp."
+    },
+    {
+      "description": "VAL-CROSS-012 expired-token path blocked under API-only constraints: cannot mint already-expired raw token (expires_in_days min=1), and owner list/detail APIs do not expose raw tokens for expired grants.",
+      "affectedAssertions": ["VAL-CROSS-012"],
+      "quickFixAttempted": "Created short-lived share, verified pre-expiry access, queried expired-share list, then validated revoked-token denial behavior as nearest available path."
+    }
+  ],
+  "summary": "Tested 4 assigned assertions via curl/local services: 1 passed (VAL-CROSS-021), 1 failed (VAL-CROSS-018), and 2 were blocked (VAL-CROSS-006, VAL-CROSS-012)."
+}

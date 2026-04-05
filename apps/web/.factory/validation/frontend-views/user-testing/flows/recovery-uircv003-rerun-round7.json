@@ -1,0 +1,86 @@
+{
+  "groupId": "recovery-uircv003-rerun-round7",
+  "testedAt": "2026-04-05T12:54:34Z",
+  "isolation": {
+    "surface": "agent-browser",
+    "appUrl": "http://localhost:3100/dashboard",
+    "user": "user_test_001",
+    "milestone": "frontend-views",
+    "recoveryRange": {
+      "start": "2026-03-22",
+      "end": "2026-03-26"
+    },
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a"
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertions": [
+    {
+      "id": "VAL-UIRCV-003",
+      "title": "S3 scenario — post-workout recovery arc visible at a glance",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open /dashboard?view=recovery&start=2026-03-22&end=2026-03-26 (authenticated as user_test_001)",
+          "expected": "Recovery S3 range renders with workout marker, dip/recovery arcs, daily table progression, and insight narrative.",
+          "observed": "Recovery view loaded and rendered S3-like data; insight card and multi-metric sparklines were visible at initial view."
+        },
+        {
+          "action": "Check workout marker label text",
+          "expected": "Visible marker label includes exact text '10K run' on Mon 24.",
+          "observed": "Visible UI text includes '10K run' (also 'workout'); table day headers render as Sun 22..Thu 26 in this seeded window, so strict 'Mon 24' wording is not directly matched."
+        },
+        {
+          "action": "Check Readiness recovery values",
+          "expected": "Readiness dips to 42 and recovers to 82 by Thu 27.",
+          "observed": "Readiness row/sparkline shows 42 -> 61 -> 68 -> 82 -> 84 (Sun 22..Thu 26), so dip is present and recovery is visible; endpoint/end-day wording differs from strict assertion text."
+        },
+        {
+          "action": "Check HRV recovery values",
+          "expected": "HRV dips to 26 and recovers to 48.",
+          "observed": "HRV row/sparkline shows 26 -> 34 -> 40 -> 48 -> 50; dip and recovery are visible (48 appears before final day)."
+        },
+        {
+          "action": "Check daily table color progression",
+          "expected": "Daily table shows explicit 🔴 -> 🟡 -> 🟢 progression.",
+          "observed": "Readiness and HRV rows show 🔴 entries and later non-red/green entries, but no explicit 🟡 cells were rendered in row text/DOM classes (intermediate cells were neutral slate), so strict emoji progression was not met."
+        },
+        {
+          "action": "Check InsightCard narrative",
+          "expected": "Insight mentions '3 days' recovery.",
+          "observed": "Insight text reads: 'Your readiness improved from 42 to 84 over 3 days, indicating a healthy recovery pattern.'"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-recovery-full.png",
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-recovery-full-annotated.png",
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-10k-marker.png",
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-daily-table.png",
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-daily-table-annotated.png"
+        ],
+        "consoleErrors": "none (see frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-console-errors.json)",
+        "network": "agent-browser request capture empty; fallback curl evidence: GET /api/views/recovery?start=2026-03-22&end=2026-03-26 -> 200 (see .../VAL-UIRCV-003-recovery-api-headers.txt and .../VAL-UIRCV-003-recovery-api-response.json)",
+        "artifacts": [
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-ui-innerText.txt",
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-table-dom.json",
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-console-errors.json",
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-agent-browser-requests.json",
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-recovery-api-headers.txt",
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-recovery-api-response.json",
+          "frontend-views/recovery-uircv003-rerun-round7/VAL-UIRCV-003-recovery-api-summary.txt"
+        ]
+      },
+      "issues": "Partial contract match only: '10K run' is now visible and 3-day narrative is present, but strict clause wording mismatches remain (day/value wording drift and no explicit 🟡 stage in table progression)."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "agent-browser network capture returned no requests for this flow.",
+      "resolved": true,
+      "resolution": "Used authenticated curl fallback to capture GET /api/views/recovery request/response artifacts.",
+      "affectedAssertions": ["VAL-UIRCV-003"]
+    }
+  ],
+  "blockers": [],
+  "summary": "Retested 1 assertion (VAL-UIRCV-003): fail. Recovery arc and '10K run'/'3 days' cues are visible, but strict full contract wording was not fully satisfied due date/value wording drift and missing explicit 🟡 progression in daily table evidence."
+}

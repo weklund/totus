@@ -1,0 +1,52 @@
+diff --git a/apps/web/src/app/api/waitlist/route.ts b/apps/web/src/app/api/waitlist/route.ts
+new file mode 100644
+index 0000000..937df5a
+--- /dev/null
++++ b/apps/web/src/app/api/waitlist/route.ts
+@@ -0,0 +1,46 @@
++import { NextRequest, NextResponse } from "next/server";
++import { db } from "@/db";
++import { waitlist } from "@/db/schema";
++
++export async function POST(req: NextRequest): Promise<NextResponse> {
++  try {
++    const body = await req.json();
++    const { email, devices } = body as {
++      email?: string;
++      devices?: string[];
++    };
++
++    if (!email || typeof email !== "string") {
++      return NextResponse.json(
++        { error: "Email is required" },
++        { status: 400 },
++      );
++    }
++
++    // Basic email format check
++    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
++      return NextResponse.json(
++        { error: "Invalid email address" },
++        { status: 400 },
++      );
++    }
++
++    const devicesStr =
++      Array.isArray(devices) && devices.length > 0
++        ? devices.join(",")
++        : null;
++
++    await db
++      .insert(waitlist)
++      .values({ email: email.toLowerCase().trim(), devices: devicesStr })
++      .onConflictDoNothing();
++
++    return NextResponse.json({ ok: true }, { status: 200 });
++  } catch (error) {
++    console.error("Waitlist signup failed:", error);
++    return NextResponse.json(
++      { error: "Something went wrong" },
++      { status: 500 },
++    );
++  }
++}

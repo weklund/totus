@@ -1,0 +1,143 @@
+{
+  "groupId": "rerun-curl-views",
+  "testedAt": "2026-04-05T07:32:03.273649Z",
+  "isolation": {
+    "baseUrl": "http://localhost:3100",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "ownerUser": "user_test_001",
+    "grant": {
+      "allowed_metrics": ["rhr", "hrv"],
+      "data_start": "2026-03-10",
+      "data_end": "2026-03-20"
+    }
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-NIGHT-004",
+      "status": "fail",
+      "reason": "In-range grant_token request now works (status=200), but out-of-range date did not clamp as required (status=403, responseDate=None); invalid/missing token auth behavior remained correct (401/401).",
+      "evidence": [
+        "api-and-jobs/rerun-curl-views/VAL-NIGHT-004-viewer-grant-inrange-meta.txt",
+        "api-and-jobs/rerun-curl-views/VAL-NIGHT-004-viewer-grant-inrange-response.json",
+        "api-and-jobs/rerun-curl-views/VAL-NIGHT-004-viewer-grant-oor-meta.txt",
+        "api-and-jobs/rerun-curl-views/VAL-NIGHT-004-viewer-grant-oor-response.json",
+        "api-and-jobs/rerun-curl-views/VAL-NIGHT-004-viewer-grant-invalid-meta.txt",
+        "api-and-jobs/rerun-curl-views/VAL-NIGHT-004-viewer-grant-invalid-response.json",
+        "api-and-jobs/rerun-curl-views/VAL-NIGHT-004-no-auth-no-grant-meta.txt",
+        "api-and-jobs/rerun-curl-views/VAL-NIGHT-004-no-auth-no-grant-response.json",
+        "api-and-jobs/rerun-curl-views/setup-share-create-meta.txt",
+        "api-and-jobs/rerun-curl-views/setup-share-create-response.json"
+      ]
+    },
+    {
+      "id": "VAL-RECOV-004",
+      "status": "pass",
+      "reason": "Viewer recovery response clamped date range, limited daily/sparklines to granted metrics [rhr,hrv], and excluded dedicated meal annotation per mapping.",
+      "evidence": [
+        "api-and-jobs/rerun-curl-views/VAL-RECOV-004-viewer-grant-valid-meta.txt",
+        "api-and-jobs/rerun-curl-views/VAL-RECOV-004-viewer-grant-valid-response.json",
+        "api-and-jobs/rerun-curl-views/setup-share-create-meta.txt",
+        "api-and-jobs/rerun-curl-views/setup-share-create-response.json",
+        "api-and-jobs/rerun-curl-views/setup-annotation-meal-meta.txt",
+        "api-and-jobs/rerun-curl-views/setup-annotation-meal-response.json"
+      ]
+    },
+    {
+      "id": "VAL-TREND-005",
+      "status": "fail",
+      "reason": "Correlation contract not met (status=200, correlationsCount=0, rangeClassOk=True, manualOk=False, sparseOk=False, omittedOk=True).",
+      "evidence": [
+        "api-and-jobs/rerun-curl-views/VAL-TREND-005-owner-correlations-requested-meta.txt",
+        "api-and-jobs/rerun-curl-views/VAL-TREND-005-owner-correlations-requested-response.json",
+        "api-and-jobs/rerun-curl-views/VAL-TREND-005-owner-no-correlations-param-meta.txt",
+        "api-and-jobs/rerun-curl-views/VAL-TREND-005-owner-no-correlations-param-response.json",
+        "api-and-jobs/rerun-curl-views/VAL-TREND-005-owner-sparse-pair-check-meta.txt",
+        "api-and-jobs/rerun-curl-views/VAL-TREND-005-owner-sparse-pair-check-response.json"
+      ]
+    },
+    {
+      "id": "VAL-TREND-006",
+      "status": "pass",
+      "reason": "Viewer trend response was clamped to grant date range and limited to granted metrics; non-granted correlation request was excluded/rejected without leakage.",
+      "evidence": [
+        "api-and-jobs/rerun-curl-views/VAL-TREND-006-viewer-grant-valid-meta.txt",
+        "api-and-jobs/rerun-curl-views/VAL-TREND-006-viewer-grant-valid-response.json",
+        "api-and-jobs/rerun-curl-views/VAL-TREND-006-viewer-ungranted-correlation-meta.txt",
+        "api-and-jobs/rerun-curl-views/VAL-TREND-006-viewer-ungranted-correlation-response.json",
+        "api-and-jobs/rerun-curl-views/setup-share-create-meta.txt",
+        "api-and-jobs/rerun-curl-views/setup-share-create-response.json"
+      ]
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "commandsRun": [
+    {
+      "command": "npx dotenv -e .env.local -- tsx -e 'import { createSessionToken } from '\"'\"'./src/lib/auth/mock-auth'\"'\"'; (async()=>{const t=await createSessionToken('\"'\"'user_test_001'\"'\"'); process.stdout.write(t);})();'",
+      "exitCode": 0
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -X POST http://localhost:3100/api/shares -H 'Content-Type: application/json' --cookie __session=<OWNER_SESSION> --data '{\"label\": \"rerun-curl-views-20260405T073202Z\", \"allowed_metrics\": [\"rhr\", \"hrv\"], \"data_start\": \"2026-03-10\", \"data_end\": \"2026-03-20\", \"expires_in_days\": 30, \"note\": \"rerun assertion validation\"}'",
+      "exitCode": 0,
+      "httpStatus": 201
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -X POST http://localhost:3100/api/annotations -H 'Content-Type: application/json' --cookie __session=<OWNER_SESSION> --data '{\"event_type\": \"meal\", \"label\": \"rerun-meal-20260405T073203Z\", \"note\": \"meal annotation for scope checks\", \"occurred_at\": \"2026-03-15T12:00:00.000Z\"}'",
+      "exitCode": 0,
+      "httpStatus": 201
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-15&metrics=rhr,hrv,sleep_score&grant_token=<GRANT_TOKEN>'",
+      "exitCode": 0,
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-25&metrics=rhr,hrv,sleep_score&grant_token=<GRANT_TOKEN>'",
+      "exitCode": 0,
+      "httpStatus": 403
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-15&metrics=rhr,hrv,sleep_score&grant_token=invalid_rerun_token'",
+      "exitCode": 0,
+      "httpStatus": 401
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-15&metrics=rhr,hrv'",
+      "exitCode": 0,
+      "httpStatus": 401
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/recovery?start=2026-03-09&end=2026-03-21&metrics=rhr,hrv,sleep_score&grant_token=<GRANT_TOKEN>'",
+      "exitCode": 0,
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-02-27&end=2026-03-28&metrics=rhr,hrv,sleep_score,weight&correlations=rhr:hrv,hrv:sleep_score,rhr:weight' --cookie __session=<OWNER_SESSION>",
+      "exitCode": 0,
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-02-27&end=2026-03-28&metrics=rhr,hrv,sleep_score' --cookie __session=<OWNER_SESSION>",
+      "exitCode": 0,
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-03-15&end=2026-03-21&metrics=rhr,weight&correlations=rhr:weight' --cookie __session=<OWNER_SESSION>",
+      "exitCode": 0,
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-03-05&end=2026-03-25&metrics=rhr,hrv,sleep_score&correlations=rhr:hrv&grant_token=<GRANT_TOKEN>'",
+      "exitCode": 0,
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-03-05&end=2026-03-25&metrics=rhr,hrv,sleep_score&correlations=rhr:sleep_score&grant_token=<GRANT_TOKEN>'",
+      "exitCode": 0,
+      "httpStatus": 200
+    }
+  ],
+  "summary": "Retested 4 assertions: 2 passed, 2 failed, 0 blocked."
+}

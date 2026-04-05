@@ -10,14 +10,16 @@ export const colors = {
   ocean: '#1e5b7b',
   emerald: '#2fa87b',
   coral: '#e8845a',
-  ink: '#1a2332',
-  slate: '#64748b',
+  red: '#dc4a3a',
+  ink: '#1f2433',
+  slate: '#6b7280',
   mist: '#e2e8f0',
   cloud: '#f8f9fb',
   white: '#ffffff',
   oceanTint: '#e8f2f8',
   emeraldTint: '#e8f4f0',
   coralTint: '#fdf0eb',
+  redTint: '#fdecea',
 } as const;
 
 // ── Semantic aliases ──────────────────────────────────────────────────────────
@@ -34,7 +36,7 @@ export const semantic = {
   // Status
   success: colors.emerald,
   successForeground: colors.white,
-  danger: colors.coral,
+  danger: colors.red,
   dangerForeground: colors.white,
 
   // Surfaces (light mode defaults)
@@ -78,7 +80,7 @@ export const spacing = {
 export const radius = {
   badge: '0.25rem',   // 4px  — badges, tags
   button: '0.375rem', // 6px  — inputs, default buttons
-  card: '0.5rem',     // 8px  — cards, containers
+  card: '0.75rem',    // 12px — cards, containers
   icon: '0.875rem',   // 14px — app icon (22% of 64px)
   pill: '1.5rem',     // 24px — CTA pill buttons
 } as const;

@@ -1,0 +1,74 @@
+{
+  "groupId": "rerun4-trend-uitrd002",
+  "testedAt": "2026-04-05T11:50:34Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "assertionIds": ["VAL-UITRD-002"],
+    "browserSessionId": "db9d835a-rerun4-trend-correlation",
+    "evidencePrefix": "rerun4-trend-correlation",
+    "boundary": "Local browser/UI validation only"
+  },
+  "toolsUsed": ["agent-browser", "curl", "tsx"],
+  "assertionResults": [
+    {
+      "id": "VAL-UITRD-002",
+      "title": "Correlation card with coefficients and share action",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Open dashboard trend view",
+          "expected": "Trend tab is active with trend cards visible",
+          "observed": "Opened http://localhost:3100/dashboard?view=trend with Trend tab selected and metric strips rendered"
+        },
+        {
+          "action": "Verify correlation card shows Pearson coefficients plus strength/direction labels",
+          "expected": "Correlation card contains Pearson coefficient text and strength/direction labels (e.g., strong inverse)",
+          "observed": "No correlation card found; DOM check reports hasPearsonWord=false, correlationContainerCount=0, strengthWords=[] and directionWords=[]"
+        },
+        {
+          "action": "Verify in-card Share \u2197 action exists",
+          "expected": "A Share \u2197 action appears inside the correlation card",
+          "observed": "No in-card Share action found; DOM check found only one share-like control text: 'Shared Links' (sidebar navigation)"
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-full.png",
+          "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-annotated.png"
+        ],
+        "domChecks": [
+          "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-dom-check.json",
+          "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-snapshot.txt",
+          "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-body-text.txt"
+        ],
+        "consoleErrors": "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-console-errors.txt (empty)",
+        "network": {
+          "agentBrowser": "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-network-requests.txt (No requests captured)",
+          "supplementalCurl": [
+            "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-curl-trend-status.txt",
+            "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-curl-trend-headers.txt",
+            "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-curl-trend-body.json"
+          ]
+        }
+      },
+      "issues": "Trend UI did not show a correlation card with Pearson coefficient/strength/direction labels, and no in-card Share \u2197 action was present."
+    }
+  ],
+  "verdict": "fail",
+  "evidencePaths": [
+    "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-full.png",
+    "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-annotated.png",
+    "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-dom-check.json",
+    "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-snapshot.txt",
+    "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-body-text.txt",
+    "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-console-errors.txt",
+    "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-network-requests.txt",
+    "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-curl-trend-status.txt",
+    "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-curl-trend-headers.txt",
+    "frontend-views/rerun4-trend-correlation/rerun4-trend-correlation-VAL-UITRD-002-curl-trend-body.json"
+  ],
+  "summary": "Validated VAL-UITRD-002 on rerun: failed. Trend view rendered metric strips but no correlation card content (Pearson/strength/direction labels) and no in-card Share \u2197 action."
+}

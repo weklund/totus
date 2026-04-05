@@ -1,0 +1,131 @@
+{
+  "groupId": "comp-baselines",
+  "testedAt": "2026-04-05T05:44:21.255870+00:00",
+  "isolation": {
+    "milestone": "foundation",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "tool": "vitest",
+    "boundary": "Local repo and local services only; no production logic modified."
+  },
+  "toolsUsed": ["vitest", "npm"],
+  "assertions": [
+    {
+      "id": "VAL-COMP-001",
+      "title": "30-day average, stddev, and bounds computed correctly",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run targeted vitest suite for baselines computation tests",
+          "expected": "Known-value avg/stddev and upper/lower tests pass, including zero-variance case",
+          "observed": "Passed: \"computes correct avg_30d and stddev_30d for 30 known values\", \"computes upper = avg + stddev and lower = avg - stddev\", and \"handles zero stddev when all values are identical\""
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation/comp-baselines/vitest-comp-baselines.log",
+          "foundation/comp-baselines/assigned-assertions-snippet.txt"
+        ],
+        "command": "npm --prefix /Users/weae1504/Projects/totus/apps/web run test -- src/lib/dashboard/__tests__/baselines.test.ts src/lib/dashboard/__tests__/summaries.test.ts --reporter=verbose",
+        "exitCode": 0
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-002",
+      "title": "Minimum 7 data points required for baseline",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run baseline threshold tests in targeted vitest suite",
+          "expected": "6 points omitted; exactly 7 points included",
+          "observed": "Passed: \"skips metrics with fewer than 7 data points\" and \"includes metrics with exactly 7 data points\""
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation/comp-baselines/vitest-comp-baselines.log",
+          "foundation/comp-baselines/assigned-assertions-snippet.txt"
+        ],
+        "exitCode": 0
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-003",
+      "title": "Baseline window excludes reference date",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run on-demand baseline window boundary test",
+          "expected": "Window [D-30, D-1] used; reference date D excluded",
+          "observed": "Passed: \"queries 30-day window [D-30, D-1] excluding reference date\""
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation/comp-baselines/vitest-comp-baselines.log",
+          "foundation/comp-baselines/assigned-assertions-snippet.txt"
+        ],
+        "exitCode": 0
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-004",
+      "title": "Delta and delta_pct computed correctly",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run summary metric delta computation tests",
+          "expected": "Normal case delta/delta_pct and avg=0 edge case behave without Infinity/NaN",
+          "observed": "Passed: \"computes delta and delta_pct for normal case (value=72, avg=61)\" and \"returns delta_pct = 0 when avg_30d is 0\""
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation/comp-baselines/vitest-comp-baselines.log",
+          "foundation/comp-baselines/assigned-assertions-snippet.txt"
+        ],
+        "exitCode": 0
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-COMP-014",
+      "title": "Negative metric values handled correctly",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Run baseline and summary negative-value tests",
+          "expected": "Negative values/averages produce correct avg/stddev/delta/z-safe calculations and correct delta_pct sign handling",
+          "observed": "Passed: \"computes correct avg and stddev for negative values\", \"handles negative values correctly (body_temperature_deviation = -0.3)\", and \"handles negative avg correctly for delta_pct (uses absolute avg)\""
+        }
+      ],
+      "evidence": {
+        "terminalSnapshots": [
+          "foundation/comp-baselines/vitest-comp-baselines.log",
+          "foundation/comp-baselines/assigned-assertions-snippet.txt"
+        ],
+        "exitCode": 0
+      },
+      "issues": null
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Initial direct binary path (/Users/weae1504/Projects/totus/apps/web/node_modules/.bin/vitest) was unavailable due workspace dependency layout.",
+      "resolved": true,
+      "resolution": "Used npm --prefix ... run test -- <targeted files> to invoke vitest successfully.",
+      "affectedAssertions": [
+        "VAL-COMP-001",
+        "VAL-COMP-002",
+        "VAL-COMP-003",
+        "VAL-COMP-004",
+        "VAL-COMP-014"
+      ]
+    }
+  ],
+  "blockers": [],
+  "summary": "Tested 5 assertions: 5 passed, 0 failed, 0 blocked."
+}

@@ -68,6 +68,8 @@
   --color-brand-ocean-tint: var(--totus-ocean-tint);
   --color-brand-emerald-tint: var(--totus-emerald-tint);
   --color-brand-coral-tint: var(--totus-coral-tint);
+  --color-brand-red: var(--totus-red);
+  --color-brand-red-tint: var(--totus-red-tint);
 
   /* ── Typography: font-sans / font-mono ── */
   --font-sans: var(--totus-font-sans);
@@ -191,4 +193,16 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Light-on-dark text renders thinner — bump weight for legibility */
+  .dark body {
+    font-weight: 450;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* ── Tabular figures for health metrics ── */
+/* Prevents layout shift when numeric values change (HRV, RHR, scores). */
+@utility tabular-nums {
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
 }

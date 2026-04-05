@@ -1,0 +1,52 @@
+{
+  "milestone": "frontend-shared",
+  "round": 1,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 6,
+    "passed": 0,
+    "failed": 0,
+    "blocked": 6
+  },
+  "passedAssertions": [],
+  "failedAssertions": [],
+  "blockedAssertions": [
+    {
+      "id": "VAL-UICMP-001",
+      "blockedBy": "MetricStrip shared-component surface was not reachable on real UI. /dashboard/night is not found and /dashboard did not render MetricStrip expand/collapse charts."
+    },
+    {
+      "id": "VAL-UICMP-002",
+      "blockedBy": "InsightCard did not render on reachable dashboard pages, so dismiss action and conditional no-render state for shared InsightCard could not be exercised on real user surface."
+    },
+    {
+      "id": "VAL-UICMP-003",
+      "blockedBy": "DateNavigation component contract (calendar picker + forward/back arrows + Night/Recovery/Trend toggle) was not available on reachable UI surface."
+    },
+    {
+      "id": "VAL-UICMP-004",
+      "blockedBy": "Could observe empty and loading-like states, but full shared-component state contract (including retryable in-app error path) could not be validated due missing target shared-component surface."
+    },
+    {
+      "id": "VAL-UICMP-005",
+      "blockedBy": "Accessibility checks specific to shared components (chart aria labels, DeltaBadge SR text, InsightCard dismiss keyboard activation) could not be executed because those elements were not present on tested UI."
+    },
+    {
+      "id": "VAL-UICMP-006",
+      "blockedBy": "Responsive behavior for shared strips/annotation markers could not be validated because those components were not rendered; only empty dashboard layout was available across breakpoints."
+    }
+  ],
+  "appliedUpdates": [
+    {
+      "target": "user-testing.md",
+      "description": "Added \"Flow Validator Guidance: agent-browser\" section with isolation and evidence capture rules for browser-surface validators.",
+      "source": "setup"
+    },
+    {
+      "target": "user-testing.md",
+      "description": "Documented observed local routing constraint for frontend-shared run: /dashboard/night|recovery|trend returned not-found; /dashboard remained reachable.",
+      "source": "flow-report"
+    }
+  ],
+  "previousRound": null
+}

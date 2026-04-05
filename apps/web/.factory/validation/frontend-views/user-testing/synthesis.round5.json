@@ -1,0 +1,31 @@
+{
+  "milestone": "frontend-views",
+  "round": 5,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 3,
+    "passed": 1,
+    "failed": 2,
+    "blocked": 0
+  },
+  "passedAssertions": ["VAL-CROSS-018"],
+  "failedAssertions": [
+    {
+      "id": "VAL-CROSS-007",
+      "reason": "Night UI still did not show an explicit low-opacity baseline reference band for the assertion scenario; evidence showed only standard area-fill rendering and no qualifying baseline band element."
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "reason": "Recovery UI did not satisfy S3 narrative expectations on tested surface (no visible \"10K run\" marker label and no expected \"3 days\" narrative text)."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "nonBlockingDeferredAssertions": [
+    {
+      "id": "VAL-UITRD-002",
+      "reason": "Deferred P1 scope per AGENTS.md Testing & Validation Guidance."
+    }
+  ],
+  "previousRound": ".factory/validation/frontend-views/user-testing/synthesis.round4.json"
+}

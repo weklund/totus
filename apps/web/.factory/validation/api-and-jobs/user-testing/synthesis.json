@@ -1,0 +1,27 @@
+{
+  "milestone": "api-and-jobs",
+  "round": 3,
+  "status": "fail",
+  "assertionsSummary": {
+    "total": 2,
+    "passed": 1,
+    "failed": 1,
+    "blocked": 0
+  },
+  "passedAssertions": ["VAL-NIGHT-004"],
+  "failedAssertions": [
+    {
+      "id": "VAL-TREND-005",
+      "reason": "Correlation contract still unmet: no correlation objects are returned when requested, sparse-data behavior (sufficient_data=false) is not emitted, and correlations remain present as an empty array when the param is omitted."
+    }
+  ],
+  "blockedAssertions": [],
+  "appliedUpdates": [],
+  "previousRound": ".factory/validation/api-and-jobs/user-testing/synthesis.round2.json",
+  "flowReports": [
+    ".factory/validation/api-and-jobs/user-testing/flows/rerun-curl-round3.json"
+  ],
+  "toolsUsed": ["curl"],
+  "frictions": [],
+  "blockers": []
+}

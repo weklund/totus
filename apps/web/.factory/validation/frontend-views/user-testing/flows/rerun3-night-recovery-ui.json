@@ -1,0 +1,247 @@
+{
+  "groupId": "rerun3-night-recovery-ui",
+  "testedAt": "2026-04-05T11:24:38Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "ports": [3100, 5432, 8288],
+    "ownerUser": "user_test_001",
+    "annotationPrefix": "ut-r3-night-",
+    "browserSessionId": "rerun3-night-recovery-ui"
+  },
+  "toolsUsed": ["agent-browser", "curl", "tsx"],
+  "assertionResults": [
+    {
+      "id": "VAL-UINGT-001",
+      "title": "Intraday series render with shared time axis (8 PM \u2013 8 AM)",
+      "status": "fail",
+      "observed": "Night UI did not render glucose strip and did not show shared overnight axis alignment; screen only showed HR panel + no-sleep-stage message.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UINGT-001-004-VAL-CROSS-019-night-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun3-night-recovery-ui/night-2026-03-28-errors.txt (empty)",
+        "checks": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UINGT-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-UINGT-002",
+      "title": "Sleep hypnogram renders with stage differentiation",
+      "status": "fail",
+      "observed": "Night UI showed \"No sleep stage data available\"; no stage bars/legend rendered.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UINGT-001-004-VAL-CROSS-019-night-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun3-night-recovery-ui/night-2026-03-28-errors.txt (empty)",
+        "checks": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UINGT-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-UINGT-003",
+      "title": "Summary strip with polarity-colored delta badges",
+      "status": "fail",
+      "observed": "Summary strip omitted Sleep Latency metric/delta; only Sleep Score, Deep Sleep, HRV, and RHR were present.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UINGT-001-004-VAL-CROSS-019-night-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun3-night-recovery-ui/night-2026-03-28-errors.txt (empty)",
+        "checks": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UINGT-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-UINGT-004",
+      "title": "S1 scenario \u2014 meal \u2192 glucose spike \u2192 HR \u2192 sleep disruption causal chain",
+      "status": "fail",
+      "observed": "Required S1 chain was not visible end-to-end (no glucose panel, no hypnogram stage rendering, and no required red delta triplet).",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UINGT-001-004-VAL-CROSS-019-night-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun3-night-recovery-ui/night-2026-03-28-errors.txt (empty)",
+        "checks": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UINGT-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-UIRCV-001",
+      "title": "Multi-day sparklines with shared day axis and baseline bands",
+      "status": "fail",
+      "observed": "Recovery view rendered Readiness/HRV/RHR/Sleep Score, but Body Temp Deviation panel required by contract was missing.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UIRCV-001-003-recovery-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun3-night-recovery-ui/VAL-UIRCV-001-003-errors.txt (empty)",
+        "network": "frontend-views/rerun3-night-recovery-ui/VAL-UIRCV-001-003-network.txt",
+        "checks": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UIRCV-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-UIRCV-003",
+      "title": "S3 scenario \u2014 post-workout recovery arc visible at a glance",
+      "status": "fail",
+      "observed": "S3-specific expectations not present (no \"10K run\", no \"3 days\" insight text; header values observed Readiness 67 and HRV 76.4 instead of expected trajectory).",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UIRCV-001-003-recovery-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun3-night-recovery-ui/VAL-UIRCV-001-003-errors.txt (empty)",
+        "network": "frontend-views/rerun3-night-recovery-ui/VAL-UIRCV-001-003-network.txt",
+        "checks": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UIRCV-check.json",
+          "frontend-views/rerun3-night-recovery-ui/VAL-UIRCV-s3-values-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-CROSS-007",
+      "title": "Fresh baselines render as normal range bands on frontend",
+      "status": "fail",
+      "observed": "Night API baseline keys omitted heart_rate and DOM inspection showed chart area fill-opacity 0.6, not \u22640.15 baseline-band contract.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-007-heart-rate-expanded-2026-04-04.png"
+        ],
+        "consoleErrors": "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-007-errors.txt (empty)",
+        "network": "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-007-network.txt",
+        "apiSnippets": [
+          "GET /api/views/night?date=2026-04-04 -> 200 (VAL-CROSS-007-night-2026-04-04.status.txt)",
+          "baseline keys: deep_sleep, hrv, rhr, sleep_score; heart_rate missing (VAL-CROSS-007-baseline-api-check.json)"
+        ],
+        "checks": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-007-baseline-api-check.json",
+          "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-007-baseline-band-dom-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-CROSS-019",
+      "title": "Night view window spans yesterday 8 PM to today 8 AM correctly",
+      "status": "fail",
+      "observed": "API window bounds were correct, but UI evidence did not show required 8 PM\u20138 AM axis labeling on the tested screen.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-UINGT-001-004-VAL-CROSS-019-night-2026-03-28-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun3-night-recovery-ui/night-2026-03-28-errors.txt (empty)",
+        "apiSnippets": [
+          "GET /api/views/night?date=2026-03-28 -> 200 (VAL-CROSS-019-night-2026-03-28.status.txt)",
+          "time_range.start=2026-03-27T20:00:00.000Z, end=2026-03-28T08:00:00.000Z (VAL-CROSS-019-range-check.json)"
+        ],
+        "checks": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-019-range-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-CROSS-024",
+      "title": "Duration annotation spanning night boundary included",
+      "status": "pass",
+      "observed": "Created boundary-spanning workout annotation was included in Night API and rendered at chart left edge in UI annotation layer.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-024-night-2026-03-30-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-024-errors.txt (empty)",
+        "network": "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-024-network.txt",
+        "apiSnippets": [
+          "POST /api/annotations -> 201 (VAL-CROSS-024-post.status.txt), id=2958 label=ut-r3-night-boundary-112103",
+          "GET /api/views/night?date=2026-03-30 -> 200 and annotation id 2958 present (VAL-CROSS-024-overlap-check.json)"
+        ],
+        "checks": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-024-overlap-check.json",
+          "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-024-marker-dom-check.json"
+        ]
+      }
+    },
+    {
+      "id": "VAL-CROSS-020",
+      "title": "Night view for in-progress night handles incomplete data",
+      "status": "blocked",
+      "observed": "Runtime was past window end, so tested date returned a completed night window (not in-progress) and the required precondition was unmet.",
+      "evidence": {
+        "screenshots": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-020-night-2026-04-05-full.png"
+        ],
+        "consoleErrors": "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-020-errors.txt (empty)",
+        "network": "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-020-network.txt",
+        "apiSnippets": [
+          "GET /api/views/night?date=2026-04-05 -> 200 (VAL-CROSS-020-night-2026-04-05.status.txt)",
+          "runtimeUtc=2026-04-05T11:19:16Z, windowEnd=2026-04-05T08:00:00.000Z, isWindowAlreadyCompleteAtRuntime=true (VAL-CROSS-020-partial-check.json)"
+        ],
+        "checks": [
+          "frontend-views/rerun3-night-recovery-ui/VAL-CROSS-020-partial-check.json"
+        ]
+      }
+    }
+  ],
+  "passedAssertions": ["VAL-CROSS-024"],
+  "failedAssertions": [
+    "VAL-UINGT-001",
+    "VAL-UINGT-002",
+    "VAL-UINGT-003",
+    "VAL-UINGT-004",
+    "VAL-UIRCV-001",
+    "VAL-UIRCV-003",
+    "VAL-CROSS-007",
+    "VAL-CROSS-019"
+  ],
+  "blockedAssertions": ["VAL-CROSS-020"],
+  "frictions": [
+    {
+      "description": "Initial navigation to /dashboard redirected to /sign-in in fresh session.",
+      "resolved": true,
+      "resolution": "Generated mock auth token for user_test_001 and set __session cookie in browser session.",
+      "affectedAssertions": [
+        "VAL-UINGT-001",
+        "VAL-UINGT-002",
+        "VAL-UINGT-003",
+        "VAL-UINGT-004",
+        "VAL-UIRCV-001",
+        "VAL-UIRCV-003",
+        "VAL-CROSS-007",
+        "VAL-CROSS-019",
+        "VAL-CROSS-024",
+        "VAL-CROSS-020"
+      ]
+    },
+    {
+      "description": "agent-browser request list does not provide HTTP status/body details needed for cross assertions.",
+      "resolved": true,
+      "resolution": "Collected supplemental curl artifacts for CROSS-007/019/024/020 API evidence snippets.",
+      "affectedAssertions": [
+        "VAL-CROSS-007",
+        "VAL-CROSS-019",
+        "VAL-CROSS-024",
+        "VAL-CROSS-020"
+      ]
+    },
+    {
+      "description": "Heart Rate expansion click was intermittently blocked by overlay interception.",
+      "resolved": true,
+      "resolution": "Used DOM click targeting by aria-label to expand strip and capture evidence.",
+      "affectedAssertions": ["VAL-CROSS-007"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "In-progress-night runtime precondition not available during rerun window; API responded with completed night range.",
+      "affectedAssertions": ["VAL-CROSS-020"],
+      "quickFixAttempted": "Captured runtime clock + repeated GET /api/views/night?date=2026-04-05; window remained complete."
+    }
+  ],
+  "summary": "Tested 10 assigned assertions: 1 passed (VAL-CROSS-024), 8 failed (VAL-UINGT-001/002/003/004, VAL-UIRCV-001/003, VAL-CROSS-007, VAL-CROSS-019), and 1 blocked (VAL-CROSS-020)."
+}

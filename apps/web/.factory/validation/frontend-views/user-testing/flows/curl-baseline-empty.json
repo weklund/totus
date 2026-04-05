@@ -1,0 +1,232 @@
+{
+  "groupId": "curl-baseline-empty",
+  "testedAt": "2026-04-05T09:39:00Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "baseUrl": "http://localhost:3100",
+    "inngest": "http://localhost:8288",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "ownerUser": "user_test_001",
+    "emptyStateUser": "user_empty_20260405_curlbe",
+    "boundary": "curl-driven validation on local endpoints + local DB evidence queries only"
+  },
+  "toolsUsed": ["curl", "tsx", "python3"],
+  "assertions": [
+    {
+      "id": "VAL-CROSS-005",
+      "title": "Dismiss is idempotent — no duplicate rows",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "POST /api/insights/elevated_rhr/2032-01-17/dismiss (first call)",
+          "expected": "200 and dismissed=true",
+          "observed": "200 with { dismissed: true }"
+        },
+        {
+          "action": "POST /api/insights/elevated_rhr/2032-01-17/dismiss (second call)",
+          "expected": "200 and dismissed=true again (idempotent)",
+          "observed": "200 with { dismissed: true }"
+        },
+        {
+          "action": "Query dismissed_insights for (user_test_001, elevated_rhr, 2032-01-17)",
+          "expected": "Exactly one row",
+          "observed": "rowCount=1"
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "firstDismiss": 200,
+          "secondDismiss": 200
+        },
+        "dbRowCount": 1,
+        "files": [
+          "frontend-views/curl-baseline-empty/VAL-CROSS-005-dismiss-first-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-005-dismiss-first-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-005-dismiss-second-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-005-dismiss-second-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-005-db-row-check.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-006",
+      "title": "Inngest baseline job produces fresh baselines used by view endpoints",
+      "status": "blocked",
+      "steps": [
+        {
+          "action": "POST event dashboard/baselines.refresh.user to local Inngest dev server",
+          "expected": "Event accepted and baseline rows materialized in metric_baselines for user_test_001",
+          "observed": "Event API returned 200 with event id, but repeated DB polling found no metric_baselines rows"
+        },
+        {
+          "action": "GET /api/views/night for today and today-2 + independent 30-day mean/stddev via GET /api/health-data",
+          "expected": "Baselines match independent 30-day calculations and are anchored to requested date",
+          "observed": "On-demand baselines matched exactly and were date-anchored, but no job-produced baseline rows existed to confirm the job path"
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "inngestTrigger": 200,
+          "nightToday": 200,
+          "healthWindowToday": 200,
+          "nightMinus2": 200,
+          "healthWindowMinus2": 200
+        },
+        "pollResult": "attempts 1-6 all count=0 for today's rhr baseline row",
+        "keyResponseSnippets": {
+          "todayComparison": {
+            "apiAvg": 63.4,
+            "manualAvg": 63.4,
+            "apiStddev": 6.042074698865172,
+            "manualStddev": 6.042074698865172
+          },
+          "minus2Comparison": {
+            "apiAvg": 62.63333333333333,
+            "manualAvg": 62.63333333333333,
+            "anchoredToRequestedDateWithinTolerance": true
+          }
+        },
+        "files": [
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-inngest-trigger-headers.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-inngest-trigger-body.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-inngest-poll.log",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-metric-baselines-all-db.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-night-today-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-night-today-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-healthdata-window-today-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-healthdata-window-today-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-night-minus2-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-night-minus2-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-healthdata-window-minus2-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-healthdata-window-minus2-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-006-evaluation.json"
+        ]
+      },
+      "issues": "Could not verify the specific 'Inngest job produced baselines' contract because local Inngest event delivery did not materialize metric_baselines rows despite 200 trigger responses."
+    },
+    {
+      "id": "VAL-CROSS-017",
+      "title": "New user with no data sees empty states, not errors",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Call all 3 view endpoints as empty-data user user_empty_20260405_curlbe",
+          "expected": "200 responses with empty/no-data structures and no server errors",
+          "observed": "Night/Recovery/Trend all returned 200 with zero data points and no error envelope"
+        },
+        {
+          "action": "Validate night/recovery empty object structures and trend zero-point structure",
+          "expected": "No populated health data payloads for empty user",
+          "observed": "night: series/summary/baselines empty; recovery: baselines/sparklines empty and daily metrics empty; trend: all requested metrics have raw values=[] and baseline zeros"
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "night": 200,
+          "recovery": 200,
+          "trend": 200
+        },
+        "keyResponseSnippets": {
+          "night": {
+            "seriesKeys": [],
+            "summaryKeys": [],
+            "baselineKeys": [],
+            "insightsCount": 0
+          },
+          "recovery": {
+            "dailyMetricCounts": {
+              "2026-03-30": 0,
+              "2026-03-31": 0,
+              "2026-04-01": 0,
+              "2026-04-02": 0,
+              "2026-04-03": 0,
+              "2026-04-04": 0,
+              "2026-04-05": 0
+            },
+            "baselineKeys": [],
+            "sparklineKeys": []
+          },
+          "trend": {
+            "metricKeys": ["rhr", "hrv", "sleep_score"],
+            "totalRawPoints": 0
+          }
+        },
+        "files": [
+          "frontend-views/curl-baseline-empty/VAL-CROSS-017-night-empty-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-017-night-empty-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-017-recovery-empty-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-017-recovery-empty-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-017-trend-empty-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-017-trend-empty-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-017-evaluation.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-CROSS-018",
+      "title": "User with < 14 days of data has suppressed baselines",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "Construct <14-day baseline-history scenario by using referenceDate=2026-01-02 (10 prior rhr points in baseline window)",
+          "expected": "Insufficient-history contract should suppress baselines and delta/direction fields",
+          "observed": "Baseline window response confirmed exactly 10 points (2025-12-23..2026-01-01)"
+        },
+        {
+          "action": "GET /api/views/night?date=2026-01-02&metrics=rhr",
+          "expected": "baselines {} (or explicit insufficient marker), and summary without delta/direction",
+          "observed": "Returned baselines.rhr plus summary.rhr with delta and direction"
+        },
+        {
+          "action": "GET /api/views/recovery?start=2026-01-02&end=2026-01-06&metrics=rhr",
+          "expected": "Suppressed baseline + no delta/direction fields for insufficient-history user",
+          "observed": "Returned baselines.rhr and daily metrics include delta/direction fields"
+        }
+      ],
+      "evidence": {
+        "statusCodes": {
+          "baselineWindowData": 200,
+          "night": 200,
+          "recovery": 200
+        },
+        "keyResponseSnippets": {
+          "baselineWindowPointCount": 10,
+          "nightHasBaseline": true,
+          "nightSummaryHasDeltaAndDirection": true,
+          "recoveryHasBaseline": true,
+          "recoveryDailyIncludesDeltaOrDirection": true
+        },
+        "files": [
+          "frontend-views/curl-baseline-empty/VAL-CROSS-018-reference-dates.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-018-owner-rhr-baseline-window-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-018-owner-rhr-baseline-window-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-018-night-partial-history-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-018-night-partial-history-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-018-recovery-partial-history-meta.txt",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-018-recovery-partial-history-response.json",
+          "frontend-views/curl-baseline-empty/VAL-CROSS-018-evaluation.json"
+        ]
+      },
+      "issues": "Insufficient-history behavior did not suppress baselines/deltas for a 10-point history window; API still emits computed baseline and full delta/direction fields."
+    }
+  ],
+  "frictions": [
+    {
+      "description": "Trend endpoint's empty-user shape is metric-scaffolded with baseline zeros instead of returning a literal empty baselines object, so contract interpretation required endpoint-specific normalization.",
+      "resolved": true,
+      "resolution": "Validated emptiness via zero raw points and absence of populated metric data rather than strict object emptiness for trend.",
+      "affectedAssertions": ["VAL-CROSS-017"]
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Could not complete the Inngest-job-specific proof for VAL-CROSS-006: local Inngest accepted events (200 + id) but no metric_baselines rows materialized for user_test_001.",
+      "affectedAssertions": ["VAL-CROSS-006"],
+      "quickFixAttempted": "Triggered dashboard/baselines.refresh.user via POST http://localhost:8288/e/local and polled DB 6 times; still zero rows."
+    }
+  ],
+  "summary": "Validated 4 assigned assertions via curl/local DB evidence: VAL-CROSS-005 passed, VAL-CROSS-017 passed, VAL-CROSS-018 failed, VAL-CROSS-006 blocked due missing observable Inngest baseline materialization despite successful event submission."
+}
