@@ -47,6 +47,7 @@ import { computeSummaryMetrics } from "@/lib/dashboard/summaries";
 import { fetchMergedAnnotations } from "@/lib/dashboard/annotations";
 import { generateInsights } from "@/lib/dashboard/insights";
 import type { ViewerPermissions } from "@/lib/auth/request-context";
+import { resolveGrantToken } from "@/lib/auth/resolve-grant-token";
 import type { BaselinePayload, SummaryMetric } from "@/lib/dashboard/types";
 import { resolveSourcesForMetrics } from "@/lib/api/source-resolution";
 
@@ -104,14 +105,10 @@ function isValidDate(dateStr: string): boolean {
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     // Step 1: Auth
-    const ctx = await getResolvedContext(request);
+    let ctx = await getResolvedContext(request);
 
     const rateLimitResponse = checkApiKeyRateLimit(ctx);
     if (rateLimitResponse) return rateLimitResponse;
-
-    if (ctx.role === "unauthenticated" || !ctx.userId) {
-      throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
-    }
 
     // Step 2: Parse and validate query parameters
     const url = new URL(request.url);
@@ -135,10 +132,28 @@ export async function GET(request: Request): Promise<NextResponse> {
       );
     }
 
+    // Step 2b: Resolve grant_token if present — overrides auth context
+    if (parsed.data.grant_token) {
+      const viewerCtx = await resolveGrantToken(parsed.data.grant_token);
+      if (!viewerCtx) {
+        throw new ApiError(
+          "UNAUTHORIZED",
+          "Invalid or expired share token",
+          401,
+        );
+      }
+      ctx = viewerCtx;
+    }
+
+    if (ctx.role === "unauthenticated" || !ctx.userId) {
+      throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
+    }
+
     const { date } = parsed.data;
     let requestedMetrics = parsed.data.metrics ?? DEFAULT_NIGHT_METRICS;
 
     // Step 3: Enforce permissions (viewer scoping)
+    let effectiveDate = date;
     try {
       const scope = enforcePermissions(ctx, {
         userId: ctx.userId,
@@ -147,6 +162,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         endDate: date,
       });
       requestedMetrics = scope.metrics;
+      effectiveDate = scope.startDate; // use clamped date
     } catch (error) {
       if (error instanceof PermissionError) {
         throw new ApiError(error.code, error.message, error.statusCode);
@@ -154,29 +170,29 @@ export async function GET(request: Request): Promise<NextResponse> {
       throw error;
     }
 
-    // Compute night window: date-1 day 20:00 to date 08:00 (UTC)
-    const prevDay = dayBefore(date);
+    // Compute night window: effectiveDate-1 day 20:00 to effectiveDate 08:00 (UTC)
+    const prevDay = dayBefore(effectiveDate);
     const nightWindowStart = `${prevDay}T20:00:00.000Z`;
-    const nightWindowEnd = `${date}T08:00:00.000Z`;
+    const nightWindowEnd = `${effectiveDate}T08:00:00.000Z`;
 
     const encryption = createEncryptionProvider();
     const userId = ctx.userId;
 
-    // Step 4: Fetch baselines anchored to the view date (FR-1.4)
+    // Step 4: Fetch baselines anchored to the effective date (FR-1.4)
     const baselinesMap = await fetchBaselines(
       userId,
       requestedMetrics,
-      date, // referenceDate = view date
+      effectiveDate, // referenceDate = effective (clamped) view date
       2, // tolerance
       encryption,
       db as Parameters<typeof fetchBaselines>[5],
     );
 
-    // Step 5: Fetch daily values from health_data_daily for the view date
+    // Step 5: Fetch daily values from health_data_daily for the effective date
     const dailyValues = await fetchDailyValues(
       userId,
       requestedMetrics,
-      date,
+      effectiveDate,
       encryption,
     );
 
@@ -221,11 +237,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     );
 
     // Step 10: Generate insights
-    const dismissedTypes = await getDismissedTypes(userId, date);
+    const dismissedTypes = await getDismissedTypes(userId, effectiveDate);
 
     const insights = generateInsights("night", {
       viewType: "night",
-      date,
+      date: effectiveDate,
       summaries: summaryMap,
       baselines: baselinesMap,
       annotations,
@@ -234,7 +250,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     // Step 11: Assemble response
     const response = {
-      date,
+      date: effectiveDate,
       time_range: {
         start: nightWindowStart,
         end: nightWindowEnd,
@@ -275,7 +291,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         resourceType: "view",
         resourceDetail: {
           view_type: "night",
-          date,
+          date: effectiveDate,
           metrics_requested: requestedMetrics,
           metrics_returned: [...metricsReturned, ...seriesMetricsReturned],
           data_points_returned: dataPointsReturned,

@@ -45,6 +45,7 @@ import { computeSummaryMetrics } from "@/lib/dashboard/summaries";
 import { fetchMergedAnnotations } from "@/lib/dashboard/annotations";
 import { generateInsights } from "@/lib/dashboard/insights";
 import type { ViewerPermissions } from "@/lib/auth/request-context";
+import { resolveGrantToken } from "@/lib/auth/resolve-grant-token";
 import type {
   Annotation,
   BaselinePayload,
@@ -141,14 +142,10 @@ function getDateRange(startStr: string, endStr: string): string[] {
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     // Step 1: Auth
-    const ctx = await getResolvedContext(request);
+    let ctx = await getResolvedContext(request);
 
     const rateLimitResponse = checkApiKeyRateLimit(ctx);
     if (rateLimitResponse) return rateLimitResponse;
-
-    if (ctx.role === "unauthenticated" || !ctx.userId) {
-      throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
-    }
 
     // Step 2: Parse and validate query parameters
     const url = new URL(request.url);
@@ -172,6 +169,23 @@ export async function GET(request: Request): Promise<NextResponse> {
         400,
         details,
       );
+    }
+
+    // Step 2b: Resolve grant_token if present — overrides auth context
+    if (parsed.data.grant_token) {
+      const viewerCtx = await resolveGrantToken(parsed.data.grant_token);
+      if (!viewerCtx) {
+        throw new ApiError(
+          "UNAUTHORIZED",
+          "Invalid or expired share token",
+          401,
+        );
+      }
+      ctx = viewerCtx;
+    }
+
+    if (ctx.role === "unauthenticated" || !ctx.userId) {
+      throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
 
     const { start, end, event_id } = parsed.data;
@@ -354,31 +368,76 @@ export async function GET(request: Request): Promise<NextResponse> {
         );
       }
 
-      // Decrypt label and note
-      const labelDecrypted = await encryption.decrypt(
-        annotation.labelEncrypted,
-        userId,
-      );
-      const label = labelDecrypted.toString();
+      // For viewers: validate that the annotation occurred_at falls within the
+      // viewer's grant date window. If outside, return null triggering_event
+      // instead of exposing data outside the grant boundaries.
+      if (ctx.role === "viewer") {
+        const permissions = ctx.permissions as ViewerPermissions;
+        const occurredDate = annotation.occurredAt.toISOString().split("T")[0]!;
+        if (
+          occurredDate < permissions.dataStart ||
+          occurredDate > permissions.dataEnd
+        ) {
+          // Annotation is outside the viewer's grant window — suppress it
+          triggeringEvent = null;
+        } else {
+          // Within grant window — decrypt and return
+          const labelDecrypted = await encryption.decrypt(
+            annotation.labelEncrypted,
+            userId,
+          );
+          const label = labelDecrypted.toString();
 
-      let note: string | null = null;
-      if (annotation.noteEncrypted) {
-        const noteDecrypted = await encryption.decrypt(
-          annotation.noteEncrypted,
+          let note: string | null = null;
+          if (annotation.noteEncrypted) {
+            const noteDecrypted = await encryption.decrypt(
+              annotation.noteEncrypted,
+              userId,
+            );
+            note = noteDecrypted.toString();
+          }
+
+          triggeringEvent = {
+            id: annotation.id,
+            source: "user",
+            event_type: annotation.eventType,
+            label,
+            note,
+            occurred_at: annotation.occurredAt.toISOString(),
+            ended_at: annotation.endedAt
+              ? annotation.endedAt.toISOString()
+              : null,
+          };
+        }
+      } else {
+        // Owner: full access — decrypt and return
+        const labelDecrypted = await encryption.decrypt(
+          annotation.labelEncrypted,
           userId,
         );
-        note = noteDecrypted.toString();
-      }
+        const label = labelDecrypted.toString();
 
-      triggeringEvent = {
-        id: annotation.id,
-        source: "user",
-        event_type: annotation.eventType,
-        label,
-        note,
-        occurred_at: annotation.occurredAt.toISOString(),
-        ended_at: annotation.endedAt ? annotation.endedAt.toISOString() : null,
-      };
+        let note: string | null = null;
+        if (annotation.noteEncrypted) {
+          const noteDecrypted = await encryption.decrypt(
+            annotation.noteEncrypted,
+            userId,
+          );
+          note = noteDecrypted.toString();
+        }
+
+        triggeringEvent = {
+          id: annotation.id,
+          source: "user",
+          event_type: annotation.eventType,
+          label,
+          note,
+          occurred_at: annotation.occurredAt.toISOString(),
+          ended_at: annotation.endedAt
+            ? annotation.endedAt.toISOString()
+            : null,
+        };
+      }
     }
 
     // Step 8: Fetch merged annotations for range

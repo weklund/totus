@@ -31,6 +31,7 @@ let healthDataPeriods: typeof import("@/db/schema").healthDataPeriods;
 let metricBaselines: typeof import("@/db/schema").metricBaselines;
 let dismissedInsights: typeof import("@/db/schema").dismissedInsights;
 let userAnnotations: typeof import("@/db/schema").userAnnotations;
+let shareGrants: typeof import("@/db/schema").shareGrants;
 let auditEvents: typeof import("@/db/schema").auditEvents;
 
 // Route handler
@@ -38,6 +39,9 @@ let nightGET: typeof import("@/app/api/views/night/route").GET;
 
 // Encryption
 let createEncryptionProvider: typeof import("@/lib/encryption").createEncryptionProvider;
+
+// Viewer auth
+let hashToken: typeof import("@/lib/auth/viewer").hashToken;
 
 const TEST_USER_ID = "night_view_test_user_001";
 const TEST_USER_ID_2 = "night_view_test_user_002";
@@ -73,11 +77,16 @@ beforeAll(async () => {
   metricBaselines = schema.metricBaselines;
   dismissedInsights = schema.dismissedInsights;
   userAnnotations = schema.userAnnotations;
+  shareGrants = schema.shareGrants;
   auditEvents = schema.auditEvents;
 
   // Import encryption
   const encModule = await import("@/lib/encryption");
   createEncryptionProvider = encModule.createEncryptionProvider;
+
+  // Import viewer auth
+  const viewerModule = await import("@/lib/auth/viewer");
+  hashToken = viewerModule.hashToken;
 
   // Import route handler
   const nightModule = await import("@/app/api/views/night/route");
@@ -262,6 +271,9 @@ afterEach(async () => {
     .where(
       sql`${healthDataDaily.userId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`,
     );
+  await db
+    .delete(shareGrants)
+    .where(sql`${shareGrants.ownerId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`);
 
   // Delete audit events via raw SQL (immutability trigger blocks normal DELETE)
   await pool
@@ -722,5 +734,116 @@ describe("GET /api/views/night", () => {
     const body = await response.json();
     // Baselines should be computed on-demand
     expect(Object.keys(body.data.baselines).length).toBeGreaterThan(0);
+  });
+
+  // --- grant_token auth resolution ---
+
+  it("grant_token: valid token returns scoped viewer response", async () => {
+    // Create a share grant for the test user
+    const rawToken = "test-night-grant-token-valid-abc123";
+    const tokenHash = hashToken(rawToken);
+
+    await db.insert(shareGrants).values({
+      token: tokenHash,
+      ownerId: TEST_USER_ID,
+      label: "Night view share",
+      allowedMetrics: ["rhr", "hrv"],
+      dataStart: "2026-01-01",
+      dataEnd: "2026-12-31",
+      grantExpires: new Date(Date.now() + 24 * 60 * 60 * 1000), // +1 day
+    });
+
+    // Request with grant_token — no x-request-context header needed
+    const url = buildUrl({ date: VIEW_DATE, grant_token: rawToken });
+    const request = new Request(url, { method: "GET" });
+    const response = await nightGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    const summaryKeys = Object.keys(body.data.summary);
+    const baselineKeys = Object.keys(body.data.baselines);
+
+    // Only granted metrics should be present
+    for (const key of summaryKeys) {
+      expect(["rhr", "hrv"]).toContain(key);
+    }
+    for (const key of baselineKeys) {
+      expect(["rhr", "hrv"]).toContain(key);
+    }
+  });
+
+  it("grant_token: invalid token returns 401", async () => {
+    const url = buildUrl({
+      date: VIEW_DATE,
+      grant_token: "totally-invalid-token-xyz",
+    });
+    const request = new Request(url, { method: "GET" });
+    const response = await nightGET(request);
+    expect(response.status).toBe(401);
+  });
+
+  it("grant_token: expired token returns 401", async () => {
+    const rawToken = "test-night-grant-token-expired-xyz";
+    const tokenHash = hashToken(rawToken);
+
+    await db.insert(shareGrants).values({
+      token: tokenHash,
+      ownerId: TEST_USER_ID,
+      label: "Expired share",
+      allowedMetrics: ["rhr", "hrv"],
+      dataStart: "2026-01-01",
+      dataEnd: "2026-12-31",
+      grantExpires: new Date(Date.now() - 1000), // already expired
+    });
+
+    const url = buildUrl({ date: VIEW_DATE, grant_token: rawToken });
+    const request = new Request(url, { method: "GET" });
+    const response = await nightGET(request);
+    expect(response.status).toBe(401);
+  });
+
+  it("grant_token: date outside grant window returns 403", async () => {
+    const rawToken = "test-night-grant-token-daterange-abc";
+    const tokenHash = hashToken(rawToken);
+
+    await db.insert(shareGrants).values({
+      token: tokenHash,
+      ownerId: TEST_USER_ID,
+      label: "Narrow range share",
+      allowedMetrics: ["rhr", "hrv"],
+      dataStart: "2025-01-01",
+      dataEnd: "2025-06-30", // VIEW_DATE=2026-03-28 is outside
+      grantExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+
+    const url = buildUrl({ date: VIEW_DATE, grant_token: rawToken });
+    const request = new Request(url, { method: "GET" });
+    const response = await nightGET(request);
+    expect(response.status).toBe(403);
+  });
+
+  it("grant_token: effective clamped date used for response data", async () => {
+    // Grant with narrow date window that includes VIEW_DATE
+    const rawToken = "test-night-grant-token-clamp-abc";
+    const tokenHash = hashToken(rawToken);
+
+    await db.insert(shareGrants).values({
+      token: tokenHash,
+      ownerId: TEST_USER_ID,
+      label: "Clamped share",
+      allowedMetrics: ["rhr", "hrv", "sleep_score"],
+      dataStart: "2026-03-01",
+      dataEnd: "2026-03-28",
+      grantExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+
+    const url = buildUrl({ date: VIEW_DATE, grant_token: rawToken });
+    const request = new Request(url, { method: "GET" });
+    const response = await nightGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    // The response date should be the effective (possibly clamped) date
+    expect(body.data.date).toBe(VIEW_DATE);
   });
 });

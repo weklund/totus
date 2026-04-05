@@ -39,6 +39,7 @@ import { computeSummaryMetrics } from "@/lib/dashboard/summaries";
 import { computeRollingAverages } from "@/lib/dashboard/rolling-averages";
 import { generateInsights } from "@/lib/dashboard/insights";
 import type { TrendResult, CorrelationResult } from "@/lib/dashboard/types";
+import { resolveGrantToken } from "@/lib/auth/resolve-grant-token";
 import { resolveSourcesForMetrics } from "@/lib/api/source-resolution";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -138,14 +139,10 @@ function getDateRange(startStr: string, endStr: string): string[] {
 export async function GET(request: Request): Promise<NextResponse> {
   try {
     // Step 1: Auth
-    const ctx = await getResolvedContext(request);
+    let ctx = await getResolvedContext(request);
 
     const rateLimitResponse = checkApiKeyRateLimit(ctx);
     if (rateLimitResponse) return rateLimitResponse;
-
-    if (ctx.role === "unauthenticated" || !ctx.userId) {
-      throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
-    }
 
     // Step 2: Parse and validate query parameters
     const url = new URL(request.url);
@@ -170,6 +167,23 @@ export async function GET(request: Request): Promise<NextResponse> {
         400,
         details,
       );
+    }
+
+    // Step 2b: Resolve grant_token if present — overrides auth context
+    if (parsed.data.grant_token) {
+      const viewerCtx = await resolveGrantToken(parsed.data.grant_token);
+      if (!viewerCtx) {
+        throw new ApiError(
+          "UNAUTHORIZED",
+          "Invalid or expired share token",
+          401,
+        );
+      }
+      ctx = viewerCtx;
+    }
+
+    if (ctx.role === "unauthenticated" || !ctx.userId) {
+      throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
 
     const {

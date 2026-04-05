@@ -29,6 +29,7 @@ let healthDataDaily: typeof import("@/db/schema").healthDataDaily;
 let metricBaselines: typeof import("@/db/schema").metricBaselines;
 let dismissedInsights: typeof import("@/db/schema").dismissedInsights;
 let userAnnotations: typeof import("@/db/schema").userAnnotations;
+let shareGrants: typeof import("@/db/schema").shareGrants;
 let auditEvents: typeof import("@/db/schema").auditEvents;
 
 // Route handler
@@ -36,6 +37,9 @@ let recoveryGET: typeof import("@/app/api/views/recovery/route").GET;
 
 // Encryption
 let createEncryptionProvider: typeof import("@/lib/encryption").createEncryptionProvider;
+
+// Viewer auth
+let hashToken: typeof import("@/lib/auth/viewer").hashToken;
 
 const TEST_USER_ID = "recovery_view_test_user_001";
 const TEST_USER_ID_2 = "recovery_view_test_user_002";
@@ -70,11 +74,16 @@ beforeAll(async () => {
   metricBaselines = schema.metricBaselines;
   dismissedInsights = schema.dismissedInsights;
   userAnnotations = schema.userAnnotations;
+  shareGrants = schema.shareGrants;
   auditEvents = schema.auditEvents;
 
   // Import encryption
   const encModule = await import("@/lib/encryption");
   createEncryptionProvider = encModule.createEncryptionProvider;
+
+  // Import viewer auth
+  const viewerModule = await import("@/lib/auth/viewer");
+  hashToken = viewerModule.hashToken;
 
   // Import route handler
   const recoveryModule = await import("@/app/api/views/recovery/route");
@@ -179,6 +188,9 @@ afterEach(async () => {
     .where(
       sql`${healthDataDaily.userId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`,
     );
+  await db
+    .delete(shareGrants)
+    .where(sql`${shareGrants.ownerId} IN (${TEST_USER_ID}, ${TEST_USER_ID_2})`);
 
   // Delete audit events via raw SQL (immutability trigger blocks normal DELETE)
   await pool
@@ -845,5 +857,172 @@ describe("GET /api/views/recovery", () => {
         expect(["rhr", "hrv"]).toContain(key);
       }
     }
+  });
+
+  // --- grant_token auth resolution ---
+
+  it("grant_token: valid token returns scoped viewer response", async () => {
+    const rawToken = "test-recovery-grant-token-valid-abc123";
+    const tokenHash = hashToken(rawToken);
+
+    await db.insert(shareGrants).values({
+      token: tokenHash,
+      ownerId: TEST_USER_ID,
+      label: "Recovery view share",
+      allowedMetrics: ["rhr", "hrv"],
+      dataStart: "2026-01-01",
+      dataEnd: "2026-12-31",
+      grantExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+
+    const url = buildUrl({
+      start: START_DATE,
+      end: END_DATE,
+      grant_token: rawToken,
+    });
+    const request = new Request(url, { method: "GET" });
+    const response = await recoveryGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    const baselineKeys = Object.keys(body.data.baselines);
+    const sparklineKeys = Object.keys(body.data.sparklines);
+
+    for (const key of baselineKeys) {
+      expect(["rhr", "hrv"]).toContain(key);
+    }
+    for (const key of sparklineKeys) {
+      expect(["rhr", "hrv"]).toContain(key);
+    }
+  });
+
+  it("grant_token: invalid token returns 401", async () => {
+    const url = buildUrl({
+      start: START_DATE,
+      end: END_DATE,
+      grant_token: "invalid-recovery-token-xyz",
+    });
+    const request = new Request(url, { method: "GET" });
+    const response = await recoveryGET(request);
+    expect(response.status).toBe(401);
+  });
+
+  it("grant_token: expired token returns 401", async () => {
+    const rawToken = "test-recovery-grant-token-expired-xyz";
+    const tokenHash = hashToken(rawToken);
+
+    await db.insert(shareGrants).values({
+      token: tokenHash,
+      ownerId: TEST_USER_ID,
+      label: "Expired recovery share",
+      allowedMetrics: ["rhr", "hrv"],
+      dataStart: "2026-01-01",
+      dataEnd: "2026-12-31",
+      grantExpires: new Date(Date.now() - 1000),
+    });
+
+    const url = buildUrl({
+      start: START_DATE,
+      end: END_DATE,
+      grant_token: rawToken,
+    });
+    const request = new Request(url, { method: "GET" });
+    const response = await recoveryGET(request);
+    expect(response.status).toBe(401);
+  });
+
+  // --- Viewer event_id grant window validation ---
+
+  it("viewer event_id: annotation outside grant window returns null triggering_event", async () => {
+    // Create a share grant with narrow date window that does NOT include START_DATE
+    const rawToken = "test-recovery-grant-eventid-narrow";
+    const tokenHash = hashToken(rawToken);
+
+    await db.insert(shareGrants).values({
+      token: tokenHash,
+      ownerId: TEST_USER_ID,
+      label: "Narrow recovery share",
+      allowedMetrics: [
+        "readiness_score",
+        "hrv",
+        "rhr",
+        "sleep_score",
+        "body_temperature_deviation",
+      ],
+      dataStart: "2026-03-26", // starts AFTER the annotation at 2026-03-24
+      dataEnd: "2026-03-28",
+      grantExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+
+    // Find the seeded workout annotation
+    const annotationRows = await db
+      .select({ id: userAnnotations.id })
+      .from(userAnnotations)
+      .where(
+        sql`${userAnnotations.userId} = ${TEST_USER_ID} AND ${userAnnotations.eventType} = 'workout'`,
+      );
+    expect(annotationRows.length).toBeGreaterThan(0);
+    const eventId = annotationRows[0]!.id;
+
+    // Request with grant_token and event_id — annotation is at 2026-03-24 which is outside grant window
+    const url = buildUrl({
+      start: "2026-03-26",
+      end: END_DATE,
+      event_id: String(eventId),
+      grant_token: rawToken,
+    });
+    const request = new Request(url, { method: "GET" });
+    const response = await recoveryGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    // The triggering_event should be null because annotation occurred_at is outside grant window
+    expect(body.data.triggering_event).toBeNull();
+  });
+
+  it("viewer event_id: annotation within grant window returns triggering_event", async () => {
+    const rawToken = "test-recovery-grant-eventid-wide";
+    const tokenHash = hashToken(rawToken);
+
+    await db.insert(shareGrants).values({
+      token: tokenHash,
+      ownerId: TEST_USER_ID,
+      label: "Wide recovery share",
+      allowedMetrics: [
+        "readiness_score",
+        "hrv",
+        "rhr",
+        "sleep_score",
+        "body_temperature_deviation",
+      ],
+      dataStart: "2026-01-01", // includes START_DATE (2026-03-24)
+      dataEnd: "2026-12-31",
+      grantExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+
+    // Find the seeded workout annotation
+    const annotationRows = await db
+      .select({ id: userAnnotations.id })
+      .from(userAnnotations)
+      .where(
+        sql`${userAnnotations.userId} = ${TEST_USER_ID} AND ${userAnnotations.eventType} = 'workout'`,
+      );
+    expect(annotationRows.length).toBeGreaterThan(0);
+    const eventId = annotationRows[0]!.id;
+
+    const url = buildUrl({
+      start: START_DATE,
+      end: END_DATE,
+      event_id: String(eventId),
+      grant_token: rawToken,
+    });
+    const request = new Request(url, { method: "GET" });
+    const response = await recoveryGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    expect(body.data.triggering_event).not.toBeNull();
+    expect(body.data.triggering_event.event_type).toBe("workout");
+    expect(body.data.triggering_event.label).toContain("10K morning run");
   });
 });
