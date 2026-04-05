@@ -13,7 +13,7 @@ export class DashboardPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.content = page.getByTestId("dashboard-content");
+    this.content = page.getByTestId("dashboard-view-router");
     this.emptyState = page.getByTestId("empty-dashboard");
     this.emptyConnectButton = page.getByTestId("empty-connect-button");
     this.metricSelector = page.getByTestId("metric-selector");
