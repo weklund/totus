@@ -4,31 +4,42 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useDismissInsight } from "@/hooks/useDismissInsight";
 import type { Insight } from "@/lib/dashboard/types";
 
 interface InsightCardProps {
   /** Insight data from the API */
   insight: Insight;
-  /** Callback when the user dismisses the insight */
+  /** Reference date for the insight (YYYY-MM-DD), required for dismiss mutation */
+  date: string;
+  /** Optional callback override when the user dismisses the insight */
   onDismiss?: (type: string) => void;
-  /** Whether the dismiss action is in progress */
-  isDismissing?: boolean;
 }
 
 /**
  * InsightCard — narrative card with title, body, severity badge,
  * related_metrics tags, and dismiss button.
  *
+ * Wired to useDismissInsight hook — clicking dismiss fires the mutation
+ * with the insight type and date. If an onDismiss callback is provided,
+ * it is called instead (useful for parent-managed dismiss flows).
+ *
  * Conditionally rendered — do not render when there are no insights.
  * When dismissed, the card should be removed from the DOM (not hidden).
  *
  * See: wireframes W1-W2, W6 in /docs/design/wireframes.md
  */
-export function InsightCard({
-  insight,
-  onDismiss,
-  isDismissing = false,
-}: InsightCardProps) {
+export function InsightCard({ insight, date, onDismiss }: InsightCardProps) {
+  const dismissMutation = useDismissInsight();
+  const isDismissing = dismissMutation.isPending;
+
+  const handleDismiss = () => {
+    if (onDismiss) {
+      onDismiss(insight.type);
+    } else {
+      dismissMutation.mutate({ type: insight.type, date });
+    }
+  };
   return (
     <div
       className={cn(
@@ -84,11 +95,11 @@ export function InsightCard({
         </div>
 
         {/* Dismiss button */}
-        {insight.dismissible && onDismiss && (
+        {insight.dismissible && (
           <Button
             variant="ghost"
             size="icon-xs"
-            onClick={() => onDismiss(insight.type)}
+            onClick={handleDismiss}
             disabled={isDismissing}
             aria-label={`Dismiss insight: ${insight.title}`}
             data-testid="insight-dismiss"

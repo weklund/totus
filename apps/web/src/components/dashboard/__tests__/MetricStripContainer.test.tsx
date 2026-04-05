@@ -99,4 +99,76 @@ describe("MetricStripContainer", () => {
     const { result } = renderHook(() => useTimeAxis());
     expect(result.current).toBeNull();
   });
+
+  it("provides numeric xDomain [startMs, endMs]", () => {
+    function Consumer() {
+      const ctx = useTimeAxis();
+      if (!ctx) return <div>no context</div>;
+      return (
+        <div data-testid="domain">
+          {ctx.xDomain?.[0]},{ctx.xDomain?.[1]}
+        </div>
+      );
+    }
+
+    render(
+      <MetricStripContainer
+        start="2026-03-27T20:00:00Z"
+        end="2026-03-28T08:00:00Z"
+      >
+        <Consumer />
+      </MetricStripContainer>,
+    );
+
+    const text = screen.getByTestId("domain").textContent!;
+    const [startMs, endMs] = text.split(",").map(Number);
+    expect(startMs).toBe(new Date("2026-03-27T20:00:00Z").getTime());
+    expect(endMs).toBe(new Date("2026-03-28T08:00:00Z").getTime());
+  });
+
+  it("formatXAxis handles numeric epoch ms timestamps", () => {
+    function Consumer() {
+      const ctx = useTimeAxis();
+      if (!ctx) return <div>no context</div>;
+      const epochMs = new Date("2026-03-27T22:30:00Z").getTime();
+      return (
+        <div data-testid="formatted-numeric">{ctx.formatXAxis(epochMs)}</div>
+      );
+    }
+
+    render(
+      <MetricStripContainer
+        start="2026-03-27T20:00:00Z"
+        end="2026-03-28T08:00:00Z"
+      >
+        <Consumer />
+      </MetricStripContainer>,
+    );
+
+    const text = screen.getByTestId("formatted-numeric").textContent!;
+    expect(text).toMatch(/\d{2}:\d{2}/);
+  });
+
+  it("formatXAxis handles numeric epoch ms in date mode", () => {
+    function Consumer() {
+      const ctx = useTimeAxis();
+      if (!ctx) return <div>no context</div>;
+      const epochMs = new Date("2026-03-27T00:00:00Z").getTime();
+      return (
+        <div data-testid="formatted-numeric">{ctx.formatXAxis(epochMs)}</div>
+      );
+    }
+
+    render(
+      <MetricStripContainer
+        start="2026-03-24T00:00:00Z"
+        end="2026-03-28T00:00:00Z"
+        axisMode="date"
+      >
+        <Consumer />
+      </MetricStripContainer>,
+    );
+
+    expect(screen.getByTestId("formatted-numeric")).toHaveTextContent("Mar");
+  });
 });

@@ -8,8 +8,8 @@ interface TimeAxisContext {
   start: string;
   /** ISO end of the time range */
   end: string;
-  /** Shared X-axis tick formatter */
-  formatXAxis: (timestamp: string) => string;
+  /** Shared X-axis tick formatter (accepts ISO string or epoch ms) */
+  formatXAxis: (timestamp: string | number) => string;
   /** Numeric X-axis domain for alignment [startMs, endMs] */
   xDomain?: [number, number];
 }
@@ -49,12 +49,15 @@ export function MetricStripContainer({
   children,
 }: MetricStripContainerProps) {
   const ctx = useMemo<TimeAxisContext>(() => {
-    const formatXAxis = (timestamp: string): string => {
+    const formatXAxis = (timestamp: string | number): string => {
       try {
-        const d = parseISO(timestamp);
+        const d =
+          typeof timestamp === "number"
+            ? new Date(timestamp)
+            : parseISO(timestamp);
         return axisMode === "time" ? format(d, "HH:mm") : format(d, "MMM d");
       } catch {
-        return timestamp;
+        return String(timestamp);
       }
     };
 

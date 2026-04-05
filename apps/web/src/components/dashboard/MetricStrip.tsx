@@ -43,7 +43,7 @@ interface MetricStripProps {
   /** Height of the expanded chart in pixels */
   expandedHeight?: number;
   /** X-axis tick formatter — shared from MetricStripContainer */
-  formatXAxis?: (timestamp: string) => string;
+  formatXAxis?: (timestamp: string | number) => string;
   /** X-axis domain — shared from MetricStripContainer for alignment */
   xDomain?: [number, number];
 }
@@ -74,9 +74,19 @@ export function MetricStrip({
   const label = config?.label ?? metricType;
   const unit = config?.unit ?? "";
 
+  // When xDomain is provided (numeric epoch ms from MetricStripContainer),
+  // convert timestamps to epoch ms for consistent Recharts domain/range alignment.
+  // Otherwise, keep the original string timestamps for non-aligned rendering.
+  const useNumericAxis = !!xDomain;
   const chartData = useMemo(
-    () => data.map((d) => ({ timestamp: d.timestamp, value: d.value })),
-    [data],
+    () =>
+      data.map((d) => ({
+        timestamp: useNumericAxis
+          ? new Date(d.timestamp).getTime()
+          : (d.timestamp as string | number),
+        value: d.value,
+      })),
+    [data, useNumericAxis],
   );
 
   const currentValue = data.length > 0 ? data[data.length - 1].value : null;
@@ -106,12 +116,12 @@ export function MetricStrip({
     );
   }
 
-  const defaultFormatter = (ts: string): string => {
+  const defaultFormatter = (ts: string | number): string => {
     try {
-      const d = parseISO(ts);
+      const d = typeof ts === "number" ? new Date(ts) : parseISO(ts);
       return format(d, "HH:mm");
     } catch {
-      return ts;
+      return String(ts);
     }
   };
 
@@ -257,10 +267,10 @@ function formatValue(v: number): string {
 
 interface StripTooltipProps {
   metricType: string;
-  formatTime: (ts: string) => string;
+  formatTime: (ts: string | number) => string;
   active?: boolean;
   payload?: Array<{ value: number }>;
-  label?: string;
+  label?: string | number;
 }
 
 function StripTooltip({
@@ -270,7 +280,7 @@ function StripTooltip({
   payload,
   label,
 }: StripTooltipProps) {
-  if (!active || !payload?.length || !label) return null;
+  if (!active || !payload?.length || label == null) return null;
 
   const config = getMetricType(metricType);
   const value = payload[0].value;

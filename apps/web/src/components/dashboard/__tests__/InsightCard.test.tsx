@@ -1,8 +1,33 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { InsightCard } from "../InsightCard";
 import type { Insight } from "@/lib/dashboard/types";
+
+// Mock api client (used by useDismissInsight)
+const mockPost = vi.fn();
+vi.mock("@/lib/api-client", () => ({
+  api: {
+    post: (...args: unknown[]) => mockPost(...args),
+  },
+}));
+
+function createQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+}
+
+function renderWithProviders(ui: React.ReactElement) {
+  const queryClient = createQueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  );
+}
 
 const MOCK_INSIGHT: Insight = {
   type: "elevated_rhr",
@@ -22,9 +47,20 @@ const INFO_INSIGHT: Insight = {
   dismissible: true,
 };
 
+const MOCK_DATE = "2026-03-28";
+
+beforeEach(() => {
+  mockPost.mockReset();
+  mockPost.mockResolvedValue({
+    data: { insight_type: "elevated_rhr", date: MOCK_DATE, dismissed: true },
+  });
+});
+
 describe("InsightCard", () => {
   it("renders narrative title and body text", () => {
-    render(<InsightCard insight={MOCK_INSIGHT} />);
+    renderWithProviders(
+      <InsightCard insight={MOCK_INSIGHT} date={MOCK_DATE} />,
+    );
     expect(screen.getByTestId("insight-card")).toBeInTheDocument();
     expect(screen.getByText("Elevated Resting Heart Rate")).toBeInTheDocument();
     expect(
@@ -33,19 +69,25 @@ describe("InsightCard", () => {
   });
 
   it("shows severity badge with correct variant", () => {
-    render(<InsightCard insight={MOCK_INSIGHT} />);
+    renderWithProviders(
+      <InsightCard insight={MOCK_INSIGHT} date={MOCK_DATE} />,
+    );
     const badge = screen.getByTestId("insight-severity");
     expect(badge).toHaveTextContent("warning");
   });
 
   it("shows info severity badge for info-level insight", () => {
-    render(<InsightCard insight={INFO_INSIGHT} />);
+    renderWithProviders(
+      <InsightCard insight={INFO_INSIGHT} date={MOCK_DATE} />,
+    );
     const badge = screen.getByTestId("insight-severity");
     expect(badge).toHaveTextContent("info");
   });
 
   it("shows related metrics tags", () => {
-    render(<InsightCard insight={MOCK_INSIGHT} />);
+    renderWithProviders(
+      <InsightCard insight={MOCK_INSIGHT} date={MOCK_DATE} />,
+    );
     const tags = screen.getAllByTestId("insight-metric-tag");
     expect(tags).toHaveLength(3);
     expect(tags[0]).toHaveTextContent("rhr");
@@ -53,28 +95,52 @@ describe("InsightCard", () => {
     expect(tags[2]).toHaveTextContent("deep sleep");
   });
 
-  it("shows dismiss button when dismissible + onDismiss provided", () => {
-    const onDismiss = vi.fn();
-    render(<InsightCard insight={MOCK_INSIGHT} onDismiss={onDismiss} />);
+  it("shows dismiss button when insight is dismissible", () => {
+    renderWithProviders(
+      <InsightCard insight={MOCK_INSIGHT} date={MOCK_DATE} />,
+    );
     expect(screen.getByTestId("insight-dismiss")).toBeInTheDocument();
   });
 
-  it("calls onDismiss with insight type when dismiss clicked", () => {
+  it("fires useDismissInsight mutation with type and date on dismiss click", async () => {
+    renderWithProviders(
+      <InsightCard insight={MOCK_INSIGHT} date={MOCK_DATE} />,
+    );
+    fireEvent.click(screen.getByTestId("insight-dismiss"));
+    await waitFor(() => {
+      expect(mockPost).toHaveBeenCalledWith(
+        `/insights/elevated_rhr/${MOCK_DATE}/dismiss`,
+        {},
+      );
+    });
+  });
+
+  it("calls onDismiss callback instead of mutation when provided", () => {
     const onDismiss = vi.fn();
-    render(<InsightCard insight={MOCK_INSIGHT} onDismiss={onDismiss} />);
+    renderWithProviders(
+      <InsightCard
+        insight={MOCK_INSIGHT}
+        date={MOCK_DATE}
+        onDismiss={onDismiss}
+      />,
+    );
     fireEvent.click(screen.getByTestId("insight-dismiss"));
     expect(onDismiss).toHaveBeenCalledWith("elevated_rhr");
+    expect(mockPost).not.toHaveBeenCalled();
   });
 
   it("does not show dismiss button when not dismissible", () => {
     const nonDismissible = { ...MOCK_INSIGHT, dismissible: false };
-    const onDismiss = vi.fn();
-    render(<InsightCard insight={nonDismissible} onDismiss={onDismiss} />);
+    renderWithProviders(
+      <InsightCard insight={nonDismissible} date={MOCK_DATE} />,
+    );
     expect(screen.queryByTestId("insight-dismiss")).not.toBeInTheDocument();
   });
 
   it("has accessible aria-label on the card", () => {
-    render(<InsightCard insight={MOCK_INSIGHT} />);
+    renderWithProviders(
+      <InsightCard insight={MOCK_INSIGHT} date={MOCK_DATE} />,
+    );
     const card = screen.getByTestId("insight-card");
     expect(card).toHaveAttribute(
       "aria-label",
@@ -83,8 +149,9 @@ describe("InsightCard", () => {
   });
 
   it("dismiss button is keyboard-focusable", () => {
-    const onDismiss = vi.fn();
-    render(<InsightCard insight={MOCK_INSIGHT} onDismiss={onDismiss} />);
+    renderWithProviders(
+      <InsightCard insight={MOCK_INSIGHT} date={MOCK_DATE} />,
+    );
     const btn = screen.getByTestId("insight-dismiss");
     expect(btn).toHaveAttribute(
       "aria-label",
