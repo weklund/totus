@@ -2,6 +2,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { BaselinePayload } from "@/lib/dashboard/types";
 import type { EncryptionProvider } from "@/lib/encryption";
+import type { SourceResolution } from "@/lib/api/source-resolution";
+
+// Mock the source resolution module
+vi.mock("@/lib/api/source-resolution", () => ({
+  resolveSourcesForMetrics: vi.fn().mockResolvedValue(new Map()),
+}));
+
+// Import the mocked module for per-test configuration
+import { resolveSourcesForMetrics as _resolveSourcesForMetrics } from "@/lib/api/source-resolution";
+const mockResolveSourcesForMetrics = vi.mocked(_resolveSourcesForMetrics);
 
 /**
  * Unit tests for the baseline computation service.
@@ -16,6 +26,7 @@ import type { EncryptionProvider } from "@/lib/encryption";
  * - Negative metric values (body_temperature_deviation)
  * - 30-day window anchoring (referenceDate, not current date)
  * - Reference date excluded from window
+ * - Multi-source filtering: only preferred source rows used in baseline computation
  *
  * VAL-COMP-001, VAL-COMP-002, VAL-COMP-003, VAL-COMP-004, VAL-COMP-014
  */
@@ -259,6 +270,8 @@ describe("computeBaselinesOnDemand", () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+    // Re-setup source resolution mock after reset (default: no resolution → all rows pass)
+    mockResolveSourcesForMetrics.mockResolvedValue(new Map());
     const mod = await import("@/lib/dashboard/baselines");
     computeBaselinesOnDemand = mod.computeBaselinesOnDemand;
   });
@@ -406,6 +419,8 @@ describe("fetchBaselines", () => {
 
   beforeEach(async () => {
     vi.resetAllMocks();
+    // Re-setup source resolution mock after reset (default: no resolution → all rows pass)
+    mockResolveSourcesForMetrics.mockResolvedValue(new Map());
     const mod = await import("@/lib/dashboard/baselines");
     fetchBaselines = mod.fetchBaselines;
   });
@@ -582,5 +597,288 @@ describe("fetchBaselines", () => {
 
     expect(result.has("rhr")).toBe(true);
     expect(result.get("rhr")!.avg_30d).toBe(62);
+  });
+});
+
+// ─── Multi-Source Filtering Tests ────────────────────────────────────────────
+
+describe("computeBaselinesOnDemand — multi-source filtering", () => {
+  let computeBaselinesOnDemand: typeof import("@/lib/dashboard/baselines").computeBaselinesOnDemand;
+
+  const mockEncryption: EncryptionProvider = {
+    encrypt: vi.fn(),
+    decrypt: vi.fn(),
+  };
+
+  const mockDb = {
+    select: vi.fn(),
+  };
+
+  beforeEach(async () => {
+    vi.resetAllMocks();
+    mockResolveSourcesForMetrics.mockResolvedValue(new Map());
+    (mockEncryption.decrypt as ReturnType<typeof vi.fn>).mockImplementation(
+      async (buf: Buffer) => buf,
+    );
+    const mod = await import("@/lib/dashboard/baselines");
+    computeBaselinesOnDemand = mod.computeBaselinesOnDemand;
+  });
+
+  it("filters out non-preferred source rows for multi-source metrics", async () => {
+    // User has Oura + Garmin both providing heart_rate
+    // Source resolution says prefer "oura" for heart_rate
+    mockResolveSourcesForMetrics.mockResolvedValue(
+      new Map<string, SourceResolution>([
+        ["heart_rate", { source: "oura", reason: "most_recent" }],
+      ]),
+    );
+
+    // DB returns rows from both sources
+    const fakeRows = [
+      // 8 rows from oura (values: 60-67)
+      ...Array.from({ length: 8 }, (_, i) => ({
+        metricType: "heart_rate",
+        date: `2026-03-${String(20 + i).padStart(2, "0")}`,
+        valueEncrypted: Buffer.from(JSON.stringify(60 + i)),
+        source: "oura",
+      })),
+      // 8 rows from garmin (values: 70-77 — higher, would skew avg)
+      ...Array.from({ length: 8 }, (_, i) => ({
+        metricType: "heart_rate",
+        date: `2026-03-${String(20 + i).padStart(2, "0")}`,
+        valueEncrypted: Buffer.from(JSON.stringify(70 + i)),
+        source: "garmin",
+      })),
+    ];
+
+    const whereFn = vi.fn().mockResolvedValue(fakeRows);
+    const fromFn = vi.fn().mockReturnValue({ where: whereFn });
+    mockDb.select.mockReturnValue({ from: fromFn });
+
+    const result = await computeBaselinesOnDemand(
+      "user_multi_source",
+      ["heart_rate"],
+      "2026-03-28",
+      mockEncryption,
+      mockDb as unknown as NodePgDatabase,
+    );
+
+    expect(result.has("heart_rate")).toBe(true);
+    const baseline = result.get("heart_rate")!;
+
+    // Only oura rows should be included: values 60-67
+    const ouraValues = [60, 61, 62, 63, 64, 65, 66, 67];
+    const expectedAvg = mean(ouraValues);
+    expect(baseline.avg_30d).toBeCloseTo(expectedAvg, 2);
+    expect(baseline.sample_count).toBe(8); // Only 8 oura rows, not 16
+  });
+
+  it("includes all rows when no source resolution exists for a metric", async () => {
+    // No source resolution for rhr (e.g., no recent data to determine preference)
+    mockResolveSourcesForMetrics.mockResolvedValue(new Map());
+
+    // DB returns rows from two sources
+    const fakeRows = [
+      ...Array.from({ length: 4 }, (_, i) => ({
+        metricType: "rhr",
+        date: `2026-03-${String(20 + i).padStart(2, "0")}`,
+        valueEncrypted: Buffer.from(JSON.stringify(60 + i)),
+        source: "oura",
+      })),
+      ...Array.from({ length: 4 }, (_, i) => ({
+        metricType: "rhr",
+        date: `2026-03-${String(24 + i).padStart(2, "0")}`,
+        valueEncrypted: Buffer.from(JSON.stringify(64 + i)),
+        source: "garmin",
+      })),
+    ];
+
+    const whereFn = vi.fn().mockResolvedValue(fakeRows);
+    const fromFn = vi.fn().mockReturnValue({ where: whereFn });
+    mockDb.select.mockReturnValue({ from: fromFn });
+
+    const result = await computeBaselinesOnDemand(
+      "user_no_resolution",
+      ["rhr"],
+      "2026-03-28",
+      mockEncryption,
+      mockDb as unknown as NodePgDatabase,
+    );
+
+    expect(result.has("rhr")).toBe(true);
+    const baseline = result.get("rhr")!;
+
+    // All 8 rows should be included (no source filter applied)
+    expect(baseline.sample_count).toBe(8);
+    const allValues = [60, 61, 62, 63, 64, 65, 66, 67];
+    expect(baseline.avg_30d).toBeCloseTo(mean(allValues), 2);
+  });
+
+  it("preserves single-source behavior unchanged", async () => {
+    // Source resolution says only_source for rhr
+    mockResolveSourcesForMetrics.mockResolvedValue(
+      new Map<string, SourceResolution>([
+        ["rhr", { source: "oura", reason: "only_source" }],
+      ]),
+    );
+
+    // DB returns rows from only one source
+    const fakeRows = Array.from({ length: 10 }, (_, i) => ({
+      metricType: "rhr",
+      date: `2026-03-${String(18 + i).padStart(2, "0")}`,
+      valueEncrypted: Buffer.from(JSON.stringify(60 + i)),
+      source: "oura",
+    }));
+
+    const whereFn = vi.fn().mockResolvedValue(fakeRows);
+    const fromFn = vi.fn().mockReturnValue({ where: whereFn });
+    mockDb.select.mockReturnValue({ from: fromFn });
+
+    const result = await computeBaselinesOnDemand(
+      "user_single_source",
+      ["rhr"],
+      "2026-03-28",
+      mockEncryption,
+      mockDb as unknown as NodePgDatabase,
+    );
+
+    expect(result.has("rhr")).toBe(true);
+    const baseline = result.get("rhr")!;
+
+    // All 10 rows pass through (single source matches resolution)
+    expect(baseline.sample_count).toBe(10);
+    const values = Array.from({ length: 10 }, (_, i) => 60 + i);
+    expect(baseline.avg_30d).toBeCloseTo(mean(values), 2);
+  });
+
+  it("handles different preferred sources per metric correctly", async () => {
+    // Different preferred source per metric
+    mockResolveSourcesForMetrics.mockResolvedValue(
+      new Map<string, SourceResolution>([
+        ["heart_rate", { source: "oura", reason: "user_preference" }],
+        ["hrv", { source: "garmin", reason: "most_recent" }],
+      ]),
+    );
+
+    // DB returns mixed source data for both metrics
+    const fakeRows = [
+      // heart_rate from oura (preferred) — 7 rows
+      ...Array.from({ length: 7 }, (_, i) => ({
+        metricType: "heart_rate",
+        date: `2026-03-${String(21 + i).padStart(2, "0")}`,
+        valueEncrypted: Buffer.from(JSON.stringify(60 + i)),
+        source: "oura",
+      })),
+      // heart_rate from garmin (non-preferred) — 7 rows
+      ...Array.from({ length: 7 }, (_, i) => ({
+        metricType: "heart_rate",
+        date: `2026-03-${String(21 + i).padStart(2, "0")}`,
+        valueEncrypted: Buffer.from(JSON.stringify(80 + i)),
+        source: "garmin",
+      })),
+      // hrv from garmin (preferred) — 8 rows
+      ...Array.from({ length: 8 }, (_, i) => ({
+        metricType: "hrv",
+        date: `2026-03-${String(20 + i).padStart(2, "0")}`,
+        valueEncrypted: Buffer.from(JSON.stringify(40 + i)),
+        source: "garmin",
+      })),
+      // hrv from oura (non-preferred) — 8 rows
+      ...Array.from({ length: 8 }, (_, i) => ({
+        metricType: "hrv",
+        date: `2026-03-${String(20 + i).padStart(2, "0")}`,
+        valueEncrypted: Buffer.from(JSON.stringify(50 + i)),
+        source: "oura",
+      })),
+    ];
+
+    const whereFn = vi.fn().mockResolvedValue(fakeRows);
+    const fromFn = vi.fn().mockReturnValue({ where: whereFn });
+    mockDb.select.mockReturnValue({ from: fromFn });
+
+    const result = await computeBaselinesOnDemand(
+      "user_multi_metric",
+      ["heart_rate", "hrv"],
+      "2026-03-28",
+      mockEncryption,
+      mockDb as unknown as NodePgDatabase,
+    );
+
+    // heart_rate: only oura rows (60-66)
+    expect(result.has("heart_rate")).toBe(true);
+    const hrBaseline = result.get("heart_rate")!;
+    expect(hrBaseline.sample_count).toBe(7);
+    const hrValues = [60, 61, 62, 63, 64, 65, 66];
+    expect(hrBaseline.avg_30d).toBeCloseTo(mean(hrValues), 2);
+
+    // hrv: only garmin rows (40-47)
+    expect(result.has("hrv")).toBe(true);
+    const hrvBaseline = result.get("hrv")!;
+    expect(hrvBaseline.sample_count).toBe(8);
+    const hrvValues = [40, 41, 42, 43, 44, 45, 46, 47];
+    expect(hrvBaseline.avg_30d).toBeCloseTo(mean(hrvValues), 2);
+  });
+
+  it("filters out non-preferred source and may result in insufficient data", async () => {
+    // After filtering, only 5 oura rows remain (< 7 threshold)
+    mockResolveSourcesForMetrics.mockResolvedValue(
+      new Map<string, SourceResolution>([
+        ["heart_rate", { source: "oura", reason: "most_recent" }],
+      ]),
+    );
+
+    const fakeRows = [
+      // 5 oura rows (below threshold after filtering)
+      ...Array.from({ length: 5 }, (_, i) => ({
+        metricType: "heart_rate",
+        date: `2026-03-${String(23 + i).padStart(2, "0")}`,
+        valueEncrypted: Buffer.from(JSON.stringify(60 + i)),
+        source: "oura",
+      })),
+      // 10 garmin rows (would have been enough, but non-preferred)
+      ...Array.from({ length: 10 }, (_, i) => ({
+        metricType: "heart_rate",
+        date: `2026-03-${String(18 + i).padStart(2, "0")}`,
+        valueEncrypted: Buffer.from(JSON.stringify(70 + i)),
+        source: "garmin",
+      })),
+    ];
+
+    const whereFn = vi.fn().mockResolvedValue(fakeRows);
+    const fromFn = vi.fn().mockReturnValue({ where: whereFn });
+    mockDb.select.mockReturnValue({ from: fromFn });
+
+    const result = await computeBaselinesOnDemand(
+      "user_insufficient_preferred",
+      ["heart_rate"],
+      "2026-03-28",
+      mockEncryption,
+      mockDb as unknown as NodePgDatabase,
+    );
+
+    // Only 5 oura rows pass filter → below minimum 7, so no baseline
+    expect(result.has("heart_rate")).toBe(false);
+  });
+
+  it("calls resolveSourcesForMetrics with correct userId and metrics", async () => {
+    const fakeRows: unknown[] = [];
+    const whereFn = vi.fn().mockResolvedValue(fakeRows);
+    const fromFn = vi.fn().mockReturnValue({ where: whereFn });
+    mockDb.select.mockReturnValue({ from: fromFn });
+
+    await computeBaselinesOnDemand(
+      "user_abc",
+      ["rhr", "hrv", "sleep_score"],
+      "2026-03-28",
+      mockEncryption,
+      mockDb as unknown as NodePgDatabase,
+    );
+
+    expect(mockResolveSourcesForMetrics).toHaveBeenCalledTimes(1);
+    expect(mockResolveSourcesForMetrics).toHaveBeenCalledWith("user_abc", [
+      "rhr",
+      "hrv",
+      "sleep_score",
+    ]);
   });
 });

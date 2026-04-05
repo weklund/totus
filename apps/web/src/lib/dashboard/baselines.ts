@@ -16,6 +16,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { BaselinePayload } from "@/lib/dashboard/types";
 import type { EncryptionProvider } from "@/lib/encryption";
 import { healthDataDaily, metricBaselines } from "@/db/schema";
+import { resolveSourcesForMetrics } from "@/lib/api/source-resolution";
 
 /** Minimum number of data points required to compute a meaningful baseline. */
 const MIN_DATA_POINTS = 7;
@@ -93,12 +94,16 @@ export async function computeBaselinesOnDemand(
   const windowStartStr = windowStart.toISOString().split("T")[0]!;
   const windowEndStr = windowEnd.toISOString().split("T")[0]!;
 
+  // Resolve preferred sources per metric (handles multi-source users)
+  const sourceResolutionMap = await resolveSourcesForMetrics(userId, metrics);
+
   // Query encrypted rows from health_data_daily
   const rows = await database
     .select({
       metricType: healthDataDaily.metricType,
       date: healthDataDaily.date,
       valueEncrypted: healthDataDaily.valueEncrypted,
+      source: healthDataDaily.source,
     })
     .from(healthDataDaily)
     .where(
@@ -109,10 +114,16 @@ export async function computeBaselinesOnDemand(
       ),
     );
 
-  // Decrypt values and group by metric
+  // Decrypt values and group by metric, filtering by resolved source per-metric
   const dataByMetric = new Map<string, number[]>();
 
   for (const row of rows) {
+    // Apply source resolution filtering per-metric (same pattern as GET /api/health-data)
+    const resolution = sourceResolutionMap.get(row.metricType);
+    if (resolution && row.source !== resolution.source) {
+      continue; // Skip data from non-preferred source
+    }
+
     const decrypted = await encryption.decrypt(row.valueEncrypted, userId);
     const value = JSON.parse(decrypted.toString()) as number;
 
