@@ -388,7 +388,7 @@ async function seedDailyMetrics(
       s1Override: undefined,
       s3Overrides: s3ReadinessValues,
     },
-    // Also seed HRV and RHR with S3 overrides
+    // Also seed HRV, RHR, and heart_rate with S3/S1 overrides
     {
       id: "hrv",
       normalValue: 48,
@@ -404,6 +404,15 @@ async function seedDailyMetrics(
       decimals: 0,
       source: OURA_SOURCE,
       s3Overrides: s3RhrValues,
+    },
+    // heart_rate daily — needed for Night view baseline computation (VAL-CROSS-007)
+    {
+      id: "heart_rate",
+      normalValue: 58,
+      variation: 5,
+      decimals: 0,
+      source: OURA_SOURCE,
+      s1Override: 72,
     },
   ];
 

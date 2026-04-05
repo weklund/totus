@@ -1020,7 +1020,7 @@ describe("Insight Rule Engine", () => {
       expect(arcInsight!.title).toBe("Recovery arc detected");
       expect(arcInsight!.body).toContain("42");
       expect(arcInsight!.body).toContain("82");
-      expect(arcInsight!.body).toContain("4 days");
+      expect(arcInsight!.body).toContain("3 days");
       expect(arcInsight!.severity).toBe("info");
       expect(arcInsight!.related_metrics).toContain("readiness_score");
     });

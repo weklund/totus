@@ -137,7 +137,9 @@ const P0_RULES: InsightRule[] = [
       }
 
       const days = ctx.recoveryDays;
-      const improvementDays = days >= 2 ? days - 1 : days;
+      // Count improvement intervals excluding both endpoints (VAL-UIRCV-003)
+      const improvementDays =
+        days >= 3 ? days - 2 : days >= 2 ? days - 1 : days;
 
       return {
         type: "recovery_arc",

@@ -121,8 +121,32 @@ export function DashboardViewRouter() {
   const trendRange = parseRangeParam(searchParams.get("range"));
   const trendSmoothing = parseSmoothingParam(searchParams.get("smoothing"));
 
-  // Recovery range state (3–7 days, default 5)
-  const [recoveryRangeDays, setRecoveryRangeDays] = useState(5);
+  // Recovery: parse start/end from URL params (VAL-UIRCV-003)
+  const urlStart = searchParams.get("start");
+  const urlEnd = searchParams.get("end");
+
+  // Derive initial recovery range from URL start/end if provided
+  const initialRecoveryDays = useMemo(() => {
+    if (urlStart && urlEnd) {
+      try {
+        const s = parseISO(urlStart);
+        const e = parseISO(urlEnd);
+        if (isValid(s) && isValid(e) && e >= s) {
+          const diffDays =
+            Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          // Clamp to 3–14 days
+          return Math.max(3, Math.min(14, diffDays));
+        }
+      } catch {
+        // fall through
+      }
+    }
+    return 5;
+  }, [urlStart, urlEnd]);
+
+  // Recovery range state (3–14 days, default from URL or 5)
+  const [recoveryRangeDays, setRecoveryRangeDays] =
+    useState(initialRecoveryDays);
 
   // Handle view mode changes — update URL.
   // Use router.push (not replace) so the browser back button works after
@@ -185,8 +209,31 @@ export function DashboardViewRouter() {
     [],
   );
 
-  // Compute recovery date range (recoveryRangeDays ending at selected date)
+  // Compute recovery date range:
+  // If URL has valid start/end, use them directly (VAL-UIRCV-003).
+  // Otherwise compute from date + recoveryRangeDays.
   const recoveryRange = useMemo(() => {
+    // Prefer explicit start/end from URL params
+    if (urlStart && urlEnd) {
+      try {
+        const s = parseISO(urlStart);
+        const e = parseISO(urlEnd);
+        if (isValid(s) && isValid(e) && e >= s) {
+          const diffDays =
+            Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+          // Only use if within valid range (3–14 days)
+          if (diffDays >= 3 && diffDays <= 14) {
+            return {
+              start: format(s, "yyyy-MM-dd"),
+              end: format(e, "yyyy-MM-dd"),
+            };
+          }
+        }
+      } catch {
+        // fall through to default
+      }
+    }
+    // Default: compute from date + recoveryRangeDays
     try {
       const endDate = parseISO(date);
       const startDate = new Date(endDate);
@@ -198,7 +245,7 @@ export function DashboardViewRouter() {
     } catch {
       return { start: date, end: date };
     }
-  }, [date, recoveryRangeDays]);
+  }, [date, recoveryRangeDays, urlStart, urlEnd]);
 
   return (
     <div
