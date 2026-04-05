@@ -76,16 +76,17 @@ function createNextRequest(
   path: string,
   cookies: Record<string, string> = {},
 ): {
-  nextUrl: { pathname: string };
+  nextUrl: { pathname: string; searchParams: URLSearchParams };
   url: string;
   headers: Headers;
   cookies: {
     get: (name: string) => { value: string } | undefined;
   };
 } {
+  const url = new URL(path, "http://localhost:3000");
   return {
-    nextUrl: { pathname: path },
-    url: `http://localhost:3000${path}`,
+    nextUrl: { pathname: url.pathname, searchParams: url.searchParams },
+    url: url.toString(),
     headers: new Headers(),
     cookies: {
       get: (name: string) => {
@@ -585,5 +586,107 @@ describe("middleware — authenticated dashboard access", () => {
     expect(response.status).not.toBe(401);
     const ctx = getContextFromResponse(response);
     expect(ctx!.role).toBe("viewer");
+  });
+});
+
+// ─── grant_token passthrough for view endpoints ─────────────────────────────
+
+describe("middleware — grant_token passthrough for /api/views/*", () => {
+  it("allows unauthenticated request to /api/views/night with grant_token", async () => {
+    const req = createNextRequest(
+      "/api/views/night?date=2026-03-28&grant_token=some-token",
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await middleware(req as any);
+
+    // Should NOT return 401 — the request should pass through to the route handler
+    expect(response.status).not.toBe(401);
+
+    // The context should be unauthenticated (route handler will resolve grant_token)
+    const ctx = getContextFromResponse(response);
+    expect(ctx).not.toBeNull();
+    expect(ctx!.role).toBe("unauthenticated");
+  });
+
+  it("allows unauthenticated request to /api/views/recovery with grant_token", async () => {
+    const req = createNextRequest(
+      "/api/views/recovery?start=2026-03-24&end=2026-03-28&grant_token=some-token",
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await middleware(req as any);
+
+    expect(response.status).not.toBe(401);
+    const ctx = getContextFromResponse(response);
+    expect(ctx).not.toBeNull();
+    expect(ctx!.role).toBe("unauthenticated");
+  });
+
+  it("allows unauthenticated request to /api/views/trend with grant_token", async () => {
+    const req = createNextRequest(
+      "/api/views/trend?start=2026-02-27&end=2026-03-28&metrics=rhr,hrv&grant_token=some-token",
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await middleware(req as any);
+
+    expect(response.status).not.toBe(401);
+    const ctx = getContextFromResponse(response);
+    expect(ctx).not.toBeNull();
+    expect(ctx!.role).toBe("unauthenticated");
+  });
+
+  it("still returns 401 for /api/views/night WITHOUT grant_token", async () => {
+    const req = createNextRequest("/api/views/night?date=2026-03-28");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await middleware(req as any);
+
+    // Without grant_token, unauthenticated requests should get 401
+    expect(response.status).toBe(401);
+  });
+
+  it("still returns 401 for /api/views/recovery WITHOUT grant_token", async () => {
+    const req = createNextRequest(
+      "/api/views/recovery?start=2026-03-24&end=2026-03-28",
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await middleware(req as any);
+
+    expect(response.status).toBe(401);
+  });
+
+  it("still returns 401 for /api/views/trend WITHOUT grant_token", async () => {
+    const req = createNextRequest(
+      "/api/views/trend?start=2026-02-27&end=2026-03-28&metrics=rhr,hrv",
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await middleware(req as any);
+
+    expect(response.status).toBe(401);
+  });
+
+  it("does NOT allow grant_token passthrough for non-view routes", async () => {
+    const req = createNextRequest("/api/health-data?grant_token=some-token");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await middleware(req as any);
+
+    // Non-view routes should still require standard auth
+    expect(response.status).toBe(401);
+  });
+
+  it("does NOT allow grant_token passthrough for /api/annotations", async () => {
+    const req = createNextRequest(
+      "/api/annotations?start=2026-03-01&end=2026-03-28&grant_token=some-token",
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await middleware(req as any);
+
+    expect(response.status).toBe(401);
   });
 });

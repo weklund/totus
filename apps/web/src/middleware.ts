@@ -103,6 +103,16 @@ function isOwnerOnlyApiPath(pathname: string): boolean {
   return true;
 }
 
+/**
+ * Check if a request is a view endpoint with a grant_token query parameter.
+ * These requests skip middleware auth enforcement because the route handler
+ * validates the grant_token and establishes viewer context directly.
+ */
+function isViewEndpointWithGrantToken(request: NextRequest): boolean {
+  const { pathname, searchParams } = request.nextUrl;
+  return pathname.startsWith("/api/views/") && searchParams.has("grant_token");
+}
+
 // ─── Secret helpers ─────────────────────────────────────────────────────────
 
 function getSessionSecret(): Uint8Array | null {
@@ -356,9 +366,11 @@ async function coreMiddleware(
 
   // Owner-only API routes: return 401 if unauthenticated
   // (but not for public paths — those are always accessible)
+  // View endpoints with grant_token pass through — the route handler validates the token
   if (
     isOwnerOnlyApiPath(pathname) &&
     !isPublicPath(pathname) &&
+    !isViewEndpointWithGrantToken(request) &&
     isUnauthenticated
   ) {
     const response = NextResponse.json(
