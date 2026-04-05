@@ -1,0 +1,28 @@
+{
+  "featureId": "baseline-computation-service",
+  "reviewedAt": "2026-04-05T05:18:08Z",
+  "commitId": "a215b84",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Baseline computation is generally implemented, but the on-demand query does not enforce per-metric source resolution, which can double-count or mix provider rows for the same metric/date and produce incorrect baselines.",
+    "issues": [
+      {
+        "file": "apps/web/src/lib/dashboard/baselines.ts",
+        "line": 107,
+        "severity": "blocking",
+        "description": "computeBaselinesOnDemand filters by user/metric/date only and does not constrain by resolved source. Since health_data_daily is unique by (user, metric, date, source), users with multiple providers can have multiple rows for the same metric/date; this implementation will aggregate all of them, distorting avg/stddev and downstream deltas. LLD requires source-resolved baseline queries (dashboard-backend-lld.md line 722: `AND source = $4  -- resolved source per metric`)."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "knowledge",
+      "observation": "Feature-level acceptance criteria did not carry forward the LLD requirement to apply source resolution in baseline queries, making this regression easy to miss despite passing feature tests.",
+      "evidence": "features.json (baseline-computation-service) says to query/decrypt health_data_daily rows in the 30-day window but does not mention source filtering; validation-contract VAL-COMP-001/002/003/014 also omit source-resolution assertions, while dashboard-backend-lld.md line 722 requires `AND source = $4`."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed feature baseline-computation-service (worker session 4fabcb81-9ac7-4e55-8396-4a4a42ee309b, commit a215b84). Found one blocking correctness issue: on-demand baselines do not apply source resolution, so multi-source users can get incorrect baseline statistics."
+}

@@ -1,0 +1,21 @@
+{
+  "featureId": "insight-engine-p0",
+  "reviewedAt": "2026-04-05T05:21:43Z",
+  "commitId": "cb58931",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The implementation in src/lib/dashboard/insights.ts satisfies the feature requirements: all 4 P0 rules are present with the specified priorities and view scoping, insights are evaluated in priority order with max-3 capping, dismissed types are skipped with lower-priority backfill, and insight bodies include interpolated values. The accompanying test suite in src/lib/dashboard/__tests__/insights.test.ts covers rule firing, ordering, cap behavior, dismissal/backfill, and viewType scoping.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill prescribes TDD (write failing tests before implementation), but this worker implemented insights.ts before creating insights.test.ts while handoff skillFeedback still marked followedProcedure=true.",
+      "evidence": "worker-transcripts.jsonl entry for session ff02a616-996f-45ed-8f3d-32124b120da3 shows `Create .../insights.ts` preceding `Create .../__tests__/insights.test.ts`; .factory/skills/backend-worker/SKILL.md step 3 requires writing tests first and running them failing before implementation."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed feature insight-engine-p0 (commit cb58931). Code and tests align with the described P0 insight engine behavior, and no high-confidence actionable code defects were found; review status is pass. Logged one shared-state observation about backend-worker skill procedure compliance signaling."
+}

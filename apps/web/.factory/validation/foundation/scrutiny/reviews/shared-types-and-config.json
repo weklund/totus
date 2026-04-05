@@ -1,0 +1,26 @@
+{
+  "featureId": "shared-types-and-config",
+  "reviewedAt": "2026-04-05T05:17:44Z",
+  "commitId": "0d21a22",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "Implementation matches the feature description and LLD §14.1/§14.2: shared dashboard types were added at src/lib/dashboard/types.ts with the expected interfaces, and metric polarity config was added at src/config/metric-polarity.ts with the expected metric-to-polarity mappings.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The backend-worker skill procedure requires reading .factory/library/architecture.md and doing TDD first, but this feature's transcript skipped architecture.md and skipped tests for a pure type/config task. The handoff explicitly suggests making the TDD requirement optional for this task class.",
+      "evidence": "worker-transcripts.jsonl (session e763b013-a0b7-4d8c-a2b7-eb4c11de95a5) shows no architecture.md read and no test creation; handoff.skillFeedback.deviations references skipping TDD and suggestedChanges requests an update to backend-worker guidance."
+    },
+    {
+      "area": "services",
+      "observation": "Worker used .factory/init.sh during setup, but this bootstrap command is not represented in .factory/services.yaml command aliases.",
+      "evidence": "Transcript skeleton includes Execute of '.factory/init.sh'; .factory/services.yaml lists install/typecheck/build/test/lint/db_* commands but no init command."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed commit 0d21a22 for shared-types-and-config and found it compliant with the requested behavior; no code defects identified, with only shared-state process/documentation observations noted."
+}

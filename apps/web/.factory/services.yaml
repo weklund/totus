@@ -1,5 +1,6 @@
 commands:
   install: cd /Users/weae1504/Projects/totus && npm install
+  init: cd /Users/weae1504/Projects/totus/apps/web && ./.factory/init.sh
   typecheck: cd /Users/weae1504/Projects/totus/apps/web && npm run typecheck
   build: cd /Users/weae1504/Projects/totus/apps/web && npm run build
   test: cd /Users/weae1504/Projects/totus/apps/web && npm run test -- --maxWorkers=8
