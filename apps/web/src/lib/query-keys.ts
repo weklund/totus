@@ -62,4 +62,25 @@ export const queryKeys = {
     all: ["api-keys"] as const,
     list: () => ["api-keys", "list"] as const,
   },
+  dashboard: {
+    all: ["dashboard"] as const,
+    night: (date: string) => ["dashboard", "night", date] as const,
+    recovery: (params: {
+      start: string;
+      end: string;
+      metrics?: string;
+      event_id?: string;
+    }) => ["dashboard", "recovery", params] as const,
+    trend: (params: {
+      start: string;
+      end: string;
+      metrics: string;
+      smoothing?: string;
+    }) => ["dashboard", "trend", params] as const,
+    annotations: (params: {
+      start: string;
+      end: string;
+      event_type?: string;
+    }) => ["dashboard", "annotations", params] as const,
+  },
 };
