@@ -1,0 +1,21 @@
+{
+  "featureId": "fix-hooks-type-alignment",
+  "reviewedAt": "2026-04-05T08:11:44Z",
+  "commitId": "a4c6695",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "pass",
+  "codeReview": {
+    "summary": "The fix fully addresses the prior review failure. Hook response interfaces now match the actual API response shapes for night, recovery, and trend endpoints, including hypnogram structure, simplified baseline objects, and recovery daily map shape.",
+    "issues": []
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The frontend-worker skill procedure remains overly component-centric for hooks-only fixes and continues to require deviations for non-UI work.",
+      "evidence": ".factory/skills/frontend-worker/SKILL.md mandates component-test-first and agent-browser verification; this fix transcript and handoff skillFeedback for workerSessionId 03e35bbe-4781-4d86-ae27-c4c5e6e5b50f show those steps were skipped as inapplicable."
+    }
+  ],
+  "addressesFailureFrom": ".factory/validation/frontend-shared/scrutiny/reviews/react-query-hooks.json",
+  "summary": "Pass. I reviewed the fix transcript skeleton plus both diffs (03b4b8d and a4c6695). The four blocking type mismatches from the prior react-query-hooks review are resolved and now align with endpoint contracts (night hypnogram/baselines, recovery daily shape, trend baseline shape)."
+}

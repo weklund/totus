@@ -1,0 +1,45 @@
+{
+  "featureId": "dashboard-shared-components",
+  "reviewedAt": "2026-04-05T07:59:15Z",
+  "commitId": "a07e4eb",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "All nine dashboard shared components and tests were added, but there are blocking gaps versus the feature contract: InsightCard dismissal is not wired to useDismissInsight, and shared time-axis alignment is not correctly implemented between MetricStripContainer and MetricStrip.",
+    "issues": [
+      {
+        "file": "src/components/dashboard/InsightCard.tsx",
+        "line": 13,
+        "severity": "blocking",
+        "description": "The feature description requires the InsightCard dismiss button to call useDismissInsight, but this component only accepts an external onDismiss callback and never invokes the hook itself. As implemented, the requested dismissal mutation/invalidation behavior is not provided by the component."
+      },
+      {
+        "file": "src/components/dashboard/MetricStrip.tsx",
+        "line": 78,
+        "severity": "blocking",
+        "description": "Shared-axis alignment is unreliable/broken. MetricStripContainer computes numeric xDomain values (MetricStripContainer.tsx:61-63), while MetricStrip keeps x values as ISO strings (line 78) and switches XAxis to type=\"number\" with scale=\"time\" when xDomain is provided (lines 196-198). This string-vs-number mismatch can misrender points and defeats the aligned shared-axis requirement."
+      },
+      {
+        "file": "src/components/dashboard/MetricStrip.tsx",
+        "line": 40,
+        "severity": "non_blocking",
+        "description": "Expected behavior includes loading, empty, and error states, but the new component APIs only expose loading/empty paths (also SummaryStrip.tsx:15-35 and SleepHypnogram.tsx:25-135). There is no explicit error-state prop/rendering path in this component set."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The frontend-worker skill says agent-browser verification is required for visual component work, but this run completed without agent-browser usage and still marked followedProcedure=true.",
+      "evidence": ".factory/skills/frontend-worker/SKILL.md states \"MUST invoke\" agent-browser; transcript skeleton for worker session 2cd17844-46f2-45a4-b0fa-7102daa255bd shows no agent-browser tool call, and handoff.verification contains only npm test/typecheck/lint commands."
+    },
+    {
+      "area": "skills",
+      "observation": "The skill's strict tests-first TDD step does not match successful execution for multi-component batches, creating avoidable process friction.",
+      "evidence": "Transcript skeleton shows component files were created before test files, and handoff.skillFeedback.suggestedChanges explicitly notes implementing/testing in pairs was more efficient than strict TDD."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review status is fail. The implementation is substantial and well-tested, but it misses two blocking contract requirements: InsightCard dismissal is not wired through useDismissInsight, and MetricStripContainer/MetricStrip shared-axis alignment is not correctly wired due incompatible x-axis value/domain handling."
+}
