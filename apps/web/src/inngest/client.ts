@@ -19,6 +19,13 @@ interface SyncConnectionData {
 }
 
 /**
+ * Event payload for per-user baseline refresh jobs.
+ */
+interface BaselinesRefreshUserData {
+  userId: string;
+}
+
+/**
  * Typed event schemas for all Inngest events in the system.
  */
 type Events = {
@@ -34,6 +41,8 @@ type Events = {
   "integration/token.refresh": { data: Record<string, never> };
   /** Create future monthly partitions for health_data_series */
   "integration/partition.ensure": { data: Record<string, never> };
+  /** Per-user baseline refresh triggered after sync completion */
+  "dashboard/baselines.refresh.user": { data: BaselinesRefreshUserData };
 };
 
 /**

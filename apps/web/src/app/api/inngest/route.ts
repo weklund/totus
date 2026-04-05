@@ -16,6 +16,8 @@ import {
   syncManual,
   tokenRefresh,
   partitionEnsure,
+  baselinesRefresh,
+  baselinesRefreshUser,
 } from "@/inngest/functions";
 
 export const { GET, POST, PUT } = serve({
@@ -27,5 +29,7 @@ export const { GET, POST, PUT } = serve({
     syncManual,
     tokenRefresh,
     partitionEnsure,
+    baselinesRefresh,
+    baselinesRefreshUser,
   ],
 });
