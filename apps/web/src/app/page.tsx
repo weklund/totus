@@ -1,7 +1,7 @@
 import { LandingHeader } from "@/components/landing/LandingHeader";
 import { Hero } from "@/components/landing/Hero";
-import { Features } from "@/components/landing/Features";
-import { HowItWorks } from "@/components/landing/HowItWorks";
+import { ProductDemo } from "@/components/landing/ProductDemo";
+import { TrustStrip } from "@/components/landing/TrustStrip";
 import { CallToAction } from "@/components/landing/CallToAction";
 import { Footer } from "@/components/landing/Footer";
 
@@ -11,8 +11,8 @@ export default function Home() {
       <LandingHeader />
       <main className="flex-1">
         <Hero />
-        <Features />
-        <HowItWorks />
+        <ProductDemo />
+        <TrustStrip />
         <CallToAction />
       </main>
       <Footer />

@@ -1,14 +1,13 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Heart } from "lucide-react";
+import { Logo } from "@totus/design-system";
 
 export function LandingHeader() {
   return (
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 border-b backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2">
-          <Heart className="text-primary size-5" />
-          <span className="text-lg font-bold">Totus</span>
+        <Link href="/" className="flex items-center">
+          <Logo height={22} variant="auto" />
         </Link>
 
         <nav className="flex items-center gap-2">

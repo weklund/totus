@@ -1,72 +1,97 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { Heart } from "lucide-react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Spotlight } from "@/components/ui/spotlight";
-import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: (delay: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, delay, ease: "easeOut" as const },
-  }),
-};
+import { DashboardPreview } from "./DashboardPreview";
 
 export function Hero() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end start"],
+  });
+
+  const perspective = useTransform(scrollYProgress, [0, 0.5], [12, 0]);
+  const scale = useTransform(scrollYProgress, [0, 0.5], [0.92, 1]);
+
   return (
-    <Spotlight className="w-full">
-      <section className="flex flex-col items-center justify-center gap-8 px-4 py-24 text-center md:py-32 lg:py-40">
-        {/* Badge */}
+    <section ref={sectionRef} className="relative px-4 pt-20 pb-8 md:pt-28">
+      {/* Subtle dot grid background */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.03]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, var(--totus-ocean) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+        }}
+      />
+
+      <div className="relative mx-auto max-w-5xl text-center">
+        {/* Minimal headline */}
         <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          custom={0}
-          className="bg-primary/10 text-primary flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mb-4 inline-flex rounded-full bg-[var(--totus-ocean-tint)] px-4 py-1.5 text-sm font-medium text-[var(--totus-ocean)]"
         >
-          <Heart className="size-4" />
-          <span>Your health data, your control</span>
+          Your personal health data vault
         </motion.div>
 
-        {/* Headline — word-by-word reveal */}
-        <TextGenerateEffect
-          words="Your Personal Health Data Vault"
-          highlight="Health Data Vault"
-          className="max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl"
-        />
-
-        {/* Subtitle */}
-        <motion.p
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          custom={0.5}
-          className="text-muted-foreground max-w-2xl text-lg md:text-xl"
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="mx-auto mb-5 max-w-3xl text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl"
         >
-          Securely store, visualize, and share your Oura Ring health data. Keep
-          full control over who sees what, when, and for how long.
+          See your health data clearly.{" "}
+          <span className="text-[var(--totus-ocean)]">Share it securely.</span>
+        </motion.h1>
+
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mx-auto mb-8 max-w-xl text-lg text-[var(--totus-slate)]"
+        >
+          Connect your Oura Ring. Visualize years of trends. Share a link that
+          expires after your appointment.
         </motion.p>
 
-        {/* CTA Buttons */}
         <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          animate="visible"
-          custom={0.7}
-          className="flex flex-col gap-4 sm:flex-row"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="mb-12 flex justify-center gap-3"
         >
-          <Button size="lg" className="text-base" asChild>
-            <Link href="/sign-up">Get Started</Link>
-          </Button>
-          <Button size="lg" variant="outline" className="text-base" asChild>
-            <Link href="/sign-in">Sign In</Link>
+          <Button
+            size="lg"
+            className="rounded-full bg-[var(--totus-coral)] px-8 text-base text-white hover:bg-[var(--totus-coral)]/90"
+            asChild
+          >
+            <Link href="/sign-up">
+              Get started free
+              <ArrowRight className="ml-2 size-4" />
+            </Link>
           </Button>
         </motion.div>
-      </section>
-    </Spotlight>
+
+        {/* Product preview with perspective tilt */}
+        <motion.div
+          initial={{ opacity: 0, y: 60 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4, ease: "easeOut" }}
+          style={{
+            rotateX: perspective,
+            scale,
+            transformPerspective: "1200px",
+          }}
+        >
+          <DashboardPreview />
+        </motion.div>
+      </div>
+    </section>
   );
 }

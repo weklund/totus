@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Heart } from "lucide-react";
+import { Logo } from "@totus/design-system";
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -7,10 +7,7 @@ export function Footer() {
   return (
     <footer className="border-t px-4 py-8">
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 md:flex-row md:justify-between">
-        <div className="flex items-center gap-2">
-          <Heart className="text-primary size-4" />
-          <span className="text-sm font-semibold">Totus</span>
-        </div>
+        <Logo height={18} variant="auto" />
 
         <nav className="flex gap-6">
           <Link
