@@ -1,0 +1,34 @@
+{
+  "featureId": "dashboard-routing-and-navigation",
+  "reviewedAt": "2026-04-05T09:11:02Z",
+  "commitId": "d18af63",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "Core URL-param routing was implemented, but a blocking navigation-history bug remains: the router uses replace for all view/date transitions, so history entries are overwritten and browser-back context preservation (mapped assertion) is not satisfied.",
+    "issues": [
+      {
+        "file": "src/components/dashboard/DashboardViewRouter.tsx",
+        "line": 82,
+        "severity": "blocking",
+        "description": "View/date navigation uses `router.replace(...)` for every state transition (also at line 90). This overwrites history entries instead of pushing them, so users cannot reliably return to the prior in-dashboard context via browser Back. This conflicts with the feature's mapped assertion VAL-CROSS-009 (context preserved on browser back)."
+      },
+      {
+        "file": "src/components/dashboard/DashboardViewRouter.tsx",
+        "line": 51,
+        "severity": "non_blocking",
+        "description": "Query reconstruction keeps only `view` and `date` (`buildSearchString`), and the recovery render path does not read/forward `event_id` (line 129). Deep links like `/dashboard?view=recovery&date=...&event_id=...` lose triggering-event context that the dedicated recovery page currently supports."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "The workflow guidance did not prevent a mismatch between expected browser-back behavior and implementation choice (`replace`). The worker explicitly treated the replace/history behavior as desirable, despite this feature mapping to VAL-CROSS-009 (back-context preservation).",
+      "evidence": "validation-contract.md:464-467 defines VAL-CROSS-009; features.json:1094-1098 maps this feature to VAL-CROSS-009; worker-transcripts.jsonl:40 records the worker rationale that replace-based history behavior is desired."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed: routing/deep-link basics are present, but browser history behavior is incompatible with the feature's mapped back-navigation assertion. Report written with one blocking and one non-blocking issue."
+}

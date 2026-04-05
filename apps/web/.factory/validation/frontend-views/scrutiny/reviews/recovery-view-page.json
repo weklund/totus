@@ -1,0 +1,28 @@
+{
+  "featureId": "recovery-view-page",
+  "reviewedAt": "2026-04-05T09:10:32Z",
+  "commitId": "e56debf",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The Recovery view composition is largely present (insight card, sparklines, baseline bands, table, and states), but one required behavior is missing: a selectable 3–7 day range. The implementation hard-codes a 5-day window, so users cannot choose range length as specified.",
+    "issues": [
+      {
+        "file": "src/app/dashboard/recovery/page.tsx",
+        "line": 30,
+        "severity": "blocking",
+        "description": "The date range is fixed to 5 days (`subDays(endDate, 4)`) and there is no range selector control, but the feature description requires DateNavigation with a selectable 3–7 day recovery range."
+      },
+      {
+        "file": "src/components/dashboard/RecoveryDetailView.tsx",
+        "line": 278,
+        "severity": "non_blocking",
+        "description": "Trigger marker rendering is gated only on `recoveryData.annotations.length > 0`, while the API returns a dedicated `triggering_event` field. The component does not consume `triggering_event`, so marker behavior can diverge from API intent when triggering event data is present but not part of the merged annotations list."
+      }
+    ]
+  },
+  "sharedStateObservations": [],
+  "addressesFailureFrom": null,
+  "summary": "Reviewed handoff, transcript skeleton, skill context, and commit e56debf diff. Failing this feature due to missing required 3–7 day range selector behavior; also noted a non-blocking mismatch between `triggering_event` response data and marker rendering logic."
+}

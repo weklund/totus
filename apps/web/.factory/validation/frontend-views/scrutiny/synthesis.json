@@ -1,0 +1,81 @@
+{
+  "milestone": "frontend-views",
+  "round": 1,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run test -- --maxWorkers=8",
+      "exitCode": 1,
+      "observation": "Vitest exited 1 with exactly 9 known pre-existing failures confined to src/db/__tests__/schema.test.ts (8) and src/app/api/health-data/__tests__/route.test.ts (1), while src/db/__tests__/audit-immutability.test.ts remained fully skipped; no new failing test files were introduced."
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run typecheck",
+      "exitCode": 0,
+      "observation": "tsc --noEmit completed successfully with exit code 0."
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run lint",
+      "exitCode": 0,
+      "observation": "next lint completed with no ESLint warnings or errors."
+    }
+  },
+  "reviewsSummary": {
+    "total": 4,
+    "passed": 0,
+    "failed": 4,
+    "failedFeatures": [
+      "night-detail-view-page",
+      "recovery-view-page",
+      "trend-view-page",
+      "dashboard-routing-and-navigation"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "night-detail-view-page",
+      "severity": "blocking",
+      "description": "NightDetailView expects baseline keys aligned to intraday strip metrics (glucose/heart_rate), but useNightView(date) defaults to daily metrics, so required baseline bands are absent in normal usage."
+    },
+    {
+      "featureId": "recovery-view-page",
+      "severity": "blocking",
+      "description": "Recovery page hard-codes a 5-day range via subDays(endDate, 4) and does not provide the required selectable 3–7 day range control."
+    },
+    {
+      "featureId": "trend-view-page",
+      "severity": "blocking",
+      "description": "Trend chart uses new Date(YYYY-MM-DD).getTime() for date-only strings, causing UTC parsing day shifts for non-UTC users and incorrect date plotting."
+    },
+    {
+      "featureId": "dashboard-routing-and-navigation",
+      "severity": "blocking",
+      "description": "Dashboard navigation uses router.replace for view/date transitions, overwriting history and breaking browser-back context preservation required by VAL-CROSS-009."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "frontend-worker skill",
+      "suggestion": "Add a required verification check that NEXT_PUBLIC_APP_URL matches the running local web port before agent-browser validation begins.",
+      "evidence": "night-detail-view-page handoff shows browser validation failed with NEXT_PUBLIC_APP_URL=http://localhost:3000 while .factory/services.yaml runs web on 3100, despite healthy local endpoints.",
+      "isSystemic": false
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add a frontend date parsing convention: never parse date-only API values with new Date('YYYY-MM-DD'); use local-safe parsing (for example parseISO plus local normalization) for chart domains.",
+      "evidence": "trend-view-page review found a blocking timezone day-shift bug from new Date(d.date).getTime() in core chart rendering.",
+      "isSystemic": false
+    },
+    {
+      "target": "frontend-worker skill",
+      "suggestion": "Require workers to preserve assertion semantics when features are mapped to validation contract IDs (for example, browser-back behavior for VAL-CROSS-009) and explicitly avoid substituting alternative UX without contract alignment.",
+      "evidence": "dashboard-routing-and-navigation review found replace-based navigation rationale in transcript despite VAL-CROSS-009 requiring back-navigation context preservation.",
+      "isSystemic": false
+    }
+  ],
+  "rejectedObservations": [],
+  "previousRound": null
+}
