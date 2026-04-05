@@ -4,70 +4,103 @@ import { spacing } from '../tokens';
 type LogoVariant = 'color' | 'white' | 'mono' | 'auto';
 
 interface SignalBarsProps {
-  /** Height in pixels. Width is derived from the 36:28 aspect ratio. */
+  /** Height in pixels. Width is derived from the 72:52 aspect ratio. */
   height?: number;
   /**
    * Color variant:
    * - `color` — full brand colors (light backgrounds)
-   * - `white` — all-white opacity progression (dark/ocean backgrounds)
+   * - `white` — white opacity bars + lighter gradient center (dark/ocean backgrounds)
    * - `mono` — monochrome slate (single-color contexts)
-   * - `auto` — respects CSS `color-scheme`; switches white on `.dark` automatically
+   * - `auto` — switches color/white based on `.dark` ancestor automatically
    */
   variant?: LogoVariant;
   className?: string;
 }
 
-const BAR_COLORS: Record<Exclude<LogoVariant, 'auto'>, [string, string, string, string]> = {
-  color: ['#2fa87b', '#1e5b7b', '#1e5b7b', '#e8845a'],
-  white: ['rgba(255,255,255,0.4)', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.8)', '#ffffff'],
-  mono: ['#64748b', '#64748b', '#64748b', '#64748b'],
-};
-
-/** Signal Bars icon mark — the Totus logo. */
+/**
+ * Signal Bars icon mark — the Totus logo (Direction B).
+ *
+ * Five rounded vertical bars at bell-curve heights — a health/data histogram.
+ * Ocean-to-emerald gradient on the center bar with a coral peak dot.
+ */
 export function SignalBars({ height = 28, variant = 'color', className }: SignalBarsProps) {
-  const width = Math.round((height / 28) * 36);
+  const width = Math.round(height * (72 / 52));
+  const id = React.useId().replace(/:/g, '');
 
   if (variant === 'auto') {
-    // CSS-driven: uses currentColor so the parent can control color via CSS.
-    // In light mode: render color variant via CSS variables.
-    // In dark mode (.dark ancestor): bars use white opacity progression.
     return (
       <svg
         data-totus-logo
         width={width}
         height={height}
-        viewBox="0 0 36 28"
+        viewBox="0 0 72 52"
         fill="none"
         aria-label="Totus"
         className={className}
         style={{ display: 'inline-block', flexShrink: 0 }}
       >
-        <rect x="0" y="20" width="7" height="8" rx="2" fill="var(--totus-logo-bar1, #2fa87b)" />
-        <rect x="9.5" y="13" width="7" height="15" rx="2" fill="var(--totus-logo-bar2, #1e5b7b)" />
-        <rect x="19" y="6" width="7" height="22" rx="2" fill="var(--totus-logo-bar3, #1e5b7b)" />
-        <rect x="28.5" y="0" width="7" height="28" rx="2" fill="var(--totus-logo-bar4, #e8845a)" />
+        <defs>
+          <linearGradient id={`${id}-g`} x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="var(--totus-logo-grad0, #1E5B7B)" />
+            <stop offset="100%" stopColor="var(--totus-logo-grad1, #2FA87B)" />
+          </linearGradient>
+        </defs>
+        <rect x="1"  y="40" width="10" height="12" rx="5" fill="var(--totus-logo-b1, #1E5B7B)" opacity="var(--totus-logo-o1, 0.3)" />
+        <rect x="15" y="28" width="10" height="24" rx="5" fill="var(--totus-logo-b2, #1E5B7B)" opacity="var(--totus-logo-o2, 0.55)" />
+        <rect x="29" y="8"  width="10" height="44" rx="5" fill={`url(#${id}-g)`} />
+        <rect x="43" y="18" width="10" height="34" rx="5" fill="var(--totus-logo-b4, #2FA87B)" opacity="var(--totus-logo-o4, 0.65)" />
+        <rect x="57" y="30" width="10" height="22" rx="5" fill="var(--totus-logo-b5, #2FA87B)" opacity="var(--totus-logo-o5, 0.38)" />
+        <circle cx="34" cy="6" r="5" fill="#E8845A" />
         <style>{`
-          .dark [data-totus-logo] { --totus-logo-bar1: rgba(255,255,255,0.4); --totus-logo-bar2: rgba(255,255,255,0.6); --totus-logo-bar3: rgba(255,255,255,0.8); --totus-logo-bar4: #ffffff; }
+          .dark [data-totus-logo] {
+            --totus-logo-b1: white; --totus-logo-o1: 0.18;
+            --totus-logo-b2: white; --totus-logo-o2: 0.32;
+            --totus-logo-grad0: #4DB6E8; --totus-logo-grad1: #4EDBA0;
+            --totus-logo-b4: white; --totus-logo-o4: 0.38;
+            --totus-logo-b5: white; --totus-logo-o5: 0.22;
+          }
         `}</style>
       </svg>
     );
   }
 
-  const [c1, c2, c3, c4] = BAR_COLORS[variant];
+  const isWhite = variant === 'white';
+  const isMono = variant === 'mono';
+
+  const grad0 = isWhite ? '#4DB6E8' : isMono ? '#64748b' : '#1E5B7B';
+  const grad1 = isWhite ? '#4EDBA0' : isMono ? '#64748b' : '#2FA87B';
+  const barFillLeft = isWhite ? 'white' : isMono ? '#64748b' : '#1E5B7B';
+  const barFillRight = isWhite ? 'white' : isMono ? '#64748b' : '#2FA87B';
+  const dotFill = isMono ? '#64748b' : '#E8845A';
+
+  const opacities = isWhite
+    ? [0.18, 0.32, 1, 0.38, 0.22]
+    : isMono
+      ? [0.3, 0.55, 1, 0.65, 0.38]
+      : [0.3, 0.55, 1, 0.65, 0.38];
+
   return (
     <svg
       width={width}
       height={height}
-      viewBox="0 0 36 28"
+      viewBox="0 0 72 52"
       fill="none"
       aria-label="Totus"
       className={className}
       style={{ display: 'inline-block', flexShrink: 0 }}
     >
-      <rect x="0" y="20" width="7" height="8" rx="2" fill={c1} />
-      <rect x="9.5" y="13" width="7" height="15" rx="2" fill={c2} />
-      <rect x="19" y="6" width="7" height="22" rx="2" fill={c3} />
-      <rect x="28.5" y="0" width="7" height="28" rx="2" fill={c4} />
+      <defs>
+        <linearGradient id={`${id}-g`} x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%" stopColor={grad0} />
+          <stop offset="100%" stopColor={grad1} />
+        </linearGradient>
+      </defs>
+      <rect x="1"  y="40" width="10" height="12" rx="5" fill={barFillLeft}  opacity={opacities[0]} />
+      <rect x="15" y="28" width="10" height="24" rx="5" fill={barFillLeft}  opacity={opacities[1]} />
+      <rect x="29" y="8"  width="10" height="44" rx="5" fill={`url(#${id}-g)`} />
+      <rect x="43" y="18" width="10" height="34" rx="5" fill={barFillRight} opacity={opacities[3]} />
+      <rect x="57" y="30" width="10" height="22" rx="5" fill={barFillRight} opacity={opacities[4]} />
+      <circle cx="34" cy="6" r="5" fill={dotFill} />
     </svg>
   );
 }
@@ -91,23 +124,20 @@ interface LogoProps {
  * // White version (dark/ocean bg)
  * <Logo variant="white" />
  *
- * // Auto — switches color/white based on .dark class automatically
+ * // Auto — switches color/white based on .dark class
  * <Logo variant="auto" />
  *
  * // Icon only at 20px
  * <Logo height={20} wordmark={false} />
  */
 export function Logo({ height = 28, variant = 'color', wordmark = true, className }: LogoProps) {
-  // Gap between icon and wordmark derived from spacing scale (space-2 = 8px is ~30% of 28px default)
   const gapPx = parseFloat(spacing['2']) * 16; // 0.5rem → 8px
-  const wordmarkSize = Math.round(height * 0.8);
+  const wordmarkSize = Math.round(height * 0.65);
 
   const wordmarkColor =
-    variant === 'color'
-      ? 'var(--totus-text, #1a2332)'
-      : variant === 'auto'
-        ? 'var(--totus-text, #1a2332)'
-        : '#ffffff';
+    variant === 'white'
+      ? '#ffffff'
+      : 'var(--totus-text, #1a2332)';
 
   return (
     <span
@@ -125,8 +155,8 @@ export function Logo({ height = 28, variant = 'color', wordmark = true, classNam
           style={{
             fontFamily: 'var(--totus-font-sans, "DM Sans", system-ui, sans-serif)',
             fontSize: wordmarkSize,
-            fontWeight: 500,
-            letterSpacing: '0.02em',
+            fontWeight: 600,
+            letterSpacing: '-0.02em',
             color: wordmarkColor,
             lineHeight: 1,
             userSelect: 'none',
