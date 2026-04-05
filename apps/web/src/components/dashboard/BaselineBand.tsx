@@ -46,6 +46,7 @@ export function BaselineBand({
       y1={baseline.lower}
       y2={baseline.upper}
       yAxisId={yAxisId ?? "y-0"}
+      className="baseline-band"
       fill={color.line}
       fillOpacity={0.12}
       stroke="none"

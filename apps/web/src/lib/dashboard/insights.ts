@@ -39,6 +39,12 @@ export interface InsightContext {
   trends?: Map<string, TrendResult>;
   annotations?: Annotation[];
   dismissedTypes: Set<string>;
+  /** Recovery-specific: first day's metric values (used by recovery_arc rule). */
+  recoveryFirstDayValues?: Map<string, number>;
+  /** Recovery-specific: last day's metric values (used by recovery_arc rule). */
+  recoveryLastDayValues?: Map<string, number>;
+  /** Recovery-specific: number of days in the recovery range. */
+  recoveryDays?: number;
 }
 
 /**
@@ -99,6 +105,46 @@ const P0_RULES: InsightRule[] = [
         body: `Multiple metrics are simultaneously deviating from your baseline, which may indicate a systemic cause.`,
         related_metrics: relatedMetrics,
         severity: "warning",
+        dismissible: true,
+      };
+    },
+  },
+
+  // Priority 8 — recovery_arc
+  {
+    id: "recovery_arc",
+    viewTypes: ["recovery"],
+    priority: 8,
+    evaluate: (ctx: InsightContext): Insight | null => {
+      if (
+        !ctx.recoveryFirstDayValues ||
+        !ctx.recoveryLastDayValues ||
+        !ctx.recoveryDays
+      ) {
+        return null;
+      }
+
+      const firstReadiness = ctx.recoveryFirstDayValues.get("readiness_score");
+      const lastReadiness = ctx.recoveryLastDayValues.get("readiness_score");
+
+      // Require both values and a meaningful improvement (≥15 points)
+      if (
+        firstReadiness == null ||
+        lastReadiness == null ||
+        lastReadiness - firstReadiness < 15
+      ) {
+        return null;
+      }
+
+      const days = ctx.recoveryDays;
+      const improvementDays = days >= 2 ? days - 1 : days;
+
+      return {
+        type: "recovery_arc",
+        title: "Recovery arc detected",
+        body: `Your readiness improved from ${firstReadiness} to ${lastReadiness} over ${improvementDays} days, indicating a healthy recovery pattern.`,
+        related_metrics: ["readiness_score", "hrv", "rhr"],
+        severity: "info",
         dismissible: true,
       };
     },

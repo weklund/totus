@@ -458,7 +458,9 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     // Step 9: Generate insights (recovery viewType)
     // For recovery view, use the last date's summaries for insight generation
+    const firstDate = dateRange[0]!;
     const lastDate = dateRange[dateRange.length - 1]!;
+    const firstDayValues = valuesByDate.get(firstDate)!;
     const lastDayValues = valuesByDate.get(lastDate)!;
     const lastDaySummaries = computeSummaryMetrics(lastDayValues, baselinesMap);
 
@@ -471,6 +473,10 @@ export async function GET(request: Request): Promise<NextResponse> {
       baselines: baselinesMap,
       annotations,
       dismissedTypes,
+      // Recovery-specific context for recovery_arc insight rule
+      recoveryFirstDayValues: firstDayValues,
+      recoveryLastDayValues: lastDayValues,
+      recoveryDays: dateRange.length,
     });
 
     // Step 10: Assemble RecoveryResponse
@@ -554,10 +560,13 @@ async function getDismissedTypes(
   return new Set(rows.map((r) => r.insightType));
 }
 
+/** Minimum sample_count for baselines to be included in the response (VAL-CROSS-018). */
+const MIN_BASELINE_HISTORY = 14;
+
 /**
  * Convert the baselines Map to the response format matching LLD §8.2.
- * Includes sample_count so the frontend can suppress baseline bands/deltas
- * when history is insufficient (< 14 days, VAL-CROSS-018).
+ * Baselines with sample_count < 14 are omitted entirely to avoid rendering
+ * misleading normal ranges from insufficient history (VAL-CROSS-018).
  */
 function baselinesMapToResponse(
   baselines: Map<string, BaselinePayload>,
@@ -582,6 +591,10 @@ function baselinesMapToResponse(
     }
   > = {};
   for (const [metric, payload] of baselines) {
+    // Suppress baselines with insufficient history (VAL-CROSS-018)
+    if (payload.sample_count < MIN_BASELINE_HISTORY) {
+      continue;
+    }
     result[metric] = {
       avg: payload.avg_30d,
       stddev: payload.stddev_30d,

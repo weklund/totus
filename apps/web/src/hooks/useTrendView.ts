@@ -34,7 +34,7 @@ export interface TrendMetricData {
     values: number[];
   } | null;
   trend: TrendResult;
-  baseline: TrendViewBaseline;
+  baseline: TrendViewBaseline | null;
 }
 
 export interface TrendViewResponse {

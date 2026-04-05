@@ -951,9 +951,9 @@ describe("Insight Rule Engine", () => {
   // -----------------------------------------------------------------------
 
   describe("rule definitions", () => {
-    it("P0 rules have exactly 4 entries", () => {
+    it("P0 rules have exactly 5 entries", () => {
       const rules = getP0Rules();
-      expect(rules).toHaveLength(4);
+      expect(rules).toHaveLength(5);
     });
 
     it("P0 rules have correct priorities", () => {
@@ -964,6 +964,7 @@ describe("Insight Rule Engine", () => {
         id: "multi_metric_deviation",
         priority: 5,
       });
+      expect(priorities).toContainEqual({ id: "recovery_arc", priority: 8 });
       expect(priorities).toContainEqual({ id: "elevated_rhr", priority: 10 });
       expect(priorities).toContainEqual({
         id: "low_sleep_score",
@@ -979,6 +980,7 @@ describe("Insight Rule Engine", () => {
       expect(ruleMap.get("multi_metric_deviation")!.viewTypes).toEqual(
         expect.arrayContaining(["night", "recovery", "anomaly"]),
       );
+      expect(ruleMap.get("recovery_arc")!.viewTypes).toEqual(["recovery"]);
       expect(ruleMap.get("elevated_rhr")!.viewTypes).toEqual(
         expect.arrayContaining(["night", "recovery"]),
       );
@@ -994,6 +996,88 @@ describe("Insight Rule Engine", () => {
       const rules = getP0Rules();
       const ids = rules.map((r) => r.id);
       expect(new Set(ids).size).toBe(ids.length);
+    });
+  });
+
+  // -----------------------------------------------------------------------
+  // recovery_arc rule
+  // -----------------------------------------------------------------------
+
+  describe("recovery_arc rule", () => {
+    it("fires when readiness improves ≥15 points over recovery range", () => {
+      const ctx = makeContext({
+        viewType: "recovery",
+        recoveryFirstDayValues: new Map([["readiness_score", 42]]),
+        recoveryLastDayValues: new Map([["readiness_score", 82]]),
+        recoveryDays: 5,
+      });
+
+      const insights = generateInsights("recovery", ctx);
+
+      expect(insights.length).toBeGreaterThanOrEqual(1);
+      const arcInsight = insights.find((i) => i.type === "recovery_arc");
+      expect(arcInsight).toBeDefined();
+      expect(arcInsight!.title).toBe("Recovery arc detected");
+      expect(arcInsight!.body).toContain("42");
+      expect(arcInsight!.body).toContain("82");
+      expect(arcInsight!.body).toContain("4 days");
+      expect(arcInsight!.severity).toBe("info");
+      expect(arcInsight!.related_metrics).toContain("readiness_score");
+    });
+
+    it("does NOT fire when readiness improvement < 15 points", () => {
+      const ctx = makeContext({
+        viewType: "recovery",
+        recoveryFirstDayValues: new Map([["readiness_score", 70]]),
+        recoveryLastDayValues: new Map([["readiness_score", 82]]),
+        recoveryDays: 5,
+      });
+
+      const insights = generateInsights("recovery", ctx);
+
+      const arcInsight = insights.find((i) => i.type === "recovery_arc");
+      expect(arcInsight).toBeUndefined();
+    });
+
+    it("does NOT fire on night viewType", () => {
+      const ctx = makeContext({
+        viewType: "night",
+        recoveryFirstDayValues: new Map([["readiness_score", 42]]),
+        recoveryLastDayValues: new Map([["readiness_score", 82]]),
+        recoveryDays: 5,
+      });
+
+      const insights = generateInsights("night", ctx);
+
+      const arcInsight = insights.find((i) => i.type === "recovery_arc");
+      expect(arcInsight).toBeUndefined();
+    });
+
+    it("does NOT fire when recovery context is missing", () => {
+      const ctx = makeContext({
+        viewType: "recovery",
+        // No recoveryFirstDayValues, recoveryLastDayValues, recoveryDays
+      });
+
+      const insights = generateInsights("recovery", ctx);
+
+      const arcInsight = insights.find((i) => i.type === "recovery_arc");
+      expect(arcInsight).toBeUndefined();
+    });
+
+    it("can be dismissed", () => {
+      const ctx = makeContext({
+        viewType: "recovery",
+        recoveryFirstDayValues: new Map([["readiness_score", 42]]),
+        recoveryLastDayValues: new Map([["readiness_score", 82]]),
+        recoveryDays: 5,
+        dismissedTypes: new Set(["recovery_arc"]),
+      });
+
+      const insights = generateInsights("recovery", ctx);
+
+      const arcInsight = insights.find((i) => i.type === "recovery_arc");
+      expect(arcInsight).toBeUndefined();
     });
   });
 
@@ -1039,7 +1123,8 @@ describe("Insight Rule Engine", () => {
     });
 
     it("viewType scoping and dismissal interact correctly", () => {
-      // On recovery view, dismiss elevated_rhr, provide all summaries
+      // On recovery view, dismiss elevated_rhr and multi_metric_deviation, provide all summaries
+      // recovery_arc won't fire because no recovery context is provided
       const anomaly = makeAnomalyResult(3, [
         ["rhr", true],
         ["hrv", true],
@@ -1060,6 +1145,7 @@ describe("Insight Rule Engine", () => {
       const insights = generateInsights("recovery", ctx);
 
       // multi_metric_deviation dismissed, elevated_rhr dismissed
+      // recovery_arc doesn't fire (no recovery context)
       // Remaining: low_sleep_score (20), suppressed_hrv (30)
       expect(insights).toHaveLength(2);
       expect(insights[0].type).toBe("low_sleep_score");

@@ -352,7 +352,7 @@ export async function GET(request: Request): Promise<NextResponse> {
           upper: number;
           lower: number;
           sample_count: number;
-        };
+        } | null;
       }
     > = {};
 
@@ -388,16 +388,19 @@ export async function GET(request: Request): Promise<NextResponse> {
       const trend = computeTrendDirection(rawData);
 
       // Baseline (from fetched baselines)
+      // Suppress baselines with insufficient history (VAL-CROSS-018)
       const baseline = baselinesMap.get(metric);
-      const baselineResponse = baseline
-        ? {
-            avg: baseline.avg_30d,
-            stddev: baseline.stddev_30d,
-            upper: baseline.upper,
-            lower: baseline.lower,
-            sample_count: baseline.sample_count,
-          }
-        : { avg: 0, stddev: 0, upper: 0, lower: 0, sample_count: 0 };
+      const MIN_BASELINE_HISTORY = 14;
+      const baselineResponse =
+        baseline && baseline.sample_count >= MIN_BASELINE_HISTORY
+          ? {
+              avg: baseline.avg_30d,
+              stddev: baseline.stddev_30d,
+              upper: baseline.upper,
+              lower: baseline.lower,
+              sample_count: baseline.sample_count,
+            }
+          : null;
 
       metricsResponse[metric] = {
         raw: { dates: rawDates, values: rawValues },
