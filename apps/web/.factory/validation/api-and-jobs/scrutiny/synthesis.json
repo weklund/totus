@@ -1,0 +1,104 @@
+{
+  "milestone": "api-and-jobs",
+  "round": 1,
+  "status": "fail",
+  "validatorsRun": {
+    "test": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run test -- --maxWorkers=8",
+      "exitCode": 1,
+      "observation": "Vitest reported 9 failing tests confined to known pre-existing failures in src/db/__tests__/schema.test.ts (8) and src/app/api/health-data/__tests__/route.test.ts (1), with src/db/__tests__/audit-immutability.test.ts skipped; no additional failing test files were introduced."
+    },
+    "typecheck": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run typecheck",
+      "exitCode": 0,
+      "observation": "tsc --noEmit completed successfully with exit code 0."
+    },
+    "lint": {
+      "passed": true,
+      "command": "cd /Users/weae1504/Projects/totus/apps/web && npm run lint",
+      "exitCode": 0,
+      "observation": "next lint completed successfully with no warnings or errors."
+    }
+  },
+  "reviewsSummary": {
+    "total": 6,
+    "passed": 2,
+    "failed": 4,
+    "failedFeatures": [
+      "annotation-crud-api",
+      "night-view-endpoint",
+      "recovery-view-endpoint",
+      "trend-view-endpoint"
+    ]
+  },
+  "blockingIssues": [
+    {
+      "featureId": "annotation-crud-api",
+      "severity": "blocking",
+      "description": "API-key scope enforcement is missing on annotation CRUD handlers, allowing API-key callers without required scopes to read/mutate annotation data."
+    },
+    {
+      "featureId": "annotation-crud-api",
+      "severity": "blocking",
+      "description": "Viewer annotation reads are not clamped to grant dataStart/dataEnd; metric filtering is applied, but date-range scoping can be bypassed."
+    },
+    {
+      "featureId": "night-view-endpoint",
+      "severity": "blocking",
+      "description": "Viewer date clamping from enforcePermissions is not applied to execution; route continues using requested date/time window instead of effective clamped bounds."
+    },
+    {
+      "featureId": "night-view-endpoint",
+      "severity": "blocking",
+      "description": "grant_token is parsed but not used to establish auth/scoping, so documented grant-token deep-link behavior is not implemented."
+    },
+    {
+      "featureId": "recovery-view-endpoint",
+      "severity": "blocking",
+      "description": "event_id-triggered annotation lookup checks owner userId but does not enforce viewer grant-window bounds, enabling out-of-range annotation disclosure."
+    },
+    {
+      "featureId": "trend-view-endpoint",
+      "severity": "blocking",
+      "description": "Trend endpoint validates correlation pairs but always returns correlations: [], missing required correlation computation behavior."
+    }
+  ],
+  "appliedUpdates": [],
+  "suggestedGuidanceUpdates": [
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Add explicit API-route security checklist requiring API-key scope checks and viewer date-window clamping (including secondary lookups such as event_id) for all read/write handlers.",
+      "evidence": "Blocking authorization/scope defects were reported in annotation-crud-api, night-view-endpoint, and recovery-view-endpoint.",
+      "isSystemic": true
+    },
+    {
+      "target": "AGENTS.md",
+      "suggestion": "Resolve scope contradiction for trend correlations: either remove VAL-TREND-005 from this milestone or remove 'correlations/trend detection are P1 off-limits' guidance for api-and-jobs.",
+      "evidence": "trend-view-endpoint omitted correlations while feature contract maps it to VAL-TREND-005; review observed AGENTS vs validation-contract mismatch.",
+      "isSystemic": true
+    },
+    {
+      "target": "skills/backend-worker",
+      "suggestion": "Add an explicit pre-handoff verification checklist for auth scope/date clamping and align procedural requirements (manual curl, bun/npm command examples, followedProcedure signaling) with current repository practice.",
+      "evidence": "Multiple reviews observed missing scope/clamp checks and repeated procedure-adherence mismatches in skillFeedback across completed features.",
+      "isSystemic": true
+    }
+  ],
+  "rejectedObservations": [
+    {
+      "observation": "Repeated TDD/procedure-adherence mismatch observations across multiple review reports.",
+      "reason": "duplicate"
+    },
+    {
+      "observation": "Service teardown ambiguity around stopping shared postgres in multi-worker runs.",
+      "reason": "ambiguous"
+    },
+    {
+      "observation": "Inngest integration-test convention gap suggestion.",
+      "reason": "ambiguous"
+    }
+  ],
+  "previousRound": null
+}

@@ -1,0 +1,33 @@
+{
+  "featureId": "recovery-view-endpoint",
+  "reviewedAt": "2026-04-05T06:34:28Z",
+  "commitId": "06b9051",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The endpoint and tests cover most Recovery view requirements (range validation, baseline anchoring, sparklines, triggering event handling, audit event emission). However, there is a viewer-scoping bypass in triggering_event lookup that can expose annotation content outside the viewer's granted date window.",
+    "issues": [
+      {
+        "file": "apps/web/src/app/api/views/recovery/route.ts",
+        "line": 336,
+        "severity": "blocking",
+        "description": "When `event_id` is provided, the route fetches `user_annotations` by ID and only checks owner userId (`annotation.userId !== userId`). For viewer requests, this bypasses grant date scoping because it never verifies `annotation.occurredAt`/`endedAt` against the effective permitted window (`effectiveStart`..`effectiveEnd`). A viewer who can guess IDs can read decrypted annotation labels/notes for events outside their authorized date range."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "skills",
+      "observation": "Procedure-adherence signaling is unreliable for this run: the worker did not follow the skill's tests-first requirement, but handoff feedback still marked `followedProcedure: true`.",
+      "evidence": "Transcript skeleton shows creating `src/app/api/views/recovery/route.ts` before creating `src/app/api/views/__tests__/recovery.test.ts`. `apps/web/.factory/skills/backend-worker/SKILL.md` Step 3 requires writing tests first (red phase)."
+    },
+    {
+      "area": "conventions",
+      "observation": "Shared guidance states viewer access must be metric/date scoped, but does not explicitly call out that secondary lookup parameters (like `event_id`) must also be scope-checked. This gap likely contributed to the bug.",
+      "evidence": "`apps/web/.factory/library/architecture.md:227` defines date-range scoping invariant; `apps/web/src/app/api/views/recovery/route.ts:322-355` checks only annotation ownership for `event_id` and not grant-window bounds."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed due to a blocking access-control bug: `event_id` lookup can expose triggering annotation data outside viewer grant date limits. Other Recovery endpoint behaviors appear aligned with the feature contract."
+}

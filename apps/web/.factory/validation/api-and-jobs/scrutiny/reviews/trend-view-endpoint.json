@@ -1,0 +1,34 @@
+{
+  "featureId": "trend-view-endpoint",
+  "reviewedAt": "2026-04-05T06:33:54Z",
+  "commitId": "3914327",
+  "transcriptSkeletonReviewed": true,
+  "diffReviewed": true,
+  "status": "fail",
+  "codeReview": {
+    "summary": "The endpoint implements auth, range validation, smoothing, baseline anchoring, viewer scoping, trend output, and audit logging, but it does not implement correlation computation required by the feature's validation scope.",
+    "issues": [
+      {
+        "file": "apps/web/src/app/api/views/trend/route.ts",
+        "line": 410,
+        "severity": "blocking",
+        "description": "`correlations` is always returned as an empty array, even when valid `correlations` query pairs are provided. This fails VAL-TREND-005 requirements to compute coefficient/strength/direction/sample_count/sufficient_data for requested pairs."
+      },
+      {
+        "file": "apps/web/src/app/api/views/trend/route.ts",
+        "line": 490,
+        "severity": "non_blocking",
+        "description": "Trend start/end averages are computed from the first/last 7 data points (`slice(0, 7)` / `slice(-7)`) rather than the first/last 7-day calendar windows. With sparse data, this can include points outside the intended weeks and skew trend direction."
+      }
+    ]
+  },
+  "sharedStateObservations": [
+    {
+      "area": "conventions",
+      "observation": "Mission shared state is internally inconsistent about correlations/trend detection scope, which directly influenced implementation behavior.",
+      "evidence": "AGENTS.md:14 forbids P1 features including correlations and trend detection; features.json:781 and 804-810 assigns trend-view-endpoint and marks it as fulfilling VAL-TREND-005; validation-contract.md:251-253 requires computed correlations; worker-transcripts.jsonl:19 shows the worker explicitly choosing to return empty correlations due this conflict."
+    }
+  ],
+  "addressesFailureFrom": null,
+  "summary": "Review failed due to missing correlation computation in /api/views/trend despite the feature being scoped to satisfy VAL-TREND-005."
+}
