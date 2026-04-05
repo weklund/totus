@@ -1,0 +1,229 @@
+{
+  "groupId": "rerun-curl-round3",
+  "testedAt": "2026-04-05T07:40:50.882338Z",
+  "isolation": {
+    "baseUrl": "http://localhost:3100",
+    "postgres": "localhost:5432",
+    "inngest": "http://localhost:8288",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "ownerUser": "user_test_001"
+  },
+  "toolsUsed": ["curl"],
+  "assertions": [
+    {
+      "id": "VAL-NIGHT-004",
+      "title": "Viewer sees only granted metrics and dates",
+      "status": "pass",
+      "steps": [
+        {
+          "action": "Create share grant with allowed_metrics=[rhr,hrv], data_start=2026-03-10, data_end=2026-03-20",
+          "expected": "Share returns a usable grant token",
+          "observed": "201 Created and token returned in share response"
+        },
+        {
+          "action": "GET /api/views/night?date=2026-03-15&metrics=rhr,hrv,sleep_score&grant_token=<GRANT_TOKEN>",
+          "expected": "Only granted metrics returned",
+          "observed": "200; summary keys=[hrv,rhr], baselines keys=[hrv,rhr], non-granted sleep_score omitted"
+        },
+        {
+          "action": "GET /api/views/night?date=2026-03-05 (before grant start) with same grant_token",
+          "expected": "Date is clamped to grant start boundary",
+          "observed": "200; response data.date=2026-03-10"
+        },
+        {
+          "action": "GET /api/views/night?date=2026-03-25 (after grant end) with same grant_token",
+          "expected": "Date is clamped to grant end boundary",
+          "observed": "200; response data.date=2026-03-20"
+        },
+        {
+          "action": "Call with invalid or missing grant_token",
+          "expected": "Unauthorized response",
+          "observed": "invalid token -> 401 UNAUTHORIZED; missing token -> 401 UNAUTHORIZED"
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -X POST http://localhost:3100/api/shares -H 'Content-Type: application/json' --cookie '__session=<OWNER_SESSION>' --data '{...share payload...}'",
+          "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-15&metrics=rhr,hrv,sleep_score&grant_token=<GRANT_TOKEN>'",
+          "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-05&metrics=rhr,hrv,sleep_score&grant_token=<GRANT_TOKEN>'",
+          "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-25&metrics=rhr,hrv,sleep_score&grant_token=<GRANT_TOKEN>'",
+          "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-15&metrics=rhr,hrv,sleep_score&grant_token=invalid_rerun_round3'",
+          "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-15&metrics=rhr,hrv,sleep_score'"
+        ],
+        "statusCodes": {
+          "setupShareCreate": 201,
+          "inRange": 200,
+          "outOfRangeBefore": 200,
+          "outOfRangeAfter": 200,
+          "invalidToken": 401,
+          "missingToken": 401
+        },
+        "keyResponseSnippets": {
+          "inRange": {
+            "date": "2026-03-15",
+            "summaryKeys": ["hrv", "rhr"],
+            "baselinesKeys": ["hrv", "rhr"]
+          },
+          "outOfRangeBefore": {
+            "requestedDate": "2026-03-05",
+            "returnedDate": "2026-03-10"
+          },
+          "outOfRangeAfter": {
+            "requestedDate": "2026-03-25",
+            "returnedDate": "2026-03-20"
+          },
+          "invalidTokenError": {
+            "code": "UNAUTHORIZED",
+            "message": "Invalid or expired share token"
+          },
+          "missingTokenError": {
+            "code": "UNAUTHORIZED",
+            "message": "Authentication is required"
+          }
+        },
+        "files": [
+          "api-and-jobs/rerun-curl-round3/setup-share-create-meta.txt",
+          "api-and-jobs/rerun-curl-round3/setup-share-create-response.json",
+          "api-and-jobs/rerun-curl-round3/VAL-NIGHT-004-viewer-grant-inrange-meta.txt",
+          "api-and-jobs/rerun-curl-round3/VAL-NIGHT-004-viewer-grant-inrange-response.json",
+          "api-and-jobs/rerun-curl-round3/VAL-NIGHT-004-viewer-grant-oor-before-meta.txt",
+          "api-and-jobs/rerun-curl-round3/VAL-NIGHT-004-viewer-grant-oor-before-response.json",
+          "api-and-jobs/rerun-curl-round3/VAL-NIGHT-004-viewer-grant-oor-after-meta.txt",
+          "api-and-jobs/rerun-curl-round3/VAL-NIGHT-004-viewer-grant-oor-after-response.json",
+          "api-and-jobs/rerun-curl-round3/VAL-NIGHT-004-viewer-grant-invalid-meta.txt",
+          "api-and-jobs/rerun-curl-round3/VAL-NIGHT-004-viewer-grant-invalid-response.json",
+          "api-and-jobs/rerun-curl-round3/VAL-NIGHT-004-no-auth-no-grant-meta.txt",
+          "api-and-jobs/rerun-curl-round3/VAL-NIGHT-004-no-auth-no-grant-response.json",
+          "api-and-jobs/rerun-curl-round3/round3-evaluation.json",
+          "api-and-jobs/rerun-curl-round3/round3-command-summary.json"
+        ]
+      },
+      "issues": null
+    },
+    {
+      "id": "VAL-TREND-005",
+      "title": "Correlations computed correctly",
+      "status": "fail",
+      "steps": [
+        {
+          "action": "GET /api/views/trend?start=2026-02-27&end=2026-03-28&metrics=rhr,hrv,sleep_score,weight&correlations=rhr:hrv,hrv:sleep_score,rhr:weight",
+          "expected": "Correlation entries include coefficient/strength/direction with bounds [-1,1]",
+          "observed": "200 but data.correlations=[]"
+        },
+        {
+          "action": "Manual Pearson check from returned raw series",
+          "expected": "Response should include results matching computed values",
+          "observed": "Manual values exist (rhr:hrv r=0.9991 over 30 points, hrv:sleep_score r=0.2745 over 30 points) but no response entries"
+        },
+        {
+          "action": "GET sparse pair /api/views/trend?start=2026-03-15&end=2026-03-21&metrics=rhr,weight&correlations=rhr:weight",
+          "expected": "Sparse overlap should return correlation with sufficient_data=false",
+          "observed": "200 but data.correlations=[] (no sparse-data object)"
+        },
+        {
+          "action": "GET /api/views/trend without correlations param",
+          "expected": "Correlations should be omitted when not requested",
+          "observed": "200 and correlations field still present as []"
+        }
+      ],
+      "evidence": {
+        "commands": [
+          "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-02-27&end=2026-03-28&metrics=rhr,hrv,sleep_score,weight&correlations=rhr:hrv,hrv:sleep_score,rhr:weight' --cookie '__session=<OWNER_SESSION>'",
+          "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-03-15&end=2026-03-21&metrics=rhr,weight&correlations=rhr:weight' --cookie '__session=<OWNER_SESSION>'",
+          "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-02-27&end=2026-03-28&metrics=rhr,hrv,sleep_score' --cookie '__session=<OWNER_SESSION>'"
+        ],
+        "statusCodes": {
+          "correlationsRequested": 200,
+          "sparsePairCheck": 200,
+          "withoutCorrelationsParam": 200
+        },
+        "keyResponseSnippets": {
+          "correlationsRequested": {
+            "correlationsCount": 0
+          },
+          "manualPearson": [
+            {
+              "pair": "rhr:hrv",
+              "overlapCount": 30,
+              "pearson": 0.9990988308082107
+            },
+            {
+              "pair": "hrv:sleep_score",
+              "overlapCount": 30,
+              "pearson": 0.2745223837668358
+            },
+            {
+              "pair": "rhr:weight",
+              "overlapCount": 0,
+              "pearson": null
+            }
+          ],
+          "sparsePair": {
+            "correlationsCount": 0
+          },
+          "withoutCorrelationsParam": {
+            "hasCorrelationsField": true,
+            "correlations": []
+          }
+        },
+        "files": [
+          "api-and-jobs/rerun-curl-round3/VAL-TREND-005-owner-correlations-requested-meta.txt",
+          "api-and-jobs/rerun-curl-round3/VAL-TREND-005-owner-correlations-requested-response.json",
+          "api-and-jobs/rerun-curl-round3/VAL-TREND-005-owner-sparse-pair-check-meta.txt",
+          "api-and-jobs/rerun-curl-round3/VAL-TREND-005-owner-sparse-pair-check-response.json",
+          "api-and-jobs/rerun-curl-round3/VAL-TREND-005-owner-no-correlations-param-meta.txt",
+          "api-and-jobs/rerun-curl-round3/VAL-TREND-005-owner-no-correlations-param-response.json",
+          "api-and-jobs/rerun-curl-round3/round3-evaluation.json",
+          "api-and-jobs/rerun-curl-round3/round3-command-summary.json"
+        ]
+      },
+      "issues": "Correlation contract still unmet: no correlation objects are returned when requested, sparse-data behavior cannot be observed (`sufficient_data:false` never emitted), and response still includes `correlations: []` when the parameter is omitted."
+    }
+  ],
+  "commandsRun": [
+    {
+      "command": "npx dotenv -e .env.local -- tsx -e \"import { createSessionToken } from './src/lib/auth/mock-auth'; (async()=>{const t=await createSessionToken('user_test_001'); process.stdout.write(t);})();\"",
+      "exitCode": 0
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' -X POST http://localhost:3100/api/shares -H 'Content-Type: application/json' --cookie '__session=<OWNER_SESSION>' --data '{...share payload...}'",
+      "httpStatus": 201
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-15&metrics=rhr,hrv,sleep_score&grant_token=<GRANT_TOKEN>'",
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-05&metrics=rhr,hrv,sleep_score&grant_token=<GRANT_TOKEN>'",
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-25&metrics=rhr,hrv,sleep_score&grant_token=<GRANT_TOKEN>'",
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-15&metrics=rhr,hrv,sleep_score&grant_token=invalid_rerun_round3'",
+      "httpStatus": 401
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/night?date=2026-03-15&metrics=rhr,hrv,sleep_score'",
+      "httpStatus": 401
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-02-27&end=2026-03-28&metrics=rhr,hrv,sleep_score,weight&correlations=rhr:hrv,hrv:sleep_score,rhr:weight' --cookie '__session=<OWNER_SESSION>'",
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-03-15&end=2026-03-21&metrics=rhr,weight&correlations=rhr:weight' --cookie '__session=<OWNER_SESSION>'",
+      "httpStatus": 200
+    },
+    {
+      "command": "curl -sS -w '\\n__STATUS:%{http_code}\\n__TIME:%{time_total}\\n' 'http://localhost:3100/api/views/trend?start=2026-02-27&end=2026-03-28&metrics=rhr,hrv,sleep_score' --cookie '__session=<OWNER_SESSION>'",
+      "httpStatus": 200
+    }
+  ],
+  "frictions": [],
+  "blockers": [],
+  "summary": "Retested 2 assertions via curl: VAL-NIGHT-004 passed (metric/date scoping with clamp and invalid/missing token auth behavior verified), VAL-TREND-005 failed (correlation objects still not returned; sparse-data and omission contract conditions not satisfied)."
+}
