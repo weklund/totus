@@ -1,44 +1,42 @@
 import { Suspense } from "react";
-import { DashboardContent } from "@/components/dashboard/DashboardContent";
+import { DashboardViewRouter } from "@/components/dashboard/DashboardViewRouter";
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * Dashboard page — RSC shell that renders the DashboardContent client component.
+ * Dashboard page — RSC shell that renders the DashboardViewRouter client component.
  *
+ * URL params control view and date:
+ *   /dashboard?view=night&date=2026-03-28
+ *
+ * Defaults to Night view for the current date on first load.
  * The layout handles auth gating and ViewContext injection.
- * Query params (?connected=oura and ?error=) are handled by DashboardContent
- * via useSearchParams for OAuth callback toasts.
  */
 export default function DashboardPage() {
   return (
     <Suspense fallback={<DashboardSkeleton />}>
-      <DashboardContent />
+      <DashboardViewRouter />
     </Suspense>
   );
 }
 
 function DashboardSkeleton() {
   return (
-    <div className="space-y-6">
-      {/* Toolbar skeleton */}
-      <div className="space-y-4">
-        <div className="flex flex-wrap gap-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-7 w-24 rounded-full" />
-          ))}
+    <div className="space-y-4">
+      {/* DateNavigation skeleton */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <Skeleton className="size-8 rounded-md" />
+          <Skeleton className="h-8 w-40 rounded-md" />
+          <Skeleton className="size-8 rounded-md" />
         </div>
-        <div className="flex gap-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-7 w-12" />
-          ))}
-        </div>
+        <Skeleton className="h-8 w-48 rounded-lg" />
       </div>
-      {/* Chart skeleton */}
-      <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 2 }).map((_, i) => (
-          <Skeleton key={i} className="h-[350px] rounded-lg" />
-        ))}
-      </div>
+      {/* View content skeleton */}
+      <Skeleton className="h-24 w-full rounded-xl" />
+      <Skeleton className="h-20 w-full rounded-lg" />
+      <Skeleton className="h-20 w-full rounded-lg" />
+      <Skeleton className="h-24 w-full rounded-lg" />
+      <Skeleton className="h-16 w-full rounded-xl" />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { format, subDays, parseISO } from "date-fns";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DateNavigation } from "@/components/dashboard/DateNavigation";
@@ -10,8 +10,8 @@ import type { ViewType } from "@/lib/dashboard/types";
 /**
  * Recovery View page — dashboard route for viewing multi-day recovery arcs.
  *
- * Composes DateNavigation at the top with the RecoveryDetailView component.
- * Default range: 5 days ending at the selected date.
+ * Reads date from URL search params for deep-linkable state.
+ * View switching navigates to the main dashboard route with URL params.
  *
  * See: wireframe W2 and scenario S3 (Hard Workout Recovery Arc)
  */
@@ -20,11 +20,8 @@ export default function RecoveryViewPage() {
   const searchParams = useSearchParams();
 
   // Read date from URL search params, default to today
-  const initialDate =
-    searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd");
-  const initialEventId = searchParams.get("event_id") ?? undefined;
-
-  const [date, setDate] = useState(initialDate);
+  const date = searchParams.get("date") ?? format(new Date(), "yyyy-MM-dd");
+  const eventId = searchParams.get("event_id") ?? undefined;
 
   // Recovery view shows a date range. Default to 5 days ending at the selected date.
   const dateRange = useMemo(() => {
@@ -43,18 +40,20 @@ export default function RecoveryViewPage() {
     }
   }, [date]);
 
-  const handleDateChange = useCallback((newDate: string) => {
-    setDate(newDate);
-  }, []);
+  const handleDateChange = useCallback(
+    (newDate: string) => {
+      router.replace(`/dashboard?view=recovery&date=${newDate}`, {
+        scroll: false,
+      });
+    },
+    [router],
+  );
 
   const handleViewModeChange = useCallback(
     (mode: ViewType) => {
-      if (mode === "night") {
-        router.push(`/dashboard/night?date=${date}`);
-      } else if (mode === "trend") {
-        router.push(`/dashboard/trend?date=${date}`);
-      }
-      // "recovery" is the current view, no navigation needed
+      router.replace(`/dashboard?view=${mode}&date=${date}`, {
+        scroll: false,
+      });
     },
     [router, date],
   );
@@ -71,7 +70,7 @@ export default function RecoveryViewPage() {
       <RecoveryDetailView
         startDate={dateRange.start}
         endDate={dateRange.end}
-        eventId={initialEventId}
+        eventId={eventId}
         onDateChange={handleDateChange}
         onViewModeChange={handleViewModeChange}
       />

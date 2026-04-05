@@ -31,3 +31,4 @@ export { DateNavigation } from "./DateNavigation";
 export { NightDetailView } from "./NightDetailView";
 export { RecoveryDetailView } from "./RecoveryDetailView";
 export { TrendDetailView } from "./TrendDetailView";
+export { DashboardViewRouter } from "./DashboardViewRouter";

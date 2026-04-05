@@ -49,7 +49,10 @@ export function DashboardShell({ displayName, children }: DashboardShellProps) {
             {NAV_ITEMS.map((item) => {
               const isActive =
                 item.href === "/dashboard"
-                  ? pathname === "/dashboard"
+                  ? pathname === "/dashboard" ||
+                    pathname === "/dashboard/night" ||
+                    pathname === "/dashboard/recovery" ||
+                    pathname === "/dashboard/trend"
                   : pathname.startsWith(item.href);
               return (
                 <Link
@@ -101,7 +104,10 @@ export function DashboardShell({ displayName, children }: DashboardShellProps) {
                   {NAV_ITEMS.map((item) => {
                     const isActive =
                       item.href === "/dashboard"
-                        ? pathname === "/dashboard"
+                        ? pathname === "/dashboard" ||
+                          pathname === "/dashboard/night" ||
+                          pathname === "/dashboard/recovery" ||
+                          pathname === "/dashboard/trend"
                         : pathname.startsWith(item.href);
                     return (
                       <Link
