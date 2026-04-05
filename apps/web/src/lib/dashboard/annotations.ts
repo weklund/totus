@@ -16,6 +16,7 @@ import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Annotation } from "@/lib/dashboard/types";
 import type { EncryptionProvider } from "@/lib/encryption";
 import { userAnnotations, healthDataPeriods } from "@/db/schema";
+import { getMetricsByCategory } from "@/config/metrics";
 
 /**
  * Annotation-to-metric mapping for viewer scoping (LLD §9.2, FR-10.6).
@@ -25,9 +26,16 @@ import { userAnnotations, healthDataPeriods } from "@/db/schema";
  * overlap with the annotation's related metrics.
  *
  * `null` means the annotation is visible with ANY granted metric.
+ *
+ * Per LLD §9.2, meal annotations are visible with "glucose, calories_consumed,
+ * any nutrition metric". We derive the full nutrition metric list dynamically
+ * from config/metrics.ts and add glucose (metabolic category) explicitly.
  */
 export const ANNOTATION_METRIC_MAP: Record<string, string[] | null> = {
-  meal: ["glucose", "calories_consumed"],
+  meal: [
+    "glucose", // metabolic category, included per LLD §9.2
+    ...getMetricsByCategory("nutrition").map((m) => m.id),
+  ],
   workout: ["active_calories", "steps", "heart_rate", "hrv", "rhr"],
   travel: ["sleep_score", "readiness_score", "body_temperature_deviation"],
   alcohol: ["sleep_score", "hrv", "rhr", "deep_sleep", "rem_sleep"],

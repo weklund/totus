@@ -415,6 +415,43 @@ describe("fetchMergedAnnotations", () => {
     expect(result[0]!.label).toBe("Late dinner");
   });
 
+  it("viewer with nutrition metric grant sees meal annotation", async () => {
+    const userRows = [
+      {
+        id: 1,
+        eventType: "meal",
+        labelEncrypted: Buffer.from("Lunch"),
+        noteEncrypted: null,
+        occurredAt: new Date("2026-03-28T12:00:00.000Z"),
+        endedAt: null,
+      },
+      {
+        id: 2,
+        eventType: "workout",
+        labelEncrypted: Buffer.from("10K run"),
+        noteEncrypted: null,
+        occurredAt: new Date("2026-03-28T17:00:00.000Z"),
+        endedAt: new Date("2026-03-28T18:00:00.000Z"),
+      },
+    ];
+
+    const mockDb = createMockDb(userRows, []);
+
+    // Viewer granted protein_g (nutrition metric) → should see meal but not workout
+    const result = await fetchMergedAnnotations(
+      "user_001",
+      "2026-03-28T00:00:00.000Z",
+      "2026-03-29T00:00:00.000Z",
+      mockEncryption,
+      mockDb,
+      ["protein_g"],
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.event_type).toBe("meal");
+    expect(result[0]!.label).toBe("Lunch");
+  });
+
   it("viewer with activity metrics sees workout but not meal", async () => {
     const userRows = [
       {
@@ -758,7 +795,7 @@ describe("isAnnotationVisibleToViewer", () => {
     isAnnotationVisibleToViewer = mod.isAnnotationVisibleToViewer;
   });
 
-  // --- meal → glucose/nutrition metrics ---
+  // --- meal → glucose + all nutrition metrics ---
 
   it("meal visible when viewer has glucose grant", () => {
     expect(isAnnotationVisibleToViewer("meal", ["glucose"])).toBe(true);
@@ -768,6 +805,33 @@ describe("isAnnotationVisibleToViewer", () => {
     expect(isAnnotationVisibleToViewer("meal", ["calories_consumed"])).toBe(
       true,
     );
+  });
+
+  it("meal visible when viewer has any nutrition metric grant", () => {
+    // All nutrition-category metrics should make meal annotations visible
+    const nutritionMetrics = [
+      "protein_g",
+      "carbs_g",
+      "fat_g",
+      "fiber_g",
+      "sugar_g",
+      "saturated_fat_g",
+      "sodium_mg",
+      "potassium_mg",
+      "calcium_mg",
+      "iron_mg",
+      "magnesium_mg",
+      "zinc_mg",
+      "vitamin_a_mcg",
+      "vitamin_c_mg",
+      "vitamin_d_mcg",
+      "vitamin_b12_mcg",
+      "folate_mcg",
+    ];
+
+    for (const metric of nutritionMetrics) {
+      expect(isAnnotationVisibleToViewer("meal", [metric])).toBe(true);
+    }
   });
 
   it("meal NOT visible when viewer only has rhr grant", () => {
