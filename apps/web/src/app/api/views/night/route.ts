@@ -153,13 +153,25 @@ export async function GET(request: Request): Promise<NextResponse> {
     let requestedMetrics = parsed.data.metrics ?? DEFAULT_NIGHT_METRICS;
 
     // Step 3: Enforce permissions (viewer scoping)
+    // For viewers, clamp the requested date to the grant window BEFORE
+    // calling enforcePermissions. Per VAL-NIGHT-004 and LLD §7.4, dates
+    // outside the grant range are clamped to the nearest boundary, not rejected.
     let effectiveDate = date;
+    if (ctx.role === "viewer") {
+      const permissions = ctx.permissions as ViewerPermissions;
+      if (date < permissions.dataStart) {
+        effectiveDate = permissions.dataStart;
+      } else if (date > permissions.dataEnd) {
+        effectiveDate = permissions.dataEnd;
+      }
+    }
+
     try {
       const scope = enforcePermissions(ctx, {
         userId: ctx.userId,
         metrics: requestedMetrics,
-        startDate: date,
-        endDate: date,
+        startDate: effectiveDate,
+        endDate: effectiveDate,
       });
       requestedMetrics = scope.metrics;
       effectiveDate = scope.startDate; // use clamped date

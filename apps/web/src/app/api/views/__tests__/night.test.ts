@@ -476,16 +476,63 @@ describe("GET /api/views/night", () => {
     }
   });
 
-  it("viewer date clamping: date outside grant range returns 403", async () => {
+  it("viewer date clamping: date after grant end is clamped to grant end date", async () => {
+    // VIEW_DATE = 2026-03-28, grant ends 2026-03-25 → should clamp to 2026-03-25
+    const grantEnd = "2026-03-25";
     const url = buildUrl({ date: VIEW_DATE });
-    // Grant date range doesn't include VIEW_DATE
     const request = createViewerRequest(url, TEST_USER_ID, {
       allowedMetrics: ["rhr", "hrv"],
-      dataStart: "2025-01-01",
-      dataEnd: "2025-06-30",
+      dataStart: "2026-01-01",
+      dataEnd: grantEnd,
     });
     const response = await nightGET(request);
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    // The effective date should be clamped to grant end
+    expect(body.data.date).toBe(grantEnd);
+    // Time range should reflect the clamped date
+    expect(body.data.time_range.end).toContain(grantEnd);
+  });
+
+  it("viewer date clamping: date before grant start is clamped to grant start date", async () => {
+    // Request date 2026-01-15, grant starts 2026-03-01 → should clamp to 2026-03-01
+    const grantStart = "2026-03-01";
+    const url = buildUrl({ date: "2026-01-15" });
+    const request = createViewerRequest(url, TEST_USER_ID, {
+      allowedMetrics: ["rhr", "hrv"],
+      dataStart: grantStart,
+      dataEnd: "2026-12-31",
+    });
+    const response = await nightGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    // The effective date should be clamped to grant start
+    expect(body.data.date).toBe(grantStart);
+    // Time range should reflect the clamped date
+    expect(body.data.time_range.end).toContain(grantStart);
+  });
+
+  it("viewer date clamping: clamped date used for all downstream queries", async () => {
+    // Grant window: 2026-03-25 to 2026-03-28, request 2026-03-30 → clamped to 2026-03-28
+    const grantEnd = VIEW_DATE; // 2026-03-28
+    const url = buildUrl({ date: "2026-03-30" });
+    const request = createViewerRequest(url, TEST_USER_ID, {
+      allowedMetrics: ["rhr", "hrv", "sleep_score"],
+      dataStart: "2026-03-25",
+      dataEnd: grantEnd,
+    });
+    const response = await nightGET(request);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    // The response date should be the clamped date
+    expect(body.data.date).toBe(grantEnd);
+    // Baselines should be present (data exists for clamped date)
+    expect(Object.keys(body.data.baselines).length).toBeGreaterThan(0);
+    // Summary should have data for clamped date
+    expect(Object.keys(body.data.summary).length).toBeGreaterThan(0);
   });
 
   // --- VAL-NIGHT-005: Zod validation rejects invalid parameters ---
@@ -802,24 +849,29 @@ describe("GET /api/views/night", () => {
     expect(response.status).toBe(401);
   });
 
-  it("grant_token: date outside grant window returns 403", async () => {
+  it("grant_token: date outside grant window is clamped to grant end", async () => {
     const rawToken = "test-night-grant-token-daterange-abc";
     const tokenHash = hashToken(rawToken);
 
+    const grantEnd = "2025-06-30";
     await db.insert(shareGrants).values({
       token: tokenHash,
       ownerId: TEST_USER_ID,
       label: "Narrow range share",
       allowedMetrics: ["rhr", "hrv"],
       dataStart: "2025-01-01",
-      dataEnd: "2025-06-30", // VIEW_DATE=2026-03-28 is outside
+      dataEnd: grantEnd, // VIEW_DATE=2026-03-28 is outside → clamped to 2025-06-30
       grantExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
 
     const url = buildUrl({ date: VIEW_DATE, grant_token: rawToken });
     const request = new Request(url, { method: "GET" });
     const response = await nightGET(request);
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    // Date should be clamped to grant end
+    expect(body.data.date).toBe(grantEnd);
   });
 
   it("grant_token: effective clamped date used for response data", async () => {
