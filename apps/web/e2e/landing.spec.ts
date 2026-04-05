@@ -13,14 +13,13 @@ test.describe("Landing page", () => {
     await expect(landing.signInButton).toBeVisible();
   });
 
-  test("renders feature cards", async ({ page }) => {
+  test("renders product demo steps", async ({ page }) => {
     const landing = new LandingPage(page);
     await landing.goto();
 
-    await expect(page.getByText("Interactive Dashboard")).toBeVisible();
-    await expect(page.getByText("Secure Sharing")).toBeVisible();
-    await expect(page.getByText("Complete Audit Trail")).toBeVisible();
-    await expect(page.getByText("You're in Control")).toBeVisible();
+    await expect(page.getByText("Visualize everything")).toBeVisible();
+    await expect(page.getByText("Share with one link")).toBeVisible();
+    await expect(page.getByText("Stay in control")).toBeVisible();
   });
 
   test("Get Started navigates to sign-up", async ({ page }) => {

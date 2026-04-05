@@ -31,3 +31,26 @@ test.describe("Authentication", () => {
     await expect(page).toHaveURL(/\/sign-in/, { timeout: 10_000 });
   });
 });
+
+test.describe("Sign out", () => {
+  test("sign out from dashboard redirects to sign-in", async ({ page }) => {
+    // Start authenticated (uses default storageState from config)
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
+
+    // Open the user dropdown (trigger contains the avatar + display name)
+    await page
+      .locator("header")
+      .getByRole("button")
+      .filter({ has: page.locator(".rounded-full") })
+      .click();
+    await page.getByRole("menuitem", { name: /sign out/i }).click();
+
+    // Should redirect to sign-in
+    await expect(page).toHaveURL(/\/sign-in/, { timeout: 10_000 });
+
+    // Verify we're actually signed out — navigating back should not work
+    await page.goto("/dashboard");
+    await expect(page).toHaveURL(/\/sign-in/, { timeout: 10_000 });
+  });
+});
