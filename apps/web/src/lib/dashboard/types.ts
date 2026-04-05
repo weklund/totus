@@ -32,6 +32,9 @@ export interface BaselinePayload {
 /**
  * Summary metric with delta from baseline, polarity-aware direction,
  * and z-score-based status classification.
+ *
+ * When baseline history is insufficient (sample_count < 14), delta, delta_pct
+ * are set to null and direction is "neutral" to avoid misleading comparisons.
  */
 export interface SummaryMetric {
   /** Current metric value */
@@ -40,11 +43,11 @@ export interface SummaryMetric {
   avg_30d: number;
   /** 30-day population standard deviation from baseline */
   stddev_30d: number;
-  /** value - avg_30d */
-  delta: number;
-  /** ((value - avg_30d) / avg_30d) × 100 */
-  delta_pct: number;
-  /** Polarity-aware direction: "better" | "worse" | "neutral" */
+  /** value - avg_30d (null when insufficient baseline history) */
+  delta: number | null;
+  /** ((value - avg_30d) / avg_30d) × 100 (null when insufficient baseline history) */
+  delta_pct: number | null;
+  /** Polarity-aware direction: "better" | "worse" | "neutral" (neutral when insufficient baseline history) */
   direction: "better" | "worse" | "neutral";
   /** Z-score-based status classification */
   status: "critical" | "warning" | "normal" | "good";

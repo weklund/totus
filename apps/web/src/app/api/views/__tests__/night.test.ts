@@ -1,5 +1,5 @@
 import type { Pool as PoolType } from "pg";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   afterAll,
   afterEach,
@@ -367,6 +367,15 @@ function buildUrl(params: Record<string, string>): string {
 }
 
 async function callNightView(
+  params: Record<string, string>,
+  userId: string,
+): Promise<Response> {
+  const url = buildUrl(params);
+  const request = createOwnerRequest(url, userId);
+  return nightGET(request);
+}
+
+async function callNightViewWithTimezone(
   params: Record<string, string>,
   userId: string,
 ): Promise<Response> {
@@ -897,5 +906,234 @@ describe("GET /api/views/night", () => {
     const body = await response.json();
     // The response date should be the effective (possibly clamped) date
     expect(body.data.date).toBe(VIEW_DATE);
+  });
+
+  // --- VAL-CROSS-024: Annotation overlap — duration annotations spanning night boundary ---
+
+  it("includes annotation whose ended_at overlaps with the night window start", async () => {
+    // Create an annotation that starts BEFORE the night window but ends AFTER the start.
+    // Night window for 2026-03-28: Mar 27 8PM to Mar 28 8AM.
+    // Annotation: 7PM to 8:30PM on Mar 27 — straddles the 8PM boundary.
+    const encryption = createEncryptionProvider();
+    const labelEnc = await encryption.encrypt(
+      Buffer.from("Evening workout 🏋️"),
+      TEST_USER_ID,
+    );
+    await db.insert(userAnnotations).values({
+      userId: TEST_USER_ID,
+      eventType: "workout",
+      labelEncrypted: labelEnc,
+      noteEncrypted: null,
+      occurredAt: new Date("2026-03-27T19:00:00.000Z"), // 7 PM — before window
+      endedAt: new Date("2026-03-27T20:30:00.000Z"), // 8:30 PM — after window start
+    });
+
+    const response = await callNightView({ date: VIEW_DATE }, TEST_USER_ID);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    const annotations = body.data.annotations as Array<{
+      event_type: string;
+      label: string;
+      ended_at: string;
+    }>;
+
+    // The workout annotation should be present because its duration spans into the window
+    const workoutAnnotation = annotations.find(
+      (a) => a.event_type === "workout" && a.label.includes("Evening workout"),
+    );
+    expect(workoutAnnotation).toBeDefined();
+    expect(workoutAnnotation!.ended_at).toContain("20:30");
+  });
+
+  it("excludes annotation that ended before the night window start", async () => {
+    // Annotation: 6PM to 7PM on Mar 27 — ends BEFORE the 8PM window start.
+    const encryption = createEncryptionProvider();
+    const labelEnc = await encryption.encrypt(
+      Buffer.from("Afternoon meeting"),
+      TEST_USER_ID,
+    );
+    await db.insert(userAnnotations).values({
+      userId: TEST_USER_ID,
+      eventType: "custom",
+      labelEncrypted: labelEnc,
+      noteEncrypted: null,
+      occurredAt: new Date("2026-03-27T18:00:00.000Z"), // 6 PM
+      endedAt: new Date("2026-03-27T19:00:00.000Z"), // 7 PM — before window start
+    });
+
+    const response = await callNightView({ date: VIEW_DATE }, TEST_USER_ID);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    const annotations = body.data.annotations as Array<{
+      event_type: string;
+      label: string;
+    }>;
+
+    // Should NOT include the afternoon meeting (ended before window)
+    const meeting = annotations.find((a) =>
+      a.label.includes("Afternoon meeting"),
+    );
+    expect(meeting).toBeUndefined();
+  });
+
+  // --- VAL-CROSS-021: Night window timezone awareness ---
+
+  it("timezone parameter shifts the night window (America/Los_Angeles)", async () => {
+    // For America/Los_Angeles on 2026-03-28 (PDT, UTC-7, DST in effect since Mar 8):
+    // Local 8PM Mar 27 PDT = UTC 3AM Mar 28 (20:00 + 7:00)
+    // Local 8AM Mar 28 PDT = UTC 3PM Mar 28 (08:00 + 7:00)
+    // Window shifts from [Mar 27 20:00Z, Mar 28 08:00Z] to [Mar 28 03:00Z, Mar 28 15:00Z]
+    const response = await callNightViewWithTimezone(
+      { date: VIEW_DATE, timezone: "America/Los_Angeles" },
+      TEST_USER_ID,
+    );
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    const tr = body.data.time_range;
+
+    // PDT night window: Mar 28 03:00Z to Mar 28 15:00Z
+    expect(tr.start).toContain("2026-03-28");
+    expect(tr.start).toContain("03:00");
+    expect(tr.end).toContain("2026-03-28");
+    expect(tr.end).toContain("15:00");
+  });
+
+  it("timezone parameter defaults to UTC when not provided", async () => {
+    const response = await callNightView({ date: VIEW_DATE }, TEST_USER_ID);
+    expect(response.status).toBe(200);
+
+    const body = await response.json();
+    const tr = body.data.time_range;
+
+    // Default UTC window: Mar 27 20:00Z to Mar 28 08:00Z
+    expect(tr.start).toContain("2026-03-27");
+    expect(tr.start).toContain("20:00");
+    expect(tr.end).toContain("2026-03-28");
+    expect(tr.end).toContain("08:00");
+  });
+
+  it("invalid timezone returns 400 validation error", async () => {
+    const response = await callNightViewWithTimezone(
+      { date: VIEW_DATE, timezone: "Invalid/Timezone_Name" },
+      TEST_USER_ID,
+    );
+    expect(response.status).toBe(400);
+
+    const body = await response.json();
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("timezone=UTC produces same window as no timezone", async () => {
+    const responseUtc = await callNightViewWithTimezone(
+      { date: VIEW_DATE, timezone: "UTC" },
+      TEST_USER_ID,
+    );
+    const responseDefault = await callNightView(
+      { date: VIEW_DATE },
+      TEST_USER_ID,
+    );
+
+    const bodyUtc = await responseUtc.json();
+    const bodyDefault = await responseDefault.json();
+
+    expect(bodyUtc.data.time_range).toEqual(bodyDefault.data.time_range);
+  });
+
+  // --- VAL-CROSS-018: Minimum history threshold — delta suppressed ---
+
+  it("summary metrics suppress delta/direction with insufficient baseline history", async () => {
+    // Create a new user with only 10 days of data (< 14 threshold)
+    const shortHistoryUser = "night_view_short_hist_001";
+    const SHORT_DATE = "2026-03-28";
+
+    await db
+      .insert(users)
+      .values({
+        id: shortHistoryUser,
+        displayName: "Short History User",
+        kmsKeyArn: "local-dev-key",
+      })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: { displayName: "Short History User", updatedAt: new Date() },
+      });
+
+    // Seed only 10 days of RHR data (< 14 threshold)
+    const encryption = createEncryptionProvider();
+    for (let i = 1; i <= 10; i++) {
+      const date = daysBefore(SHORT_DATE, i);
+      const value = 60 + Math.sin(i) * 3;
+      const encrypted = await encryption.encrypt(
+        Buffer.from(JSON.stringify(value)),
+        shortHistoryUser,
+      );
+      await db
+        .insert(healthDataDaily)
+        .values({
+          userId: shortHistoryUser,
+          metricType: "rhr",
+          date,
+          valueEncrypted: encrypted,
+          source: "oura",
+        })
+        .onConflictDoNothing();
+    }
+
+    // Also seed a daily value for the view date itself
+    const todayValue = 65;
+    const todayEncrypted = await encryption.encrypt(
+      Buffer.from(JSON.stringify(todayValue)),
+      shortHistoryUser,
+    );
+    await db
+      .insert(healthDataDaily)
+      .values({
+        userId: shortHistoryUser,
+        metricType: "rhr",
+        date: SHORT_DATE,
+        valueEncrypted: todayEncrypted,
+        source: "oura",
+      })
+      .onConflictDoNothing();
+
+    try {
+      const response = await callNightView(
+        { date: SHORT_DATE },
+        shortHistoryUser,
+      );
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      const summary = body.data.summary;
+
+      if (summary.rhr) {
+        // If a baseline was computed (sample_count >= 7 but < 14),
+        // delta and delta_pct should be null, direction should be neutral
+        expect(summary.rhr.delta).toBeNull();
+        expect(summary.rhr.delta_pct).toBeNull();
+        expect(summary.rhr.direction).toBe("neutral");
+        expect(summary.rhr.status).toBe("normal");
+        // value and avg should still be present
+        expect(summary.rhr.value).toBe(todayValue);
+        expect(typeof summary.rhr.avg_30d).toBe("number");
+      }
+    } finally {
+      // Clean up
+      await db
+        .delete(healthDataDaily)
+        .where(eq(healthDataDaily.userId, shortHistoryUser));
+      await db
+        .delete(metricBaselines)
+        .where(eq(metricBaselines.userId, shortHistoryUser));
+      await pool
+        .query(`DELETE FROM audit_events WHERE owner_id = $1`, [
+          shortHistoryUser,
+        ])
+        .catch(() => {});
+      await db.delete(users).where(eq(users.id, shortHistoryUser));
+    }
   });
 });

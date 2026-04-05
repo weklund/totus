@@ -11,7 +11,7 @@
  * See: /docs/dashboard-backend-lld.md §9.2
  */
 
-import { and, between, eq } from "drizzle-orm";
+import { and, between, eq, gt, lt, or } from "drizzle-orm";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Annotation } from "@/lib/dashboard/types";
 import type { EncryptionProvider } from "@/lib/encryption";
@@ -96,6 +96,11 @@ export async function fetchMergedAnnotations(
   viewerMetrics?: string[],
 ): Promise<Annotation[]> {
   // Query both sources in parallel
+  // Query both sources in parallel.
+  // Include annotations/periods that overlap with the window:
+  // 1. occurred_at/startedAt is within [startDate, endDate]  (original behaviour)
+  // 2. OR the annotation spans into the window: occurred_at < startDate AND ended_at > startDate
+  //    (VAL-CROSS-024: duration annotation spanning window boundary is included)
   const [userRows, periodRows] = await Promise.all([
     database
       .select({
@@ -110,10 +115,18 @@ export async function fetchMergedAnnotations(
       .where(
         and(
           eq(userAnnotations.userId, userId),
-          between(
-            userAnnotations.occurredAt,
-            new Date(startDate),
-            new Date(endDate),
+          or(
+            // Case 1: occurred_at within window
+            between(
+              userAnnotations.occurredAt,
+              new Date(startDate),
+              new Date(endDate),
+            ),
+            // Case 2: spans into window (occurred before, ended after window start)
+            and(
+              lt(userAnnotations.occurredAt, new Date(startDate)),
+              gt(userAnnotations.endedAt, new Date(startDate)),
+            ),
           ),
         ),
       ),
@@ -128,10 +141,18 @@ export async function fetchMergedAnnotations(
       .where(
         and(
           eq(healthDataPeriods.userId, userId),
-          between(
-            healthDataPeriods.startedAt,
-            new Date(startDate),
-            new Date(endDate),
+          or(
+            // Case 1: startedAt within window
+            between(
+              healthDataPeriods.startedAt,
+              new Date(startDate),
+              new Date(endDate),
+            ),
+            // Case 2: spans into window (started before, ended after window start)
+            and(
+              lt(healthDataPeriods.startedAt, new Date(startDate)),
+              gt(healthDataPeriods.endedAt, new Date(startDate)),
+            ),
           ),
         ),
       ),

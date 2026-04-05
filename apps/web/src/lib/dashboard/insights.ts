@@ -116,7 +116,7 @@ const P0_RULES: InsightRule[] = [
       return {
         type: "elevated_rhr",
         title: "Elevated resting heart rate",
-        body: `Your resting HR was ${rhr.value} bpm, ${Math.abs(rhr.delta)} bpm ${rhr.delta > 0 ? "above" : "below"} your 30-day average of ${rhr.avg_30d} bpm.`,
+        body: `Your resting HR was ${rhr.value} bpm, ${Math.abs(rhr.delta ?? 0)} bpm ${(rhr.delta ?? 0) > 0 ? "above" : "below"} your 30-day average of ${rhr.avg_30d} bpm.`,
         related_metrics: ["rhr"],
         severity: rhr.status === "critical" ? "warning" : "info",
         dismissible: true,
@@ -141,7 +141,7 @@ const P0_RULES: InsightRule[] = [
       return {
         type: "low_sleep_score",
         title: "Below-average sleep score",
-        body: `Your sleep score was ${sleepScore.value}, ${Math.abs(sleepScore.delta)} points ${sleepScore.delta < 0 ? "below" : "above"} your 30-day average of ${sleepScore.avg_30d}.`,
+        body: `Your sleep score was ${sleepScore.value}, ${Math.abs(sleepScore.delta ?? 0)} points ${(sleepScore.delta ?? 0) < 0 ? "below" : "above"} your 30-day average of ${sleepScore.avg_30d}.`,
         related_metrics: ["sleep_score"],
         severity: sleepScore.status === "critical" ? "warning" : "info",
         dismissible: true,
@@ -161,7 +161,7 @@ const P0_RULES: InsightRule[] = [
       return {
         type: "suppressed_hrv",
         title: "Suppressed heart rate variability",
-        body: `Your HRV was ${hrv.value} ms, ${Math.abs(hrv.delta)} ms ${hrv.delta < 0 ? "below" : "above"} your 30-day average of ${hrv.avg_30d} ms.`,
+        body: `Your HRV was ${hrv.value} ms, ${Math.abs(hrv.delta ?? 0)} ms ${(hrv.delta ?? 0) < 0 ? "below" : "above"} your 30-day average of ${hrv.avg_30d} ms.`,
         related_metrics: ["hrv"],
         severity: hrv.status === "critical" ? "warning" : "info",
         dismissible: true,

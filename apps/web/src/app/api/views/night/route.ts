@@ -88,7 +88,24 @@ const nightViewQuerySchema = z.object({
     .pipe(z.array(z.string().refine(isValidMetricType, "Invalid metric type")))
     .optional(),
   grant_token: z.string().optional(),
+  timezone: z
+    .string()
+    .refine(isValidTimezone, "Invalid IANA timezone identifier")
+    .optional(),
 });
+
+/**
+ * Validate that a string is a valid IANA timezone identifier.
+ * Uses Intl.DateTimeFormat to check validity.
+ */
+function isValidTimezone(tz: string): boolean {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 function isValidDate(dateStr: string): boolean {
   const [year, month, day] = dateStr.split("-").map(Number);
@@ -116,6 +133,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       date: url.searchParams.get("date") ?? undefined,
       metrics: url.searchParams.get("metrics") ?? undefined,
       grant_token: url.searchParams.get("grant_token") ?? undefined,
+      timezone: url.searchParams.get("timezone") ?? undefined,
     };
 
     const parsed = nightViewQuerySchema.safeParse(queryParams);
@@ -149,7 +167,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       throw new ApiError("UNAUTHORIZED", "Authentication is required", 401);
     }
 
-    const { date } = parsed.data;
+    const { date, timezone } = parsed.data;
     let requestedMetrics = parsed.data.metrics ?? DEFAULT_NIGHT_METRICS;
 
     // Step 3: Enforce permissions (viewer scoping)
@@ -182,10 +200,13 @@ export async function GET(request: Request): Promise<NextResponse> {
       throw error;
     }
 
-    // Compute night window: effectiveDate-1 day 20:00 to effectiveDate 08:00 (UTC)
-    const prevDay = dayBefore(effectiveDate);
-    const nightWindowStart = `${prevDay}T20:00:00.000Z`;
-    const nightWindowEnd = `${effectiveDate}T08:00:00.000Z`;
+    // Compute night window: effectiveDate-1 day 20:00 to effectiveDate 08:00
+    // in the user's timezone (default UTC). The local 8 PM–8 AM is converted
+    // to UTC timestamps for database queries.
+    const { start: nightWindowStart, end: nightWindowEnd } = computeNightWindow(
+      effectiveDate,
+      timezone,
+    );
 
     const encryption = createEncryptionProvider();
     const userId = ctx.userId;
@@ -337,6 +358,114 @@ function dayBefore(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().split("T")[0]!;
+}
+
+/**
+ * Compute the night window (8 PM previous day to 8 AM current day) in the
+ * specified timezone, returning UTC ISO strings.
+ *
+ * For UTC (default): date=2026-03-28 → 2026-03-27T20:00:00.000Z to 2026-03-28T08:00:00.000Z
+ * For PST (UTC-8):   date=2026-03-28 → 2026-03-28T04:00:00.000Z to 2026-03-28T16:00:00.000Z
+ *   (8 PM PST = 4 AM UTC next day; 8 AM PST = 4 PM UTC)
+ *
+ * @param dateStr - YYYY-MM-DD date for the night (morning date)
+ * @param tz - IANA timezone identifier (e.g., "America/Los_Angeles"). Default: UTC
+ * @returns Object with `start` and `end` as UTC ISO strings
+ */
+function computeNightWindow(
+  dateStr: string,
+  tz?: string,
+): { start: string; end: string } {
+  if (!tz || tz === "UTC") {
+    // Fast path: no timezone conversion needed
+    const prevDay = dayBefore(dateStr);
+    return {
+      start: `${prevDay}T20:00:00.000Z`,
+      end: `${dateStr}T08:00:00.000Z`,
+    };
+  }
+
+  // Compute the UTC offset for the timezone at the relevant local time.
+  // Night window is local 8 PM (previous day) to local 8 AM (dateStr).
+  //
+  // Strategy: create dates in the target timezone and extract UTC equivalents.
+  // We use the Intl.DateTimeFormat to determine the UTC offset for the timezone.
+  const prevDay = dayBefore(dateStr);
+
+  // Get UTC time for "prevDay 20:00" in the given timezone
+  const startUtc = localTimeToUtc(prevDay, 20, 0, tz);
+  // Get UTC time for "dateStr 08:00" in the given timezone
+  const endUtc = localTimeToUtc(dateStr, 8, 0, tz);
+
+  return {
+    start: startUtc.toISOString(),
+    end: endUtc.toISOString(),
+  };
+}
+
+/**
+ * Convert a local date+time in a timezone to a UTC Date.
+ *
+ * @param dateStr - YYYY-MM-DD date
+ * @param hour - Hour (0-23) in local time
+ * @param minute - Minute (0-59) in local time
+ * @param tz - IANA timezone identifier
+ * @returns UTC Date object
+ */
+function localTimeToUtc(
+  dateStr: string,
+  hour: number,
+  minute: number,
+  tz: string,
+): Date {
+  // Parse the local date components
+  const [year, month, day] = dateStr.split("-").map(Number) as [
+    number,
+    number,
+    number,
+  ];
+
+  // Create a formatter that gives us the UTC offset for this timezone at the local time.
+  // We use a two-pass approach:
+  // 1. Start with a UTC guess and use Intl to find what local time it maps to
+  // 2. Compute the offset and adjust
+
+  // Initial UTC guess: treat local time as UTC
+  const guessUtc = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+
+  // Format the guess in the target timezone to see what local time it becomes
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(guessUtc);
+
+  const getPart = (type: string) =>
+    parseInt(parts.find((p) => p.type === type)?.value ?? "0");
+
+  const localYear = getPart("year");
+  const localMonth = getPart("month");
+  const localDay = getPart("day");
+  const localHour = getPart("hour") === 24 ? 0 : getPart("hour");
+  const localMinute = getPart("minute");
+
+  // Compute difference in milliseconds between the target local time and what guessUtc maps to
+  const targetLocal = new Date(
+    Date.UTC(year, month - 1, day, hour, minute, 0, 0),
+  );
+  const actualLocal = new Date(
+    Date.UTC(localYear, localMonth - 1, localDay, localHour, localMinute, 0, 0),
+  );
+
+  // If guessUtc maps to localHour in the timezone, but we want targetHour,
+  // we need to shift guessUtc by (targetLocal - actualLocal) to compensate.
+  const offsetMs = targetLocal.getTime() - actualLocal.getTime();
+  return new Date(guessUtc.getTime() + offsetMs);
 }
 
 /**

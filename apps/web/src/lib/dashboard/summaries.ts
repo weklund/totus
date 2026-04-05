@@ -16,6 +16,9 @@
 import type { BaselinePayload, SummaryMetric } from "@/lib/dashboard/types";
 import { METRIC_POLARITY, type MetricPolarity } from "@/config/metric-polarity";
 
+/** Minimum number of baseline data points required for meaningful delta/direction. */
+const MIN_HISTORY_THRESHOLD = 14;
+
 /**
  * Compute summary metrics with polarity-aware direction and z-score-based
  * status classification.
@@ -23,6 +26,10 @@ import { METRIC_POLARITY, type MetricPolarity } from "@/config/metric-polarity";
  * For each metric present in both `values` and `baselines`, produces a
  * SummaryMetric. Metrics without a matching baseline are omitted from results.
  * Metrics without a matching value are also omitted.
+ *
+ * When baseline sample_count < 14, delta and delta_pct are suppressed (set to
+ * null) and direction is set to "neutral" to avoid misleading comparisons with
+ * insufficient baseline data (VAL-CROSS-018).
  *
  * @param values - Map of metric type to current value
  * @param baselines - Map of metric type to BaselinePayload (30-day statistics)
@@ -40,7 +47,23 @@ export function computeSummaryMetrics(
       continue; // Omit metrics without baselines
     }
 
-    const { avg_30d, stddev_30d } = baseline;
+    const { avg_30d, stddev_30d, sample_count } = baseline;
+
+    // When sample_count < MIN_HISTORY_THRESHOLD, suppress delta/direction
+    // to avoid misleading comparisons with insufficient baseline data.
+    if (sample_count < MIN_HISTORY_THRESHOLD) {
+      results.set(metricType, {
+        value,
+        avg_30d,
+        stddev_30d,
+        delta: null,
+        delta_pct: null,
+        direction: "neutral",
+        status: "normal",
+      });
+      continue;
+    }
+
     const delta = value - avg_30d;
 
     // delta_pct: use absolute avg to handle negative averages; return 0 for zero avg

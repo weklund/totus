@@ -4,8 +4,8 @@ import { cn } from "@/lib/cn";
 import type { SummaryMetric } from "@/lib/dashboard/types";
 
 interface DeltaBadgeProps {
-  /** The delta value (value - avg_30d) */
-  delta: number;
+  /** The delta value (value - avg_30d). Null when insufficient baseline history. */
+  delta: number | null;
   /** Polarity-aware direction: "better" | "worse" | "neutral" */
   direction: SummaryMetric["direction"];
   /** Display unit (e.g., "bpm", "ms", "min") */
@@ -34,6 +34,11 @@ export function DeltaBadge({
   metricLabel,
   compact = false,
 }: DeltaBadgeProps) {
+  // When delta is null (insufficient baseline history), don't render badge
+  if (delta === null) {
+    return null;
+  }
+
   const isPositive = delta > 0;
   const isZero = delta === 0;
   const arrow = isZero ? "" : isPositive ? "▲" : "▼";

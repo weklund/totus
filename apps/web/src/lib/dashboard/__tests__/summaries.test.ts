@@ -718,4 +718,99 @@ describe("computeSummaryMetrics", () => {
       expect(metric.status).toBe("normal");
     });
   });
+
+  // --- VAL-CROSS-018: Minimum history threshold (sample_count < 14) ---
+
+  describe("minimum history threshold", () => {
+    it("suppresses delta/direction when sample_count < 14", () => {
+      const values = new Map<string, number>([["rhr", 72]]);
+      // sample_count = 10, which is < 14
+      const baselines = new Map<string, BaselinePayload>([
+        ["rhr", makeBaseline(61, 5, 10)],
+      ]);
+
+      const result = computeSummaryMetrics(values, baselines);
+      const rhr = result.get("rhr")!;
+
+      expect(rhr.value).toBe(72);
+      expect(rhr.avg_30d).toBe(61);
+      expect(rhr.delta).toBeNull();
+      expect(rhr.delta_pct).toBeNull();
+      expect(rhr.direction).toBe("neutral");
+      expect(rhr.status).toBe("normal");
+    });
+
+    it("suppresses delta/direction at sample_count = 13 (boundary)", () => {
+      const values = new Map<string, number>([["hrv", 55]]);
+      const baselines = new Map<string, BaselinePayload>([
+        ["hrv", makeBaseline(45, 8, 13)],
+      ]);
+
+      const result = computeSummaryMetrics(values, baselines);
+      const hrv = result.get("hrv")!;
+
+      expect(hrv.delta).toBeNull();
+      expect(hrv.delta_pct).toBeNull();
+      expect(hrv.direction).toBe("neutral");
+      expect(hrv.status).toBe("normal");
+    });
+
+    it("computes delta/direction normally at sample_count = 14 (threshold)", () => {
+      const values = new Map<string, number>([["rhr", 72]]);
+      // sample_count = 14 → meets the threshold
+      const baselines = new Map<string, BaselinePayload>([
+        ["rhr", makeBaseline(61, 5, 14)],
+      ]);
+
+      const result = computeSummaryMetrics(values, baselines);
+      const rhr = result.get("rhr")!;
+
+      expect(rhr.delta).toBeCloseTo(11, 4);
+      expect(rhr.delta_pct).toBeCloseTo((11 / 61) * 100, 2);
+      expect(rhr.direction).toBe("worse"); // lower_is_better, positive delta
+      expect(rhr.status).toBe("critical"); // z = 2.2 > 1.28
+    });
+
+    it("suppresses delta for sample_count = 7 (minimum for baseline existence)", () => {
+      const values = new Map<string, number>([["sleep_score", 90]]);
+      const baselines = new Map<string, BaselinePayload>([
+        ["sleep_score", makeBaseline(78, 6, 7)],
+      ]);
+
+      const result = computeSummaryMetrics(values, baselines);
+      const ss = result.get("sleep_score")!;
+
+      expect(ss.value).toBe(90);
+      expect(ss.avg_30d).toBe(78);
+      expect(ss.delta).toBeNull();
+      expect(ss.delta_pct).toBeNull();
+      expect(ss.direction).toBe("neutral");
+      expect(ss.status).toBe("normal");
+    });
+
+    it("suppresses delta for mixed sample counts (some below, some above threshold)", () => {
+      const values = new Map<string, number>([
+        ["rhr", 72],
+        ["hrv", 55],
+      ]);
+      const baselines = new Map<string, BaselinePayload>([
+        ["rhr", makeBaseline(61, 5, 10)], // below threshold
+        ["hrv", makeBaseline(45, 8, 30)], // above threshold
+      ]);
+
+      const result = computeSummaryMetrics(values, baselines);
+
+      // RHR: suppressed (sample_count = 10 < 14)
+      const rhr = result.get("rhr")!;
+      expect(rhr.delta).toBeNull();
+      expect(rhr.delta_pct).toBeNull();
+      expect(rhr.direction).toBe("neutral");
+
+      // HRV: normal computation (sample_count = 30 >= 14)
+      const hrv = result.get("hrv")!;
+      expect(hrv.delta).toBeCloseTo(10, 4);
+      expect(hrv.delta_pct).not.toBeNull();
+      expect(hrv.direction).toBe("better");
+    });
+  });
 });
