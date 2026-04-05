@@ -28,3 +28,4 @@ export { AnnotationLayer } from "./AnnotationLayer";
 export { SleepHypnogram } from "./SleepHypnogram";
 export type { HypnogramSegment } from "./SleepHypnogram";
 export { DateNavigation } from "./DateNavigation";
+export { NightDetailView } from "./NightDetailView";
