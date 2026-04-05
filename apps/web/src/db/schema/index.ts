@@ -13,6 +13,9 @@ export { metricSourcePreferences } from "./metric-source-preferences";
 export { shareGrants } from "./share-grants";
 export { auditEvents } from "./audit-events";
 export { apiKeys } from "./api-keys";
+export { metricBaselines } from "./metric-baselines";
+export { userAnnotations } from "./user-annotations";
+export { dismissedInsights } from "./dismissed-insights";
 
 // Legacy aliases for backward compatibility during migration
 // These re-export the new names under the old names so existing imports still work.
