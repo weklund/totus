@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useViewContext } from "@/lib/view-context";
+import { useAuth } from "@/lib/auth";
 
 interface HeaderProps {
   displayName?: string;
@@ -20,6 +21,7 @@ interface HeaderProps {
 
 export function Header({ displayName }: HeaderProps) {
   const { role, ownerDisplayName } = useViewContext();
+  const { signOut } = useAuth();
   const { setTheme, resolvedTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
@@ -27,10 +29,7 @@ export function Header({ displayName }: HeaderProps) {
   const pageTitle = getPageTitle(pathname);
 
   async function handleSignOut() {
-    await fetch("/api/auth/sign-out", {
-      method: "POST",
-      credentials: "include",
-    });
+    await signOut();
     router.push("/sign-in");
   }
 
