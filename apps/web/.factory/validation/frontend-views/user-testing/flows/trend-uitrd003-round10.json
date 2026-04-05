@@ -1,0 +1,109 @@
+{
+  "groupId": "trend-uitrd003-round10",
+  "testedAt": "2026-04-05T13:27:00Z",
+  "isolation": {
+    "milestone": "frontend-views",
+    "repoRoot": "/Users/weae1504/Projects/totus/apps/web",
+    "missionDir": "/Users/weae1504/.factory/missions/db9d835a-f2b6-43c1-b3f9-be45e7a2a25a",
+    "appUrl": "http://localhost:3100/dashboard",
+    "assertionIds": ["VAL-UITRD-003"],
+    "browserSessionId": "31e06526ff84__u1",
+    "boundary": "Local dashboard surface with seeded local data only"
+  },
+  "toolsUsed": ["agent-browser", "curl"],
+  "assertionResults": [
+    {
+      "id": "VAL-UITRD-003",
+      "title": "Resolution toggle and range presets work",
+      "status": "pass",
+      "reason": "All contract checks passed with updated semantics: Daily/Weekly/Monthly each changed URL smoothing state, Daily rendered raw dots without line, Weekly used 7-day smoothing, Monthly used 30-day smoothing with equal daily cadence and visibly smoother line behavior than Weekly on trend strips (supported by API smoothing evidence), presets updated time window, and default was 30D + Weekly.",
+      "steps": [
+        {
+          "action": "Open /dashboard?view=trend in assigned session and inspect selected tabs",
+          "expected": "Default state is 30D and Weekly",
+          "observed": "Trend loaded with 30D selected and Weekly selected (URL initially /dashboard?view=trend; default selected-state visible in screenshot)."
+        },
+        {
+          "action": "Toggle to Daily",
+          "expected": "URL smoothing parameter changes and chart shows raw dots only",
+          "observed": "URL updated to smoothing=daily. Daily render stats showed lines=0 and scatterSymbols=90 (raw points only across 3 strips)."
+        },
+        {
+          "action": "Toggle to Weekly",
+          "expected": "URL smoothing parameter changes and chart shows 7-day rolling average",
+          "observed": "URL updated to smoothing=weekly. UI switched to line+raw overlay (lines=3, scatterSymbols=90). Supplemental API evidence returned smoothing=7d with smoothed series populated."
+        },
+        {
+          "action": "Toggle to Monthly",
+          "expected": "URL smoothing parameter changes and chart shows 30-day rolling average (same daily cadence allowed)",
+          "observed": "URL updated to smoothing=monthly. UI retained daily cadence with smoothed line+raw dots (lines=3, scatterSymbols=90). Supplemental API evidence returned smoothing=30d with same point count as weekly (104) and smoother line behavior for key metrics (RHR mean_abs_delta 0.3153 vs 0.5118 weekly; HRV 0.9445 vs 1.4422 weekly)."
+        },
+        {
+          "action": "Exercise 7D preset",
+          "expected": "Time window updates to 7 days",
+          "observed": "URL updated to range=7&smoothing=weekly and chart window changed accordingly."
+        },
+        {
+          "action": "Exercise 30D preset",
+          "expected": "Time window updates to 30 days",
+          "observed": "URL updated to range=30&smoothing=weekly and chart window changed accordingly."
+        },
+        {
+          "action": "Exercise 90D preset",
+          "expected": "Time window updates to 90 days",
+          "observed": "URL updated to range=90&smoothing=weekly and chart window changed accordingly."
+        },
+        {
+          "action": "Exercise 1Y preset",
+          "expected": "Time window updates to 1 year",
+          "observed": "URL updated to range=365&smoothing=weekly and chart window changed accordingly."
+        }
+      ],
+      "evidence": {
+        "screenshots": [
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-default-30D-weekly.png",
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-daily-30D.png",
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-weekly-30D.png",
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-monthly-30D.png",
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-preset-7D-weekly.png",
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-preset-30D-weekly.png",
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-preset-90D-weekly.png",
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-preset-1Y-weekly.png",
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-monthly-1Y.png"
+        ],
+        "consoleErrors": "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-console-errors.txt",
+        "network": {
+          "agentBrowser": "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-agent-browser-network.txt",
+          "supplementalCurl": "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-network-summary.json",
+          "rawResponses": [
+            "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-trend-daily-response.json",
+            "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-trend-weekly-response.json",
+            "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-trend-monthly-response.json"
+          ]
+        },
+        "renderStats": [
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-daily-render-stats.json",
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-weekly-render-stats.json",
+          "frontend-views/trend-uitrd003-round10/VAL-UITRD-003-monthly-render-stats.json"
+        ]
+      },
+      "issues": null
+    }
+  ],
+  "stepsTaken": [
+    "Started agent-browser with required session id 31e06526ff84__u1, authenticated via local mock-auth __session cookie for user_test_001, and opened Trend view at /dashboard.",
+    "Captured screenshots for default, Daily, Weekly, Monthly, and range presets 7D/30D/90D/1Y plus monthly 1Y comparison state.",
+    "Recorded URL transitions for smoothing and range toggles and captured DOM render stats to confirm Daily raw-dot mode vs line modes.",
+    "Checked console errors (none) and captured supplemental authenticated curl evidence because agent-browser network capture returned no requests."
+  ],
+  "frictions": [
+    {
+      "description": "agent-browser network request capture returned no requests for trend API calls.",
+      "resolved": true,
+      "resolution": "Collected equivalent authenticated curl request/response evidence for smoothing=none/7d/30d and saved summary plus raw responses.",
+      "affectedAssertions": ["VAL-UITRD-003"]
+    }
+  ],
+  "blockers": [],
+  "summary": "VAL-UITRD-003 passed: toggles and presets updated URL/time window correctly, Daily rendered raw dots without smoothed line, Weekly mapped to 7-day smoothing, Monthly mapped to 30-day smoothing with same cadence and smoother trend behavior evidence versus Weekly."
+}
