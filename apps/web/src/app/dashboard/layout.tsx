@@ -15,26 +15,7 @@ export default async function DashboardLayout({
 
   // Ensure user exists in our DB (auto-provisions on first Clerk login)
   const dbUser = await ensureUser(userId);
-
-  // Fetch user profile server-side for the display name
-  let displayName = dbUser.displayName ?? "User";
-  try {
-    const profileRes = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/user/profile`,
-      {
-        headers: {
-          Cookie: `__session=${await getSessionCookie()}`,
-        },
-        cache: "no-store",
-      },
-    );
-    if (profileRes.ok) {
-      const profileData = await profileRes.json();
-      displayName = profileData.data?.display_name ?? "User";
-    }
-  } catch {
-    // Fallback to "User" on error
-  }
+  const displayName = dbUser.displayName ?? "User";
 
   const viewContext: ViewContextValue = {
     role: "owner",
@@ -51,14 +32,4 @@ export default async function DashboardLayout({
       <DashboardShell displayName={displayName}>{children}</DashboardShell>
     </ViewContextProvider>
   );
-}
-
-/**
- * Helper to get the session cookie value from the incoming request.
- * Uses Next.js cookies() API.
- */
-async function getSessionCookie(): Promise<string> {
-  const { cookies } = await import("next/headers");
-  const cookieStore = await cookies();
-  return cookieStore.get("__session")?.value ?? "";
 }
